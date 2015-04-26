@@ -104,9 +104,11 @@ void AIPlayer::update() {
 }
 
 void AIPlayer::onIncrementStructures(int itemID) {
+	//fprintf(stderr,"Player %s onIncrementStructures %d!\n", AIPlayer::getPlayername().c_str(),itemID);
 }
 
 void AIPlayer::onDecrementStructures(int itemID, const Coord& location) {
+	//fprintf(stderr,"Player %s onDecrementStructures %d!\n", AIPlayer::getPlayername().c_str(),itemID);
 }
 
 void AIPlayer::onDamage(const ObjectBase* pObject, int damage, Uint32 damagerID) {
@@ -120,13 +122,22 @@ void AIPlayer::onDamage(const ObjectBase* pObject, int damage, Uint32 damagerID)
 	    //scramble some free units to defend
         scrambleUnitsAndDefend(pDamager);
     } else if(pObject->getItemID() == Unit_Harvester) {
-	    //scramble some free units to defend
-        scrambleUnitsAndDefend(pDamager);
+		
+		if (pDamager->getItemID() == Unit_Sandworm) {
+			//scramble some free units to "freighten" the worm
+			fprintf(stderr,"Player %s want to freighten worm %d!\n", AIPlayer::getPlayername().c_str(),pDamager->getObjectID());
+			this->scrambleUnitsAndDefendFromWorm(pDamager,5);
+		}
+		else {
+			//scramble some free units to defend
+			fprintf(stderr,"Player %s want to retaliate on %d!\n", AIPlayer::getPlayername().c_str(),pDamager->getObjectID());
+			scrambleUnitsAndDefend(pDamager);
 
-        if((pDamager != NULL) && pDamager->isInfantry()) {
-            const UnitBase* pUnit = dynamic_cast<const UnitBase*>(pObject);
-            doAttackObject(pUnit, pDamager, false);
-        }
+			if((pDamager != NULL) && pDamager->isInfantry()) {
+				const UnitBase* pUnit = dynamic_cast<const UnitBase*>(pObject);
+				doAttackObject(pUnit, pDamager, false);
+			}
+		}
 	} else if(pObject->isAUnit() && pObject->canAttack(pDamager)) {
         const UnitBase* pUnit = dynamic_cast<const UnitBase*>(pObject);
 
@@ -155,6 +166,68 @@ void AIPlayer::scrambleUnitsAndDefend(const ObjectBase* pIntruder) {
         }
     }
 }
+
+void AIPlayer::scrambleUnitsAndDefend(const ObjectBase* pIntruder, Uint8 number) {
+    RobustList<const UnitBase*>::const_iterator iter;
+    Uint8 a=0;
+    bool retaliate=0;
+    /* Dont retaliate on worm we now have a dedicated smarter function */
+    if((pIntruder->getItemID() == Unit_Sandworm)) return; 
+    
+    for(iter = getUnitList().begin(); iter != getUnitList().end() ; ++iter) {
+        const UnitBase* pUnit = *iter;
+        if(pUnit->isRespondable() && (pUnit->getOwner() == getHouse())) {
+			Uint32 itemID = pUnit->getItemID();
+			bool retaliate_mask = 		 (itemID != Unit_Harvester) && (itemID != Unit_MCV) && (itemID != Unit_Carryall) && (itemID != Unit_Frigate) && (itemID != Unit_Saboteur) && (itemID != Unit_Sandworm);
+			bool retaliate_mask_vs_air = retaliate_mask && ( itemID == Unit_Ornithopter || itemID == Unit_Launcher  || itemID == Unit_Troopers || itemID == Unit_Trooper );
+
+			if (pIntruder->isAFlyingUnit()) {
+				retaliate = retaliate_mask_vs_air;		
+			}
+			else {
+				retaliate = retaliate_mask;			
+			}
+			
+			if((pUnit->getAttackMode() != HUNT) && !pUnit->hasATarget()) {
+				if (retaliate) {
+					doAttackObject(pUnit, pIntruder, true);
+					a++;
+				}
+			}
+			
+        }
+        if (a == number) {
+			
+			fprintf(stderr,"Player %s scrambleUnitsAndDefend %d!\n", AIPlayer::getPlayername().c_str(),a);
+			return;
+		} 
+    }
+    
+}
+
+void AIPlayer::scrambleUnitsAndDefendFromWorm(const ObjectBase* pIntruder, Uint8 number) {
+    RobustList<const UnitBase*>::const_iterator iter;
+    Uint8 a=0;
+    for(iter = getUnitList().begin(); iter != getUnitList().end() ; ++iter) {
+        const UnitBase* pUnit = *iter;
+        if(pUnit->isRespondable() && (pUnit->getOwner() == getHouse())) {
+
+            if((pUnit->getAttackMode() != HUNT) && !pUnit->hasATarget() && pUnit->getItemID() == Unit_Ornithopter) {
+                if((pIntruder->getItemID() == Unit_Sandworm)) {
+                    doAttackObject(pUnit, pIntruder, true);
+                    a++;
+                }
+            }
+        }
+        if (a == number) {
+			
+			fprintf(stderr,"Player %s scrambleUnitsAndDefendFromWorm %d!\n", AIPlayer::getPlayername().c_str(),a);
+			return;
+		} 
+    }
+}
+
+
 
 Coord AIPlayer::findPlaceLocation(Uint32 itemID) {
     int structureSizeX = getStructureSize(itemID).x;
@@ -694,6 +767,7 @@ void AIPlayer::checkAllUnits() {
     for(iter = getUnitList().begin(); iter != getUnitList().end(); ++iter) {
         const UnitBase* pUnit = *iter;
 
+		/* Return harvester and detach a small force to protect */
         if(pUnit->getItemID() == Unit_Sandworm) {
                 RobustList<const UnitBase*>::const_iterator iter2;
                 for(iter2 = getUnitList().begin(); iter2 != getUnitList().end(); ++iter2) {
@@ -706,16 +780,20 @@ void AIPlayer::checkAllUnits() {
                             && !getMap().getTile(pHarvester->getLocation())->isRock()
                             && blockDistance(pUnit->getLocation(), pHarvester->getLocation()) <= 5) {
                             doReturn(pHarvester);
-                            scrambleUnitsAndDefend(pUnit);
+                            scrambleUnitsAndDefend(pUnit,5);
                         }
                     }
                 }
+            continue;
         }
+        
+        
 
         if(pUnit->getOwner() != getHouse()) {
             continue;
         }
-
+        
+		/* Our units */
         switch(pUnit->getItemID()) {
             case Unit_MCV: {
                 const MCV* pMCV = dynamic_cast<const MCV*>(pUnit);
@@ -737,6 +815,7 @@ void AIPlayer::checkAllUnits() {
             } break;
 
             default: {
+				
             } break;
         }
     }

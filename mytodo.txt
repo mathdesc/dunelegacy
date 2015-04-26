@@ -1,0 +1,34 @@
+Getting hand dirty :
+====================
+
+- add a proportionnal retaliaton reponse from threat :
+	- calculate player firepower
+	- calculate player "rapid" firepower
+	- calculate player "air" firepower
+		raid = hit & run
+	- calculate player tobase-raid firepower (sonic,launcher)
+	- calculate player toharvester-raid firepower (air,trike,squad,launcher, light tanks)
+
+- when player cannot retaliate, it s a danger to adress with unit build order of anti-threat unit types
+- when build orders cannot be adress, it s cannot retaliate per se, adress with a structure build order 
+- Opportunity to retaliate is to enhanced (now its auto retaliate, even if this is suicide) :
+		-	 firepower of retaliate squad vs damager's
+		-	 
+
+AI is dumb make it smart
+==========================
+
+- Should acquire intelligence : Know where the spice is, where the enemy is, where to expand
+	- Mapping of the base should focus on  :
+		+ static defensive power
+		+ mobile defensive power,
+		+ raffinery industries 
+		+ power/spice supply (punitive raid or pre-massive attack raid)
+ 		+ unit production facilities (do lower production)
+		+ radar placement (for shutdown)
+	- Build recon squad, make raid to test defense
+		+ balance benefits/risks/costs
+		+ always scout out for new base establishement somewhere (on rock) 
+		+ always scout out for new spice field (which one is controlled by enemy) 
+
+- Should be able to plan build orders correponding to tactics and pragmatically to sketch a big plan strategy

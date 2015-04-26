@@ -54,6 +54,8 @@ private:
 	AIPlayer(InputStream& stream, House* associatedHouse);
 
     void scrambleUnitsAndDefend(const ObjectBase* pIntruder);
+     void scrambleUnitsAndDefend(const ObjectBase* pIntruder, Uint8 number);
+     void scrambleUnitsAndDefendFromWorm(const ObjectBase* pIntruder, Uint8 number);
 
 	Coord findPlaceLocation(Uint32 itemID);
 
