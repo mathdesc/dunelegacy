@@ -1,5 +1,11 @@
 ~*
 *.o
 *.Po
+*.swp
 src/.deps/*
 src/dunelegacy
+doc/
+.settings/
+Makefile
+config.log
+config.status
