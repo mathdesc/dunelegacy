@@ -117,7 +117,7 @@ void Sandworm::attack() {
 
 void Sandworm::deploy(const Coord& newLocation) {
 	UnitBase::deploy(newLocation);
-
+	attackMode = AREAGUARD;
 	respondable = false;
 }
 
@@ -262,7 +262,9 @@ void Sandworm::engageTarget() {
         } else {
             switch(attackMode) {
                 case GUARD:
-                case AREAGUARD:
+                case AREAGUARD: {
+                	maxDistance = getViewRange()*2;
+                } break;
                 case AMBUSH: {
                     maxDistance = getViewRange();
                 } break;
@@ -306,8 +308,6 @@ void Sandworm::sleep() {
 	setActive(false);
 	setVisible(VIS_ALL, false);
 	setForced(false);
-	currentGameMap->removeObjectFromMap(getObjectID());	//no map point will reference now
-	setLocation(NONE, NONE);
 	setHealth(getMaxHealth());
 	kills = 0;
 	drawnFrame = INVALID;
@@ -347,7 +347,7 @@ bool Sandworm::update() {
                 drawnFrame++;
                 if(drawnFrame >= 9) {
                     drawnFrame = INVALID;
-                    if(kills >= 3) {
+                    if(kills >= 10) {				//	mathdesc : number of kills
                         if(sleepOrDie() == false) {
                             return false;
                         }
@@ -371,17 +371,36 @@ bool Sandworm::update() {
 		if(sleepTimer > 0) {
 		    sleepTimer--;
 
-			if(sleepTimer == 0) {
-			    // awaken the worm!
+			if(sleepTimer == 0) {		// awaken the worm!
+			    // Give a small chance to respawn
+				 if (currentGame->randomGen.rand(1, 100) > 75) {
 
-			    for(int tries = 0 ; tries < 1000 ; tries++) {
-                    int x = currentGame->randomGen.rand(0, currentGameMap->getSizeX() - 1);
-                    int y = currentGame->randomGen.rand(0, currentGameMap->getSizeY() - 1);
+					currentGameMap->removeObjectFromMap(getObjectID());	//no map point will reference now
+					setLocation(NONE, NONE);
 
-                    if(canPass(x, y)) {
-                        deploy(currentGameMap->getTile(x, y)->getLocation());
-                        break;
-                    }
+					for(int tries = 0 ; tries < 1000 ; tries++) {
+						int x = currentGame->randomGen.rand(0, currentGameMap->getSizeX() - 1);
+						int y = currentGame->randomGen.rand(0, currentGameMap->getSizeY() - 1);
+
+
+	                    if(canPass(x, y)) {
+	                        deploy(currentGameMap->getTile(x, y)->getLocation());
+	                        break;
+	                    }
+					}
+			    }
+				 // Give a better chance to actually wakeup where it slept (and not to teleport)
+				 // in an attack like way already and set it with the bad hunter mood
+				 else
+			    {
+					 	attackMode = HUNT;
+						setActive(true);
+						drawnFrame=1;
+						attackFrameTimer = SANDWORM_ATTACKFRAMETIME;
+						setRespondable(true);
+						setVisible(VIS_ALL, true);
+						soundPlayer->playSoundAt(Sound_WormAttack, location);
+						primaryWeaponTimer = getWeaponReloadTime()/2;
 			    }
 
                 if(isActive() == false) {
@@ -430,12 +449,16 @@ const ObjectBase* Sandworm::findTarget() const {
 	    float closestDistance = INFINITY;
 
         RobustList<UnitBase*>::const_iterator iter;
-	    for(iter = unitList.begin(); iter != unitList.end(); ++iter) {
+	    for(iter = unitList.begin() ; iter != unitList.end()  ; ++iter) {
 			UnitBase* tempUnit = *iter;
-            if (canAttack(tempUnit)
-				&& (blockDistance(location, tempUnit->getLocation()) < closestDistance)) {
-                closestTarget = tempUnit;
-                closestDistance = blockDistance(location, tempUnit->getLocation());
+			int ItemID = tempUnit->getItemID();
+			// find Heavy unit (worms are attracted by vibrations from far away)
+            if (canAttack(tempUnit) &&  (ItemID == Unit_Harvester || ItemID == Unit_MCV || ItemID == Unit_Devastator || ItemID == Unit_SiegeTank || ItemID == Unit_Tank ) &&
+            		(blockDistance(location, tempUnit->getLocation()) < closestDistance)) {
+                 closestDistance = blockDistance(location, tempUnit->getLocation());
+                 closestTarget = tempUnit;
+                 currentGame->addUrgentMessageToNewsTicker("SandWorm activity reported !");
+
             }
 		}
 	} else {
