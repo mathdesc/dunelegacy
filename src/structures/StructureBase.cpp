@@ -451,6 +451,7 @@ void StructureBase::destroy() {
             for(int i = 0; i < structureSize.x; i++) {
                 Tile* pTile = currentGameMap->getTile(location.x + i, location.y + j);
                 pTile->setDestroyedStructureTile(pDestroyedStructureTiles[DestroyedStructureTilesSizeY*j + i]);
+                pTile->setOwner(NONE);
 
                 Coord position((location.x+i)*TILESIZE + TILESIZE/2, (location.y+j)*TILESIZE + TILESIZE/2);
                 Uint32 explosionID = currentGame->randomGen.getRandOf(2,Explosion_Large1,Explosion_Large2);
