@@ -190,6 +190,20 @@ bool BuilderBase::isWaitingToPlace() const {
 	}
 }
 
+bool BuilderBase::isWaitingToPlaceAI() const {
+	if((currentProducedItem == ItemID_Invalid) || isUnit(currentProducedItem)) {
+		return false;
+	}
+
+
+	const BuildItem* tmp = getBuildItem(currentProducedItem);
+	if(tmp == NULL) {
+		return false;
+	} else {
+		return ((currentProductionQueue.front().aibuild) && productionProgress >= tmp->price);
+	}
+}
+
 
 void BuilderBase::updateProductionProgress() {
     if(currentProducedItem != ItemID_Invalid) {
@@ -474,7 +488,29 @@ void BuilderBase::doProduceItem(Uint32 itemID, bool multipleMode) {
 			    }
 
 				iter->num++;
-				currentProductionQueue.push_back( ProductionQueueItem(itemID, iter->price) );
+				currentProductionQueue.push_back( ProductionQueueItem(itemID, iter->price, false) );
+				if(currentProducedItem == ItemID_Invalid) {
+					productionProgress = 0;
+					currentProducedItem = itemID;
+				}
+			}
+			break;
+		}
+	}
+}
+
+void BuilderBase::doProduceItemAI(Uint32 itemID, bool multipleMode) {
+	std::list<BuildItem>::iterator iter;
+	for(iter = buildList.begin(); iter != buildList.end(); ++iter) {
+		if(iter->itemID == itemID) {
+			for(int i = 0; i < (multipleMode ? 5 : 1); i++) {
+			    if(currentGame->getGameInitSettings().getGameOptions().onlyOnePalace && itemID == Structure_Palace && (iter->num > 0 || owner->getNumItems(Structure_Palace) > 0)) {
+			        // only one palace allowed
+                    return;
+			    }
+
+				iter->num++;
+				currentProductionQueue.push_back( ProductionQueueItem(itemID, iter->price, true) );
 				if(currentProducedItem == ItemID_Invalid) {
 					productionProgress = 0;
 					currentProducedItem = itemID;

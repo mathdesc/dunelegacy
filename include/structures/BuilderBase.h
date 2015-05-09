@@ -59,27 +59,36 @@ public:
 class ProductionQueueItem {
 public:
     ProductionQueueItem()
-     : itemID(0), price(0) {
+     : itemID(0), price(0), aibuild(false) {
 
     }
 
     ProductionQueueItem(Uint32 _ItemID, Uint32 _price)
-     : itemID(_ItemID), price(_price) {
+     : itemID(_ItemID), price(_price), aibuild(false) {
+
+    }
+    ProductionQueueItem(Uint32 _ItemID, Uint32 _price, bool aibuild)
+     : itemID(_ItemID), price(_price), aibuild( aibuild) {
 
     }
 
 	void save(OutputStream& stream) const {
 		stream.writeUint32(itemID);
 		stream.writeUint32(price);
+		stream.writeBool(aibuild);
 	}
 
 	void load(InputStream& stream) {
 		itemID = stream.readUint32();
 		price = stream.readUint32();
+		aibuild = stream.readBool();
 	}
 
     Uint32 itemID;
     Uint32 price;
+
+    /* Queued by AI (1) or player (0)  */
+    bool aibuild;
 };
 
 
@@ -148,6 +157,14 @@ public:
 	virtual void doProduceItem(Uint32 itemID, bool multipleMode = false);
 
 	/**
+        Start production of the specified item (gen by AI)
+        \param  itemID          the item to produce
+        \param  multipleMode    false = 1 item, true = 5 items
+
+	*/
+	virtual void doProduceItemAI(Uint32 itemID, bool multipleMode = false);
+
+	/**
         Cancel production of the specified item.
         \param  itemID          the item to cancel
         \param  multipleMode    false = 1 item, true = 5 items
@@ -176,6 +193,7 @@ public:
 	inline Uint32 getCurrentProducedItem() const { return currentProducedItem; };
 	inline bool isOnHold() const { return bCurrentItemOnHold; };
 	bool isWaitingToPlace() const;
+	bool isWaitingToPlaceAI() const;
 	inline float getProductionProgress() const { return productionProgress; };
 	inline const std::list<BuildItem>& getBuildList() const { return buildList; };
 

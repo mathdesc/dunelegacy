@@ -18,6 +18,10 @@ Getting hand dirty :
 AI is dumb make it smart
 ==========================
 
+
+- Should be able to evaluate threat
+	- notably decide whether an enemy attack is a raid or light one or the big one.b
+
 - Should acquire intelligence : Know where the spice is, where the enemy is, where to expand
 	- Mapping of the base should focus on  :
 		+ static defensive power
@@ -32,3 +36,18 @@ AI is dumb make it smart
 		+ always scout out for new spice field (which one is controlled by enemy) 
 
 - Should be able to plan build orders correponding to tactics and pragmatically to sketch a big plan strategy
+
+        
+        
+        
+Current
+========
+
+1. Harvester behavior concerning threat (worms, enemies)
+- Prevent harvester to go back to spice field if it's under the threat of a sworm (find a new spot)
+	- evaluate spice field threats
+	- new function to find spice not only based on shortest distance
+	
+2. Find target generally find the nearest target (even if not offensive)
+	- particular case of the launcher which try to shoot down caryall instead of tanks/structures
+	- partciular case of the orni, fooling behind caryall instead of tanks/structures

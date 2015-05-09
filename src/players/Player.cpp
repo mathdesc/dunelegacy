@@ -37,6 +37,7 @@
 
 #include <globals.h>
 
+
 Player::Player(House* associatedHouse, std::string playername) : pHouse(associatedHouse), playerID(0), playername(playername) {
 }
 
@@ -89,6 +90,10 @@ const House* Player::getHouse(int houseID) const {
     return currentGame->getHouse(houseID);
 }
 
+void Player::update(){
+
+}
+
 void Player::doRepair(const ObjectBase* pObject) {
     if(pObject->getOwner() == getHouse()) {
         const_cast<ObjectBase*>(pObject)->doRepair();
@@ -114,6 +119,13 @@ bool Player::doUpgrade(const BuilderBase* pBuilder) {
     }
 }
 
+void Player::doProduceItemAI(const BuilderBase* pBuilder, Uint32 itemID) {
+    if(pBuilder->getOwner() == getHouse()) {
+        const_cast<BuilderBase*>(pBuilder)->doProduceItemAI(itemID);
+    } else {
+        fprintf(stderr,"Player %s tries to build some item in a structure he doesn't own!\n", playername.c_str());
+    }
+}
 void Player::doProduceItem(const BuilderBase* pBuilder, Uint32 itemID) {
     if(pBuilder->getOwner() == getHouse()) {
         const_cast<BuilderBase*>(pBuilder)->doProduceItem(itemID);

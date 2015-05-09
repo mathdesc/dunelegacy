@@ -45,6 +45,11 @@ void PlayerFactory::registerAllPlayers() {
                                             std::bind(AIPlayer::create, std::placeholders::_1, std::placeholders::_2, AIPlayer::HARD),
                                             std::bind(AIPlayer::load, std::placeholders::_1, std::placeholders::_2) ));
 
+    playerDataList.push_back( PlayerData(  "AIPlayerVeryHard",
+                                            "AI Player (veryhard)",
+                                            std::bind(AIPlayer::create, std::placeholders::_1, std::placeholders::_2, AIPlayer::VERY_HARD),
+                                            std::bind(AIPlayer::load, std::placeholders::_1, std::placeholders::_2) ));
+
     playerDataList.push_back( PlayerData(  "OldAIPlayerEasy",
                                             "Old AI (easy)",
                                             std::bind(OldAIPlayer::create, std::placeholders::_1, std::placeholders::_2, OldAIPlayer::EASY),

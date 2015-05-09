@@ -24,10 +24,31 @@
 
 #include <SDL.h>
 
+
+#include <DataTypes.h>
+#include <misc/InputStream.h>
+#include <misc/OutputStream.h>
+#include <misc/RobustList.h>
+
 // forward declarations
-class UnitBase;
-class StructureBase;
+class GameInitSettings;
+class Random;
+class Map;
+class House;
 class ObjectBase;
+class StructureBase;
+class BuilderBase;
+class StarPort;
+class ConstructionYard;
+class Palace;
+class TurretBase;
+class UnitBase;
+class Devastator;
+class Harvester;
+class InfantryBase;
+class MCV;
+
+
 
 class HumanPlayer : public Player
 {
@@ -68,6 +89,11 @@ public:
 private:
 	HumanPlayer(House* associatedHouse, std::string playername);
 	HumanPlayer(InputStream& stream, House* associatedHouse);
+	void checkAllUnits();
+	void build();
+	Coord findPlaceLocation(Uint32 itemID);
+	int getNumAdjacentStructureTiles(Coord pos, int structureSizeX, int structureSizeY);
+	std::list<Coord> placeLocations;    ///< Where to place structures;
 };
 
 
