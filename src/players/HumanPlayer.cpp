@@ -108,7 +108,7 @@ void HumanPlayer::build() {
 				 switch (pStructure->getItemID()) {
 					 case Structure_ConstructionYard: {
 						 if(bConstructionYardChecked == false && !pBuilder->isUpgrading()) {
-							 if(getHouse()->getProducedPower() - getHouse()->getPowerRequirement() < 50 && pBuilder->isAvailableToBuild(Structure_WindTrap)) {
+							 if(getHouse()->getNumStructures() > 3 && ((getHouse()->getProducedPower() - getHouse()->getPowerRequirement())*100) / (getHouse()->getPowerRequirement() +1) < 10 && pBuilder->isAvailableToBuild(Structure_WindTrap) ) {
 							      itemID = Structure_WindTrap;
 							      fprintf(stderr,"build windtrap\n");
 							 }
