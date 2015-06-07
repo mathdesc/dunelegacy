@@ -139,7 +139,8 @@ void RepairYard::updateStructureSpecificStuff() {
                 for(iter = unitList.begin(); iter != unitList.end(); ++iter) {
                     UnitBase* unit = *iter;
                     if ((unit->getOwner() == owner) && (unit->getItemID() == Unit_Carryall)) {
-                        if (((Carryall*)unit)->isRespondable() && !((Carryall*)unit)->isBooked()) {
+                    	/* mathdesc : this is a design bug, carryall are created not respondable ! */
+                        if (/*((Carryall*)unit)->isRespondable() &&*/ !((Carryall*)unit)->isBooked()) {
                             pCarryall = (Carryall*)unit;
                         }
                     }
