@@ -46,10 +46,11 @@ public:
 protected:
 	UnitInterface(int objectID) : DefaultObjectInterface(objectID) {
         int color = houseColor[pLocalHouse->getHouseID()];
+        ObjectBase* pObject = currentGame->getObjectManager().getObject(objectID);
 
 		mainHBox.addWidget(HSpacer::create(5));
 
-		buttonVBox.addWidget(VSpacer::create(6));
+		buttonVBox.addWidget(VSpacer::create(20));
 
         moveButton.setSymbol(pGFXManager->getUIGraphic(UI_CursorMove_Zoomlevel0), false);
 		moveButton.setTooltipText(_("Move to a position (Hotkey: M)"));
@@ -69,10 +70,19 @@ protected:
 
         captureButton.setSymbol(pGFXManager->getUIGraphic(UI_CursorCapture_Zoomlevel0), false);
         captureButton.setTooltipText(_("Capture a building (Hotkey: C)"));
-        captureButton.setVisible((itemID == Unit_Soldier) || (itemID == Unit_Trooper));
+        captureButton.setVisible(pObject != NULL && pObject->canCapture());
 		captureButton.setToggleButton(true);
 		captureButton.setOnClick(std::bind(&UnitInterface::onCapture, this));
 		actionHBox.addWidget(&captureButton);
+
+		actionHBox.addWidget(HSpacer::create(3));
+
+		SattackButton.setSymbol(pGFXManager->getUIGraphic(UI_CursorSalveAttack_Zoomlevel0), false);
+		SattackButton.setTooltipText(_("Salvo attack a unit, structure or position (Hotkey: S)"));
+		SattackButton.setVisible(pObject != NULL && pObject->canSalveAttack());
+		SattackButton.setToggleButton(true);
+		SattackButton.setOnClick(std::bind(&UnitInterface::onSalveAttack, this));
+		actionHBox.addWidget(&SattackButton);
 
 		buttonVBox.addWidget(&actionHBox, 28);
 
@@ -165,6 +175,10 @@ protected:
         currentGame->currentCursorMode = Game::CursorMode_Attack;
 	}
 
+	void onSalveAttack() {
+        currentGame->currentCursorMode = Game::CursorMode_SalveAttack;
+	}
+
     void onCapture() {
         currentGame->currentCursorMode = Game::CursorMode_Capture;
 	}
@@ -235,13 +249,19 @@ protected:
 		if(pObject == NULL) {
 			return false;
 		}
+		UnitBase* pUnit = dynamic_cast<UnitBase*>(pObject);
 
         moveButton.setToggleState(currentGame->currentCursorMode == Game::CursorMode_Move);
 		attackButton.setToggleState(currentGame->currentCursorMode == Game::CursorMode_Attack);
+		if (pObject->canSalveAttack()) {
+			SattackButton.setToggleState(currentGame->currentCursorMode == Game::CursorMode_SalveAttack || ( pUnit != NULL && pUnit->isSalving() ));
+		}
 		attackButton.setVisible(pObject->canAttack());
-		captureButton.setToggleState(currentGame->currentCursorMode == Game::CursorMode_Capture);
+		if (pObject->canCapture()) {
+			captureButton.setToggleState(currentGame->currentCursorMode == Game::CursorMode_Capture);
+			captureButton.setVisible(true);
+		}
 
-		UnitBase* pUnit = dynamic_cast<UnitBase*>(pObject);
 		if(pUnit != NULL) {
 			ATTACKMODE AttackMode = pUnit->getAttackMode();
 
@@ -262,6 +282,7 @@ protected:
 
 	SymbolButton    moveButton;
 	SymbolButton    attackButton;
+	SymbolButton    SattackButton;
     SymbolButton    captureButton;
     SymbolButton    returnButton;
     SymbolButton    deployButton;

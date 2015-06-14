@@ -39,6 +39,7 @@ void Trooper::init() {
 
 	numWeapons = 1;
 	bulletType = Bullet_ShellSmall;
+	canCaptureStuff = true;
 
 	graphicID = ObjPic_Trooper;
 	graphic = pGFXManager->getObjPic(graphicID,getOwner()->getHouseID());

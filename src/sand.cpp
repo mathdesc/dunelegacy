@@ -61,7 +61,7 @@ void drawCursor() {
 		dest.y -= dest.h/2;
 	}
 
-	if ((cursorFrame == UI_CursorAttack_Zoomlevel0) || (cursorFrame == UI_CursorMove_Zoomlevel0)) {
+	if ((cursorFrame == UI_CursorAttack_Zoomlevel0) || (cursorFrame == UI_CursorMove_Zoomlevel0) || (cursorFrame == UI_CursorSalveAttack_Zoomlevel0)) {
 		dest.x -= dest.w/2;
 		dest.y -= dest.h/2;
 	}

@@ -60,6 +60,7 @@ UnitBase::UnitBase(House* newOwner) : ObjectBase(newOwner) {
     moving = false;
     turning = false;
     justStoppedMoving = false;
+	salving = false;
     xSpeed = 0.0f;
     ySpeed = 0.0f;
     bumpyOffsetX = 0.0f;
@@ -76,8 +77,12 @@ UnitBase::UnitBase(House* newOwner) : ObjectBase(newOwner) {
 
 	findTargetTimer = 0;
     primaryWeaponTimer = 0;
+    salveWeapon = 0;
 	secondaryWeaponTimer = INVALID;
-
+	for (int i=0; i < salveWeapon  && salveWeapon < MAX_SALVE; i++) {
+		salveWeaponTimer[i] =  (salveWeaponDelay*i)+1;
+	}
+	salveWeaponDelay = 35;
 	deviationTimer = INVALID;
 }
 
@@ -91,7 +96,7 @@ UnitBase::UnitBase(InputStream& stream) : ObjectBase(stream) {
 	attackPos.x = stream.readSint32();
 	attackPos.y = stream.readSint32();
 
-	stream.readBools(&moving, &turning, &justStoppedMoving);
+	stream.readBools(&moving, &turning, &justStoppedMoving, &salving);
 	xSpeed = stream.readFloat();
 	ySpeed = stream.readFloat();
 	bumpyOffsetX = stream.readFloat();
@@ -116,14 +121,17 @@ UnitBase::UnitBase(InputStream& stream) : ObjectBase(stream) {
 	findTargetTimer = stream.readSint32();
 	primaryWeaponTimer = stream.readSint32();
 	secondaryWeaponTimer = stream.readSint32();
-
+	for (int i=0; i  < MAX_SALVE; i++) {
+		salveWeaponTimer[i] = stream.readSint32();
+	}
+	salveWeaponDelay = stream.readSint32();
 	deviationTimer = stream.readSint32();
 }
 
 void UnitBase::init() {
     aUnit = true;
     canAttackStuff = true;
-
+	canCaptureStuff = false;
 	tracked = false;
 	turreted = false;
 	numWeapons = 0;
@@ -151,7 +159,7 @@ void UnitBase::save(OutputStream& stream) const {
 	stream.writeSint32(attackPos.x);
 	stream.writeSint32(attackPos.y);
 
-	stream.writeBools(moving, turning, justStoppedMoving);
+	stream.writeBools(moving, turning, justStoppedMoving,salving);
 	stream.writeFloat(xSpeed);
 	stream.writeFloat(ySpeed);
 	stream.writeFloat(bumpyOffsetX);
@@ -175,7 +183,10 @@ void UnitBase::save(OutputStream& stream) const {
 	stream.writeSint32(findTargetTimer);
 	stream.writeSint32(primaryWeaponTimer);
 	stream.writeSint32(secondaryWeaponTimer);
-
+	for (int i=0; i <  MAX_SALVE; i++) {
+		stream.writeSint32(salveWeaponTimer[i]);
+	}
+	stream.writeSint32(salveWeaponDelay);
 	stream.writeSint32(deviationTimer);
 }
 
@@ -196,6 +207,10 @@ void UnitBase::attack() {
 
 		int currentBulletType = bulletType;
 		Sint32 currentWeaponDamage = currentGame->objectData.data[itemID][originalHouseID].weapondamage;
+		if(bAirBullet && getItemID() == Unit_Launcher) {
+			currentBulletType = Bullet_SmallRocket;
+			currentWeaponDamage *= .75;
+		}
 
 		if(getItemID() == Unit_Trooper) {
 		    // Troopers change weapon type depending on distance
@@ -206,6 +221,7 @@ void UnitBase::attack() {
             }
 		}
 
+
 		if(primaryWeaponTimer == 0) {
 			bulletList.push_back( new Bullet( objectID, &centerPoint, &targetCenterPoint, currentBulletType, currentWeaponDamage, bAirBullet) );
 			playAttackSound();
@@ -214,15 +230,15 @@ void UnitBase::attack() {
 			secondaryWeaponTimer = 15;
 
 			if(attackPos && getItemID() != Unit_SonicTank && currentGameMap->getTile(attackPos)->isSpiceBloom()) {
-                setDestination(location);
-                forced = false;
+				setDestination(location);
+				forced = false;
 				attackPos.invalidate();
 			}
 
-            // shorten deviation time
-            if(deviationTimer > 0) {
-                deviationTimer = std::max(0,deviationTimer - MILLI2CYCLES(20*1000));
-            }
+			// shorten deviation time
+			if(deviationTimer > 0) {
+				deviationTimer = std::max(0,deviationTimer - MILLI2CYCLES(20*1000));
+			}
 		}
 
 		if((numWeapons == 2) && (secondaryWeaponTimer == 0) && (isBadlyDamaged() == false)) {
@@ -230,16 +246,74 @@ void UnitBase::attack() {
 			playAttackSound();
 			secondaryWeaponTimer = -1;
 
-            if(attackPos && getItemID() != Unit_SonicTank && currentGameMap->getTile(attackPos)->isSpiceBloom()) {
-                setDestination(location);
-                forced = false;
+			if(attackPos && getItemID() != Unit_SonicTank && currentGameMap->getTile(attackPos)->isSpiceBloom()) {
+				setDestination(location);
+				forced = false;
 				attackPos.invalidate();
 			}
 
-            // shorten deviation time
-            if(deviationTimer > 0) {
-                deviationTimer = std::max(0,deviationTimer - MILLI2CYCLES(20*1000));
-            }
+			// shorten deviation time
+			if(deviationTimer > 0) {
+				deviationTimer = std::max(0,deviationTimer - MILLI2CYCLES(20*1000));
+			}
+		}
+
+
+
+		if (salveWeapon && salving) {
+			salveAttack(attackPos,targetCenterPoint);
+		}
+
+
+	}
+
+}
+
+void UnitBase::salveAttack(Coord Pos, Coord Target) {
+
+	if (!salveWeapon || !salving) {
+		fprintf(stderr,"UnitBase::salveAttack no more salving\n");
+		return;
+	}
+
+
+	for (int i=0; i < salveWeapon  && salveWeapon < MAX_SALVE; i++) {
+		if((salveWeaponTimer[i] <= 0) && (isBadlyDamaged() == false) && salveWeaponDelay <= 0) {
+			Coord centerPoint = getCenterPoint();
+			Coord targetCenterPoint;
+			bool bAirBullet;
+			int currentBulletType = bulletType;
+			Sint32 currentWeaponDamage = currentGame->objectData.data[itemID][originalHouseID].weapondamage / salveWeapon;
+
+			if (target && target.getObjPointer() != NULL) {
+				targetCenterPoint = target.getObjPointer()->getClosestCenterPoint(location);
+				targetDistance = blockDistance(location, targetCenterPoint);
+				fprintf(stderr,"UnitBase::salveAttack targetdistance %lf weaponreach %d\n",targetDistance,getWeaponRange() );
+			}
+
+
+			if (currentGameMap->tileExists(Pos)){
+				targetCenterPoint = currentGameMap->getTile(Pos)->getCenterPoint();
+				bAirBullet = false;
+			} else if(currentGameMap->tileExists(Target)) {
+				targetCenterPoint = currentGameMap->getTile(Target)->getCenterPoint();
+				bAirBullet = false;
+			} else if (target.getObjPointer() != NULL) {
+				targetCenterPoint = target.getObjPointer()->getClosestCenterPoint(location);
+				bAirBullet = target.getObjPointer()->isAFlyingUnit();
+			} else {
+				fprintf(stderr,"UnitBase::salveAttack cannot be done !\n");
+				return;
+			}
+
+
+
+				bulletList.push_back( new Bullet( objectID, &centerPoint, &targetCenterPoint, currentBulletType, currentWeaponDamage, bAirBullet) );
+				playAttackSound();
+				salveWeaponDelay = 35;
+				salveWeaponTimer[i] = getWeaponReloadTime()+salveWeaponDelay*i;
+				primaryWeaponTimer = getWeaponReloadTime();
+
 		}
 	}
 }
@@ -378,21 +452,51 @@ void UnitBase::drawOtherPlayerSelectionBox() {
 
 
 void UnitBase::releaseTarget() {
+	/*  Mathdesc : IMO whether forced or not
+	 *  it should be allowed to return to guardpoint (as a retreat point)
+	 *  otherwise forced units scatters in the wilderness
     if(forced == true) {
         guardPoint = location;
     }
+    */
     setDestination(guardPoint);
 
     findTargetTimer = 0;
     setForced(false);
     setTarget(NULL);
+    if (salving) salving=false;
 }
+
+
+bool UnitBase::checkSalveRealoaded(bool stillSalvingWhenReloaded) {
+	bool cant_while_salve_reload = false;
+
+	if (salveWeapon > 0) {
+		for (int i=0; i < salveWeapon  && salveWeapon < MAX_SALVE; i++) {
+			if (salveWeaponTimer[i] > salveWeaponDelay*i+salveWeaponDelay)  {
+				cant_while_salve_reload = true;
+				break;
+			}
+		}
+		if (!cant_while_salve_reload) salving = stillSalvingWhenReloaded;
+	}
+	return !cant_while_salve_reload;
+}
+
 
 void UnitBase::engageTarget() {
 
     if(target && (target.getObjPointer() == NULL)) {
         // the target does not exist anymore
-        releaseTarget();
+    	if (!salving) {
+    		releaseTarget();
+    	} else {
+    	     setDestination(location);
+    		 findTargetTimer = 0;
+    		 setForced(false);
+    		 setTarget(NULL);
+    	}
+
         return;
     }
 
@@ -434,6 +538,7 @@ void UnitBase::engageTarget() {
 
         if(bFollow) {
             // we are following someone
+        	if (salving) salving=false;
             setDestination(targetLocation);
             return;
         }
@@ -441,7 +546,13 @@ void UnitBase::engageTarget() {
         if(targetDistance > getWeaponRange()) {
             // we are not in attack range
             // => follow the target
-            setDestination(targetLocation);
+        	if (!salving) {
+        		setDestination(targetLocation);
+        	}
+        	else {
+        		//fprintf(stdout,"UnitBase::engageTarget setting salveattack unreached x=%d y=%d\n ",attackPos.x,attackPos.y);
+                salveAttack(attackPos,targetLocation.Invalid());
+        	}
             return;
         }
 
@@ -458,43 +569,67 @@ void UnitBase::engageTarget() {
             targetAngle = INVALID;
         } else if(attackMode == CAPTURE) {
             // we want to capture the target building
+        	if (salving) salving=false;
             setDestination(targetLocation);
             targetAngle = INVALID;
         } else if(isTracked() && target.getObjPointer()->isInfantry() && currentGameMap->tileExists(targetLocation) && !currentGameMap->getTile(targetLocation)->isMountain() && forced) {
             // we squash the infantry unit because we are forced to
+        	if (salving) salving=false;
             setDestination(targetLocation);
             targetAngle = INVALID;
         } else {
             // we decide to fire on the target thus we can stop moving
             setDestination(location);
-            targetAngle = newTargetAngle;
+            if (checkSalveRealoaded(salving)) {
+            	targetAngle = newTargetAngle;
+            	//fprintf(stdout,"UnitBase::engageTarget get new angle (salving %s)\n",salving ? "yes" :"no");
+            }
         }
+        attackPos = targetLocation;
 
-        if(getCurrentAttackAngle() == newTargetAngle) {
+        if (salving && (targetAngle == newTargetAngle)) {
+        		attackPos = targetLocation;					// Saving attackPos when target become unreachable
+               	//fprintf(stdout,"UnitBase::engageTarget setting salveattack on TARGET x=%d y=%d\n ",attackPos.x,attackPos.y);
+               	salveAttack(attackPos,targetLocation);
+               	return;
+        }
+        if (salving && targetAngle != newTargetAngle) {
+               	//fprintf(stdout,"UnitBase::engageTarget setting salveattack on POSITION x=%d y=%d\n ",attackPos.x,attackPos.y);
+               	salveAttack(attackPos,targetLocation.Invalid());
+               	return;
+        }
+        if(!salving && getCurrentAttackAngle() == newTargetAngle) {
+        	//fprintf(stderr,"nosalving attack x=%d y=%d!\n",targetLocation.x,targetLocation.y);
             attack();
         }
 
-    } else if(attackPos) {
+    }
+    else if(attackPos.isValid()) {
         // we attack a position
 
-        targetDistance = blockDistance(location, attackPos);
 
-        Sint8 newTargetAngle = lround(8.0f/256.0f*destinationAngle(location, attackPos));
-        if(newTargetAngle == 8) {
-            newTargetAngle = 0;
-        }
+    	        targetDistance = blockDistance(location, attackPos);
 
-        if(targetDistance <= getWeaponRange()) {
-            // we are in weapon range thus we can stop moving
-            setDestination(location);
-            targetAngle = newTargetAngle;
+    	        Sint8 newTargetAngle = lround(8.0f/256.0f*destinationAngle(location, attackPos));
+    	        if(newTargetAngle == 8) {
+    	            newTargetAngle = 0;
+    	        }
 
-            if(getCurrentAttackAngle() == newTargetAngle) {
-                attack();
-            }
-        } else {
-            targetAngle = INVALID;
-        }
+    	        if(targetDistance <= getWeaponRange()) {
+    	            // we are in weapon range thus we can stop moving
+    	            setDestination(location);
+    	            targetAngle = newTargetAngle;
+
+    	            if(getCurrentAttackAngle() == newTargetAngle ) {
+    	            	//fprintf(stderr,"attackPos (x=%d,y=%d) attack \n ",attackPos.x,attackPos.y);
+    	                attack();
+    	            }
+    	        } else {
+
+    	            targetAngle = INVALID;
+    	        }
+
+
     }
 }
 
@@ -503,6 +638,13 @@ void UnitBase::move() {
 	if(!moving && !justStoppedMoving && (isAFlyingUnit() == false) && currentGame->randomGen.rand(0,40) == 0 && itemID != Unit_Sandworm) {
 		currentGameMap->viewMap(owner->getTeam(), location, getViewRange() );
 	}
+
+	if (salveWeapon >= 1 && !checkSalveRealoaded(salving)) {
+		//  fprintf(stdout,"UnitBase::move cancel whist salving (salving:%s) \n",salving ? "keepfiring" :"canceled");
+		return;
+	}
+
+	//if (isSelected()) fprintf(stdout,"UnitBase::move done (moving:%s justStoppedMoving:%s)\n", moving ? "y" : "n", justStoppedMoving ? "y" : "n");
 
 	if(moving && !justStoppedMoving) {
 		if((isBadlyDamaged() == false) || isAFlyingUnit()) {
@@ -709,6 +851,23 @@ void UnitBase::handleActionClick(int xPos, int yPos) {
 	}
 }
 
+void UnitBase::handleSalveAttackClick(int xPos, int yPos) {
+	if(respondable) {
+		if(currentGameMap->tileExists(xPos, yPos)) {
+			if(currentGameMap->getTile(xPos,yPos)->hasAnObject()) {
+				// attack unit/structure or move to structure
+				ObjectBase* tempTarget = currentGameMap->getTile(xPos,yPos)->getObject();
+
+				currentGame->getCommandManager().addCommand(Command(pLocalPlayer->getPlayerID(), CMD_UNIT_SALVEATTACKOBJECT,objectID,tempTarget->getObjectID()));
+			} else {
+				// attack pos
+				currentGame->getCommandManager().addCommand(Command(pLocalPlayer->getPlayerID(), CMD_UNIT_SALVEATTACKPOS,objectID,(Uint32) xPos, (Uint32) yPos, (Uint32) true));
+			}
+		}
+	}
+
+}
+
 void UnitBase::handleAttackClick(int xPos, int yPos) {
 	if(respondable) {
 		if(currentGameMap->tileExists(xPos, yPos)) {
@@ -788,6 +947,22 @@ void UnitBase::doMove2Object(Uint32 targetObjectID) {
 	doMove2Object(pObject);
 }
 
+void UnitBase::doSalveAttackPos(int xPos, int yPos, bool bForced) {
+    if(attackMode == CAPTURE) {
+        doSetAttackMode(GUARD);
+	}
+
+	setDestination(xPos,yPos);
+	setTarget(NULL);
+	setForced(bForced);
+	attackPos.x = xPos;
+	attackPos.y = yPos;
+	fprintf(stderr,"UnitBase::doSalveAttackPos (x=%d,y=%d)  \n ",xPos,yPos);
+	salving = true;
+	clearPath();
+	findTargetTimer = 0;
+}
+
 void UnitBase::doAttackPos(int xPos, int yPos, bool bForced) {
     if(attackMode == CAPTURE) {
         doSetAttackMode(GUARD);
@@ -798,7 +973,8 @@ void UnitBase::doAttackPos(int xPos, int yPos, bool bForced) {
 	setForced(bForced);
 	attackPos.x = xPos;
 	attackPos.y = yPos;
-
+	fprintf(stderr,"UnitBase::doAttackPos (x=%d,y=%d)  \n ",xPos,yPos);
+	salving = false;
 	clearPath();
 	findTargetTimer = 0;
 }
@@ -823,9 +999,25 @@ void UnitBase::doAttackObject(const ObjectBase* pTargetObject, bool bForced) {
 
 
 	setForced(bForced);
-
 	clearPath();
 	findTargetTimer = 0;
+}
+
+void UnitBase::doSalveAttackObject(Uint32 TargetObjectID, bool bForced) {
+	ObjectBase* pObject = currentGame->getObjectManager().getObject(TargetObjectID);
+
+	if(pObject == NULL) {
+        return;
+	}
+	if (salveWeapon>0) {
+		salving = true;
+		doAttackObject(pObject, bForced);
+	}
+	else {
+		salving = false;
+		doAttackObject(pObject, bForced);
+	}
+	fprintf(stderr,"UnitBase::doSalveAttackObject (id=%d,salving? %s)  \n ",TargetObjectID, salving ? "true" : "false");
 }
 
 void UnitBase::doAttackObject(Uint32 TargetObjectID, bool bForced) {
@@ -834,7 +1026,8 @@ void UnitBase::doAttackObject(Uint32 TargetObjectID, bool bForced) {
 	if(pObject == NULL) {
         return;
 	}
-
+	salving = false;
+	fprintf(stderr,"UnitBase::doAttackObject (id=%d,salving? %s)  \n ",TargetObjectID, salving ? "true" : "false");
     doAttackObject(pObject, bForced);
 }
 
@@ -850,6 +1043,7 @@ void UnitBase::doSetAttackMode(ATTACKMODE newAttackMode) {
 	        doMove2Pos(location, false);
 	    }
 	}
+	salving = false;
 }
 
 void UnitBase::handleDamage(int damage, Uint32 damagerID, House* damagerOwner) {
@@ -1095,6 +1289,8 @@ void UnitBase::setTarget(const ObjectBase* newTarget) {
 
 void UnitBase::targeting() {
     if(findTargetTimer == 0) {
+    	/*if (this->isSelected()) fprintf(stderr,"UnitBase::targeting salving:%s notarget:%s(%d) noattackpos:%s notmoving:%s notjuststopped:%s notforced:%s guardpoint:[%d,%d]\n", salving ? "yes" : "no",!target ? "y" : "n", target.getObjectID(),
+    			!attackPos ? "y" : "n", !moving ? "y" : "n", !justStoppedMoving ? "y" : "n", !forced ? "y" : "n", guardPoint.x ,guardPoint.y);*/
 
         if(attackMode != STOP) {
             if(!target && !attackPos && !moving && !justStoppedMoving && !forced) {
@@ -1133,6 +1329,8 @@ void UnitBase::targeting() {
 void UnitBase::turn() {
 	if(!moving && !justStoppedMoving) {
 		int wantedAngle = INVALID;
+
+		if (salveWeapon >= 1 && !checkSalveRealoaded(salving)) return;
 
         // if we have to decide between moving and shooting we opt for moving
 		if(nextSpotAngle != INVALID) {
@@ -1205,6 +1403,11 @@ bool UnitBase::update() {
         }
     }
 
+    if(isBadlyDamaged()) {
+        salving=false;
+    }
+
+
     if(getHealth() <= 0.0f) {
         destroy();
         return false;
@@ -1220,6 +1423,13 @@ bool UnitBase::update() {
     if(findTargetTimer > 0) findTargetTimer--;
     if(primaryWeaponTimer > 0) primaryWeaponTimer--;
     if(secondaryWeaponTimer > 0) secondaryWeaponTimer--;
+
+
+	for (int i=0; i < salveWeapon  && salveWeapon < MAX_SALVE; i++) {
+		if (salveWeaponTimer[i] > 0) salveWeaponTimer[i]--;
+	}
+	if (salveWeaponDelay > 0 ) salveWeaponDelay--;
+
     if(deviationTimer != INVALID) {
         if(--deviationTimer <= 0) {
             quitDeviation();

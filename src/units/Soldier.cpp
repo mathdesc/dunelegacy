@@ -39,6 +39,7 @@ void Soldier::init() {
 
 	numWeapons = 1;
 	bulletType = Bullet_ShellSmall;
+	canCaptureStuff = true;
 
 	graphicID = ObjPic_Soldier;
 	graphic = pGFXManager->getObjPic(graphicID,getOwner()->getHouseID());

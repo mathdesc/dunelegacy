@@ -443,6 +443,15 @@ private:
     bool handleSelectedObjectsAttackClick(int xPos, int yPos);
 
     /**
+        Performs a salve attack click for the currently selected units/structures.
+        \param  xPos    x-coordinate in map coordinates
+        \param  yPos    x-coordinate in map coordinates
+        \return true if attack is possible
+    */
+    bool handleSelectedObjectsSalveAttackClick(int xPos, int yPos);
+
+
+    /**
         Performs a move click for the currently selected units/structures.
         \param  xPos    x-coordinate in map coordinates
         \param  yPos    x-coordinate in map coordinates
@@ -470,6 +479,7 @@ public:
     enum {
         CursorMode_Normal,
         CursorMode_Attack,
+        CursorMode_SalveAttack,
         CursorMode_Move,
         CursorMode_Capture,
         CursorMode_Placing

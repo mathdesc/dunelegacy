@@ -531,6 +531,14 @@ GFXManager::GFXManager() {
     uiGraphic[UI_CursorAttack_Zoomlevel2][HOUSE_HARKONNEN] = Scaler::defaultTripleTiledSurface(uiGraphic[UI_CursorAttack_Zoomlevel0][HOUSE_HARKONNEN], 1, 1, false);
 	SDL_SetColorKey(uiGraphic[UI_CursorAttack_Zoomlevel2][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, 0);
 
+
+	uiGraphic[UI_CursorSalveAttack_Zoomlevel0][HOUSE_HARKONNEN] = mouse->getPicture(6);
+	SDL_SetColorKey(uiGraphic[UI_CursorSalveAttack_Zoomlevel0][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, 0);
+	uiGraphic[UI_CursorSalveAttack_Zoomlevel1][HOUSE_HARKONNEN] = Scaler::defaultDoubleTiledSurface(uiGraphic[UI_CursorSalveAttack_Zoomlevel0][HOUSE_HARKONNEN], 1, 1, false);
+	SDL_SetColorKey(uiGraphic[UI_CursorAttack_Zoomlevel1][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, 0);
+	uiGraphic[UI_CursorSalveAttack_Zoomlevel2][HOUSE_HARKONNEN] = Scaler::defaultTripleTiledSurface(uiGraphic[UI_CursorSalveAttack_Zoomlevel0][HOUSE_HARKONNEN], 1, 1, false);
+	SDL_SetColorKey(uiGraphic[UI_CursorAttack_Zoomlevel2][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, 0);
+
 	uiGraphic[UI_CursorCapture_Zoomlevel0][HOUSE_HARKONNEN] = SDL_LoadBMP_RW(pFileManager->openFile("Capture.bmp"),true);
 	SDL_SetColorKey(uiGraphic[UI_CursorCapture_Zoomlevel0][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, 0);
     uiGraphic[UI_CursorCapture_Zoomlevel1][HOUSE_HARKONNEN] = Scaler::defaultDoubleTiledSurface(uiGraphic[UI_CursorCapture_Zoomlevel0][HOUSE_HARKONNEN], 1, 1, false);

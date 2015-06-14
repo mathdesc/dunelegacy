@@ -133,6 +133,8 @@ public:
 	inline void setDestination(const Coord& location) { setDestination(location.x, location.y); }
 	inline void setLocation(const Coord& location) { setLocation(location.x, location.y); }
 	inline bool canAttack() const { return canAttackStuff; }
+	inline bool canSalveAttack() const { return canSalveAttackStuff; }
+	inline bool canCapture() const { return canCaptureStuff; }
 	inline bool hasATarget() const { return (target); }
 	inline bool hasObjectID(Uint32 id) const { return (objectID == id); }
 	inline bool isActive() const { return active; }
@@ -195,6 +197,8 @@ protected:
 	bool    infantry;	            ///< Is this an infantry unit?
 
 	bool    canAttackStuff;         ///< Can this unit/structure attack?
+	bool    canSalveAttackStuff;    ///< Can this unit/structure do salvo attack?
+	bool    canCaptureStuff;  			///< Can this unit/structure do capture ?
 
     // object state/properties
 	Uint32  objectID;               ///< The unique object ID of this object

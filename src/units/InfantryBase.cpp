@@ -58,6 +58,7 @@ InfantryBase::InfantryBase(InputStream& stream) : GroundUnit(stream) {
 
 void InfantryBase::init() {
 	infantry = true;
+	canCaptureStuff = false;
 	walkFrame = 0;
 }
 

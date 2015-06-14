@@ -27,6 +27,8 @@
 // forward declarations
 class Tile;
 
+#define MAX_SALVE 10
+
 class UnitBase : public ObjectBase
 {
 public:
@@ -63,6 +65,14 @@ public:
 		\param	yPos	the y position on the map
 	*/
 	virtual void handleAttackClick(int xPos, int yPos);
+
+	/**
+		This method is called when an unit is ordered to salve attack
+		\param	xPos	the x position on the map
+		\param	yPos	the y position on the map
+	*/
+	virtual void handleSalveAttackClick(int xPos, int yPos);
+
 
     /**
 		This method is called when an unit is ordered to move
@@ -113,6 +123,14 @@ public:
 	virtual void doAttackPos(int xPos, int yPos, bool bForced);
 
 	/**
+		This method is called when an unit should attack a position with salve weapon if it has otherwise fallback to doAttackPos
+		\param	xPos	the x position on the map
+		\param	yPos	the y position on the map
+		\param	bForced	true, if the unit should ignore everything else
+	*/
+	virtual void doSalveAttackPos(int xPos, int yPos, bool bForced);
+
+	/**
 		This method is called when an unit should attack to another unit/structure
 		\param	pTargetObject	the target unit/structure
 		\param	bForced	true, if the unit should ignore everything else
@@ -126,6 +144,13 @@ public:
 	*/
 	virtual void doAttackObject(Uint32 TargetObjectID, bool bForced);
 
+	/**
+		This method is called when an unit should attack to another unit/structure using salving weapons
+		if it has some otherwise it fallback to doAttackObject
+		\param	TargetObjectID	the ID of the other unit/structure
+		\param	bForced	true, if the unit should ignore everything else
+	*/
+	virtual void doSalveAttackObject(Uint32 TargetObjectID, bool bForced);
 	/**
 		This method is called when an unit should change it's current attack mode
 		\param	newAttackMode	the new attack mode
@@ -152,7 +177,7 @@ public:
         Is this object in a range we can attack.
         \param  object  the object to check
     */
-	bool isInWeaponRange(const ObjectBase* object) const;
+	virtual bool isInWeaponRange(const ObjectBase* object) const;
 
 	void setAngle(int newAngle);
 
@@ -214,6 +239,8 @@ public:
 
 	inline bool isMoving() const { return moving; }
 
+	inline bool isSalving() const { return salving; }
+
 	inline bool wasDeviated() const { return (owner->getHouseID() != originalHouseID); }
 
 	inline int getAngle() const { return drawnAngle; }
@@ -227,6 +254,8 @@ public:
 protected:
 
 	virtual void attack();
+	virtual void salveAttack(Coord Pos, Coord Target);
+	virtual bool checkSalveRealoaded(bool stillSalvingWhenReloaded);
 
     virtual void releaseTarget();
 	virtual void engageTarget();
@@ -259,6 +288,7 @@ protected:
     bool    tracked;                ///< Does this unit have tracks?
 	bool    turreted;               ///< Does this unit have a turret?
     int     numWeapons;             ///< How many weapons do we have?
+    int 	salveWeapon;
     int     bulletType;             ///< Type of bullet to shot with
 
     // unit state/properties
@@ -272,6 +302,7 @@ protected:
     bool    moving;                 ///< Are we currently moving?
     bool    turning;                ///< Are we currently turning?
     bool    justStoppedMoving;      ///< Do we have just stopped moving?
+    bool	salving;				///< Do the unit is in a salving mode
     float	xSpeed;                 ///< Speed in x direction
     float	ySpeed;                 ///< Speed in y direction
     float   bumpyOffsetX;           ///< The bumpy offset in x direction which is already included in realX
@@ -291,6 +322,8 @@ protected:
     Sint32  findTargetTimer;        ///< When to look for the next target?
 	Sint32  primaryWeaponTimer;     ///< When can the primary weapon shot again?
 	Sint32  secondaryWeaponTimer;   ///< When can the secondary weapon shot again?
+	Sint32	salveWeaponTimer[MAX_SALVE]; ///< When can the salve weapons shot again?
+	Sint32	salveWeaponDelay;			 ///< What is the delay between each salving weapons shot
 
     // deviation
 	Sint32          deviationTimer; ///< When to revert back to the original owner?

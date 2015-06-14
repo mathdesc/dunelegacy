@@ -26,6 +26,8 @@
 #include <Explosion.h>
 #include <ScreenBorder.h>
 #include <SoundPlayer.h>
+#include <Bullet.h>
+
 
 Launcher::Launcher(House* newOwner) : TrackedUnit(newOwner) {
     Launcher::init();
@@ -48,8 +50,15 @@ void Launcher::init() {
 	numImagesX = NUM_ANGLES;
 	numImagesY = 1;
 
-	numWeapons = 2;
+	numWeapons  = 2;
+	salveWeapon = 8;
+	canSalveAttackStuff = true;
+	salveWeaponDelay = 55;
 	bulletType = Bullet_Rocket;
+	for (int i=0; i < salveWeapon  && salveWeapon < MAX_SALVE; i++) {
+		salveWeaponTimer[i] =  (salveWeaponDelay*i)+salveWeaponDelay;
+	}
+	salving = false;
 }
 
 Launcher::~Launcher() {
@@ -102,6 +111,102 @@ void Launcher::destroy() {
     }
 
     TrackedUnit::destroy();
+}
+
+
+void Launcher::salveAttack(Coord Pos, Coord Target) {
+	//fprintf(stderr,"Launcher::salveAttack salveWeaponTimer=%i %i %i %i %i %i %i %i %i %i\n",salveWeaponTimer[0],salveWeaponTimer[1],salveWeaponTimer[2],salveWeaponTimer[3],salveWeaponTimer[4],salveWeaponTimer[5],salveWeaponTimer[6],salveWeaponTimer[7]);
+
+	if (salveWeapon < 1 || !salving) {
+		fprintf(stderr,"Launcher::salveAttack no more salving\n");
+		return;
+	}
+
+	for (int i=0; i < salveWeapon  && salveWeapon < MAX_SALVE; i++) {
+		if((salveWeaponTimer[i] <= 0 ) && (isBadlyDamaged() == false)  && salveWeaponDelay <= 0 ) {
+			Coord targetCenterPoint;
+			Coord centerPoint = getCenterPoint();
+			bool bAirBullet;
+			bool isFogged, isExplored;
+			int currentBulletType;
+			Sint32 currentWeaponDamage;
+
+			if (target && target.getObjPointer() != NULL) {
+				targetCenterPoint = target.getObjPointer()->getClosestCenterPoint(location);
+				targetDistance = blockDistance(location, targetCenterPoint);
+			//	fprintf(stderr,"Launcher::salveAttack targetdistance %lf weaponreach %d targetvalid? %s\n",targetDistance,getWeaponRange(),Target.isValid() ? "true" : "false" );
+			}
+
+			if (target.getObjPointer() != NULL && Target.isValid()) {
+				targetCenterPoint = target.getObjPointer()->getClosestCenterPoint(location);
+				bAirBullet = target.getObjPointer()->isAFlyingUnit();
+				/* Target is "locked" */
+				isFogged = false;
+				isExplored = true;
+			} else if(currentGameMap->tileExists(Target)) {
+				targetCenterPoint = currentGameMap->getTile(Target)->getCenterPoint();
+				bAirBullet = false;
+				isFogged = currentGameMap->getTile(Target)->isFogged(owner->getHouseID());
+				isExplored = currentGameMap->getTile(Target)->isExplored(owner->getHouseID());
+			} else 	if (currentGameMap->tileExists(Pos)){
+				targetCenterPoint = currentGameMap->getTile(Pos)->getCenterPoint();
+				bAirBullet = false;
+				isFogged = currentGameMap->getTile(Pos)->isFogged(owner->getHouseID());
+				isExplored = currentGameMap->getTile(Pos)->isExplored(owner->getHouseID());
+			} else {
+				//fprintf(stderr,"Launcher::salveAttack cannot be done !\n");
+				// Give a chance to navigate to the target if we are able to move
+		        if(checkSalveRealoaded(salving) && currentGame->randomGen.rand(0, 50) == 0) {
+		            navigate();
+
+		        }
+				return;
+			}
+
+
+				bAirBullet ? currentBulletType = Bullet_SmallRocket : currentBulletType = bulletType;
+				bAirBullet ? currentWeaponDamage = currentGame->objectData.data[itemID][originalHouseID].weapondamage / (salveWeapon / 2) :
+							 currentWeaponDamage = currentGame->objectData.data[itemID][originalHouseID].weapondamage / (salveWeapon / 3)  ;
+				int baseweapondmg = currentWeaponDamage;
+				bAirBullet ? salveWeaponTimer[i] = getWeaponReloadTime()+ salveWeaponDelay*.75*i+salveWeaponDelay : salveWeaponTimer[i] = getWeaponReloadTime()+ salveWeaponDelay*i+salveWeaponDelay;
+				/* Damage modifier :
+				 * 	Target is not locked ? (ie. position attack or barrage fire)
+				 * 	Have we gain a stable ground or high point advantage ?
+				 *	Except when target locked decrease damage (to simulate lack of precision) when target is fogged or in unexplored terrain
+				 */
+				if (!(target.getObjPointer() != NULL && Target.isValid())) currentWeaponDamage *= 0.5; else currentWeaponDamage *= 0.75;
+				if ( currentGameMap->getTile(location)->isRock() || currentGameMap->getTile(location)->isDunes() ) currentWeaponDamage *= 1.15 ;
+				if (isFogged) currentWeaponDamage *= .80;
+				if (!isExplored) currentWeaponDamage *= 0.25;
+				/*fprintf(stderr,"Launcher::salveAttack dmg=%i/%i : air? %s locked? %s advg? %s fog? %s expl? %s\n", currentWeaponDamage, baseweapondmg,
+															bAirBullet ? "y" : "n",
+															(target.getObjPointer() != NULL && Target.isValid()) ? "y" : "n" ,
+															( currentGameMap->getTile(location)->isRock() || currentGameMap->getTile(location)->isDunes() ) ? "y" : "n",
+															isFogged ? "y" : "n",
+															isExplored ? "y" : "n"
+				);*/
+
+				salveWeaponDelay = 55;
+				primaryWeaponTimer = getWeaponReloadTime();
+				bulletList.push_back( new Bullet( objectID, &centerPoint, &targetCenterPoint, currentBulletType, currentWeaponDamage, bAirBullet) );
+				playAttackSound();
+
+		}
+	}
+}
+
+/**
+    Is this object in a range we can attack.
+    \param  object  the object to check
+*/
+bool Launcher::isInWeaponRange(const ObjectBase* object) const {
+	   if(object == NULL) {
+	        return false;
+	    }
+
+	    Coord targetLocation = target.getObjPointer()->getClosestPoint(location);
+
+	    return (blockDistance(location, targetLocation) <= getWeaponRange());
 }
 
 bool Launcher::canAttack(const ObjectBase* object) const {

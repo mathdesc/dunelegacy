@@ -150,6 +150,7 @@ void ObjectBase::init() {
 	aBuilder = false;
 
 	canAttackStuff = false;
+	canSalveAttackStuff = false;
 
 	radius = TILESIZE/2;
 
@@ -233,7 +234,7 @@ void ObjectBase::handleDamage(int damage, Uint32 damagerID, House* damagerOwner)
         }
     }
 
-    if(getOwner() == pLocalHouse) {
+    if(getOwner() == pLocalHouse && damagerOwner != pLocalHouse) {
         musicPlayer->changeMusic(MUSIC_ATTACK);
     }
 
@@ -470,6 +471,8 @@ const ObjectBase* ObjectBase::findTarget() const {
 	int	checkRange = 0;
 	int	xPos = location.x;
 	int	yPos = location.y;
+	int tTID;
+	bool prevent_wall, no_caryall;
 
 	float closestDistance = INFINITY;
 
@@ -505,7 +508,7 @@ const ObjectBase* ObjectBase::findTarget() const {
     }
 
     if(getItemID() == Unit_Sandworm) {
-        checkRange = getViewRange();
+        checkRange = getViewRange()*2;
     }
 
 	int xCheck = xPos - checkRange;
@@ -524,8 +527,11 @@ const ObjectBase* ObjectBase::findTarget() const {
 		while((yCheck < currentGameMap->getSizeY()) && ((yCheck - yPos) <=  lookDist[abs(xCheck - xPos)])) {
 			if(currentGameMap->getTile(xCheck,yCheck)->hasAnObject()) {
 				tempTarget = currentGameMap->getTile(xCheck,yCheck)->getObject();
+				tTID = tempTarget->getItemID();
+				prevent_wall = (((tTID != Structure_Wall) || (closestTarget == NULL)) && canAttack(tempTarget));
+				no_caryall = (tTID != Unit_Carryall);
 
-				if(((tempTarget->getItemID() != Structure_Wall) || (closestTarget == NULL)) && canAttack(tempTarget)) {
+				if( prevent_wall && no_caryall) {
 					float targetDistance = blockDistance(location, tempTarget->getLocation());
 					if(targetDistance < closestDistance) {
 						closestTarget = tempTarget;
@@ -539,7 +545,6 @@ const ObjectBase* ObjectBase::findTarget() const {
 
 		xCheck++;
 	}
-
 	return closestTarget;
 }
 

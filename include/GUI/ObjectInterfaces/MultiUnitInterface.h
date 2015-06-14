@@ -56,13 +56,16 @@ protected:
 		topBox.addWidget(&topBoxHBox,Point(0,22),Point(SIDEBARWIDTH - 25,58));
 
 		topBoxHBox.addWidget(Spacer::create());
-		topBoxHBox.addWidget(VSpacer::create(56));
+		//topBoxHBox.addWidget(VSpacer::create(56));
+		topBoxHBox.addWidget(&heraldPicture);
+		heraldPicture.setSurface(pGFXManager->getUIGraphic(UI_Herald_Colored,pLocalHouse->getHouseID()),false);
+
 		topBoxHBox.addWidget(Spacer::create());
 
 
 		mainHBox.addWidget(HSpacer::create(5));
 
-		buttonVBox.addWidget(VSpacer::create(6));
+		buttonVBox.addWidget(VSpacer::create(20));
 
 		moveButton.setSymbol(pGFXManager->getUIGraphic(UI_CursorMove_Zoomlevel0), false);
 		moveButton.setTooltipText(_("Move to a position (Hotkey: M)"));
@@ -85,6 +88,14 @@ protected:
 		captureButton.setToggleButton(true);
 		captureButton.setOnClick(std::bind(&MultiUnitInterface::onCapture, this));
 		actionHBox.addWidget(&captureButton);
+
+		actionHBox.addWidget(HSpacer::create(3));
+
+		SattackButton.setSymbol(pGFXManager->getUIGraphic(UI_CursorSalveAttack_Zoomlevel0), false);
+		SattackButton.setTooltipText(_("Salvo attack a unit, structure or position (Hotkey: S)"));
+		SattackButton.setToggleButton(true);
+		SattackButton.setOnClick(std::bind(&MultiUnitInterface::onSalveAttack, this));
+		actionHBox.addWidget(&SattackButton);
 
 		buttonVBox.addWidget(&actionHBox, 28);
 
@@ -173,6 +184,11 @@ protected:
 	void onAttack() {
         currentGame->currentCursorMode = Game::CursorMode_Attack;
 	}
+
+	void onSalveAttack() {
+        currentGame->currentCursorMode = Game::CursorMode_SalveAttack;
+	}
+
 
     void onCapture() {
         currentGame->currentCursorMode = Game::CursorMode_Capture;
@@ -264,6 +280,8 @@ protected:
 		moveButton.setToggleState(currentGame->currentCursorMode == Game::CursorMode_Move);
 		attackButton.setToggleState(currentGame->currentCursorMode == Game::CursorMode_Attack);
 		captureButton.setToggleState(currentGame->currentCursorMode == Game::CursorMode_Capture);
+		SattackButton.setToggleState(currentGame->currentCursorMode == Game::CursorMode_SalveAttack);
+
 
 		bool bGuard = true;
 		bool bAreaGuard = true;
@@ -272,6 +290,7 @@ protected:
 		bool bHunt = true;
 
         bool bShowAttack = false;
+        bool bShowSalveAttack = false;
         bool bShowCapture = false;
         bool bShowReturn = false;
 		bool bShowDeploy = false;
@@ -293,12 +312,17 @@ protected:
                     bShowAttack = true;
                 }
 
-                switch(pUnit->getItemID()) {
-                    case Unit_Soldier:
-                    case Unit_Trooper: {
-                        bShowCapture = true;
-                    } break;
+                if(pUnit->canSalveAttack() ) {
+                	SattackButton.setToggleState(currentGame->currentCursorMode == Game::CursorMode_SalveAttack || ( pUnit != NULL && pUnit->isSalving() ));
+                    bShowSalveAttack = true;
+                }
 
+                if(pUnit->canCapture()) {
+                	bShowCapture = true;
+                }
+
+
+                switch(pUnit->getItemID()) {
                     case Unit_Harvester: {
                         bShowReturn = true;
                     } break;
@@ -319,6 +343,7 @@ protected:
 		}
 
         attackButton.setVisible(bShowAttack);
+    	SattackButton.setVisible(bShowSalveAttack);
 		captureButton.setVisible(bShowCapture);
 		returnButton.setVisible(bShowReturn);
         deployButton.setVisible(bShowDeploy);
@@ -336,6 +361,7 @@ protected:
 	StaticContainer	topBox;
 	HBox			topBoxHBox;
 	HBox			mainHBox;
+	PictureLabel	heraldPicture;
 
 	HBox		    buttonHBox;
 	VBox		    buttonVBox;
@@ -344,6 +370,7 @@ protected:
 
 	SymbolButton    moveButton;
 	SymbolButton    attackButton;
+	SymbolButton    SattackButton;
     SymbolButton    captureButton;
     SymbolButton    returnButton;
     SymbolButton    deployButton;

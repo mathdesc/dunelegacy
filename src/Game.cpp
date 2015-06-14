@@ -774,6 +774,14 @@ void Game::doInput()
                                     }
                                 } break;
 
+                                case CursorMode_SalveAttack: {
+
+                                	if(screenborder->isScreenCoordInsideMap(mouse->x, mouse->y) == true) {
+									  handleSelectedObjectsSalveAttackClick(screenborder->screen2MapX(mouse->x), screenborder->screen2MapY(mouse->y));
+                                	}
+
+                                } break;
+
                                 case CursorMode_Attack: {
 
                                     if(screenborder->isScreenCoordInsideMap(mouse->x, mouse->y) == true) {
@@ -1037,6 +1045,18 @@ void Game::drawCursor()
                     dest.x -= pCursor->w / 2;
                     dest.y -= pCursor->h / 2;
                 } break;
+
+                case CursorMode_SalveAttack: {
+					switch(currentZoomlevel) {
+						case 0:     pCursor = pGFXManager->getUIGraphic(UI_CursorSalveAttack_Zoomlevel0); break;
+						case 1:     pCursor = pGFXManager->getUIGraphic(UI_CursorSalveAttack_Zoomlevel1); break;
+						case 2:
+						default:    pCursor = pGFXManager->getUIGraphic(UI_CursorSalveAttack_Zoomlevel2); break;
+					}
+
+					dest.x -= pCursor->w / 2;
+					dest.y -= pCursor->h / 2;
+				} break;
 
                 case CursorMode_Capture: {
                     switch(currentZoomlevel) {
@@ -1914,6 +1934,11 @@ bool Game::onRadarClick(Coord worldPosition, bool bRightMouseButton, bool bDrag)
         } else {
 
             switch(currentCursorMode) {
+				case CursorMode_SalveAttack: {
+					handleSelectedObjectsSalveAttackClick(worldPosition.x / TILESIZE, worldPosition.y / TILESIZE);
+					return false;
+				} break;
+
                 case CursorMode_Attack: {
                     handleSelectedObjectsAttackClick(worldPosition.x / TILESIZE, worldPosition.y / TILESIZE);
                     return false;
@@ -2143,6 +2168,47 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
                 }
             }
         } break;
+
+        case SDLK_s: {
+            //set object to Salve attack
+            if(currentCursorMode != CursorMode_SalveAttack) {
+                std::set<Uint32>::iterator iter;
+                for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
+
+                    ObjectBase* tempObject = objectManager.getObject(*iter);
+                    if(tempObject->isAUnit() && (tempObject->getOwner() == pLocalHouse)
+                        && tempObject->isRespondable() && tempObject->canSalveAttack()) {
+
+                        currentCursorMode = CursorMode_SalveAttack;
+                        break;
+                    } else if((tempObject->getItemID() == Structure_Palace)
+                                && ((tempObject->getOwner()->getHouseID() == HOUSE_HARKONNEN) || (tempObject->getOwner()->getHouseID() == HOUSE_SARDAUKAR))) {
+                        if(((Palace*) tempObject)->isSpecialWeaponReady()) {
+                            currentCursorMode = CursorMode_Attack;
+                            break;
+                        }
+                    }
+                }
+            }
+        } break;
+
+        case SDLK_c: {
+            //set object to capture
+            if(currentCursorMode != CursorMode_Capture) {
+                std::set<Uint32>::iterator iter;
+                for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
+
+                    ObjectBase* tempObject = objectManager.getObject(*iter);
+                    if(tempObject->isAUnit() && (tempObject->getOwner() == pLocalHouse)
+                        && tempObject->isRespondable() && tempObject->canCapture()) {
+
+                        currentCursorMode = CursorMode_Capture;
+                        break;
+                    }
+                }
+            }
+        } break;
+
 
         case SDLK_t: {
             bShowTime = !bShowTime;
@@ -2399,7 +2465,6 @@ bool Game::handlePlacementClick(int xPos, int yPos) {
     }
 }
 
-
 bool Game::handleSelectedObjectsAttackClick(int xPos, int yPos) {
     UnitBase* responder = NULL;
 
@@ -2409,6 +2474,33 @@ bool Game::handleSelectedObjectsAttackClick(int xPos, int yPos) {
         if(tempObject->isAUnit() && (tempObject->getOwner() == pLocalHouse) && tempObject->isRespondable()) {
             responder = (UnitBase*) tempObject;
             responder->handleAttackClick(xPos,yPos);
+        } else if((tempObject->getItemID() == Structure_Palace)
+                    && ((tempObject->getOwner()->getHouseID() == HOUSE_HARKONNEN) || (tempObject->getOwner()->getHouseID() == HOUSE_SARDAUKAR))) {
+
+            if(((Palace*) tempObject)->isSpecialWeaponReady()) {
+                ((Palace*) tempObject)->handleDeathhandClick(xPos, yPos);
+            }
+        }
+    }
+
+    currentCursorMode = CursorMode_Normal;
+    if(responder) {
+        responder->playConfirmSound();
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool Game::handleSelectedObjectsSalveAttackClick(int xPos, int yPos) {
+    UnitBase* responder = NULL;
+
+    std::set<Uint32>::iterator iter;
+    for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
+        ObjectBase *tempObject = objectManager.getObject(*iter);
+        if(tempObject->isAUnit() && (tempObject->getOwner() == pLocalHouse) && tempObject->isRespondable()) {
+            responder = (UnitBase*) tempObject;
+            responder->handleSalveAttackClick(xPos,yPos);
         } else if((tempObject->getItemID() == Structure_Palace)
                     && ((tempObject->getOwner()->getHouseID() == HOUSE_HARKONNEN) || (tempObject->getOwner()->getHouseID() == HOUSE_SARDAUKAR))) {
 

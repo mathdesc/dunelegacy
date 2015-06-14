@@ -157,6 +157,17 @@ void Command::executeCommand() const {
 			unit->doAttackPos((int) parameter[1], (int) parameter[2], (bool) parameter[3]);
 		} break;
 
+		case CMD_UNIT_SALVEATTACKPOS: {
+			if(parameter.size() != 4) {
+				throw std::invalid_argument("Command::executeCommand(): CMD_UNIT_SALVEATTACKPOS needs 4 Parameters!");
+			}
+			UnitBase* unit = dynamic_cast<UnitBase*>(currentGame->getObjectManager().getObject(parameter[0]));
+			if(unit == NULL) {
+                return;
+			}
+			unit->doSalveAttackPos((int) parameter[1], (int) parameter[2], (bool) parameter[3]);
+		} break;
+
 		case CMD_UNIT_ATTACKOBJECT: {
 			if(parameter.size() != 2) {
 				throw std::invalid_argument("Command::executeCommand(): CMD_UNIT_ATTACKOBJECT needs 2 Parameters!");
@@ -166,6 +177,17 @@ void Command::executeCommand() const {
                 return;
 			}
 			pUnit->doAttackObject((int) parameter[1], true);
+		} break;
+
+		case CMD_UNIT_SALVEATTACKOBJECT: {
+			if(parameter.size() != 2) {
+				throw std::invalid_argument("Command::executeCommand(): CMD_UNIT_SALVEATTACKOBJECT needs 2 Parameters!");
+			}
+			UnitBase* pUnit = dynamic_cast<UnitBase*>(currentGame->getObjectManager().getObject(parameter[0]));
+			if(pUnit == NULL) {
+                return;
+			}
+			pUnit->doSalveAttackObject((int) parameter[1], true);
 		} break;
 
         case CMD_INFANTRY_CAPTURE: {
