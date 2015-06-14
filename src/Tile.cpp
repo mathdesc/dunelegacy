@@ -577,18 +577,23 @@ void Tile::selectAllPlayersUnits(int houseID, ObjectBase** lastCheckedObject, Ob
 }
 
 
-void Tile::selectAllPlayersUnitsOfType(int houseID, int itemID, ObjectBase** lastCheckedObject, ObjectBase** lastSelectedObject) {
+void Tile::selectAllPlayersUnitsOfType(int houseID, ObjectBase* lastSinglySelectedObject, ObjectBase** lastCheckedObject, ObjectBase** lastSelectedObject) {
 	ConcatIterator<Uint32> iterator;
 	iterator.addList(assignedInfantryList);
 	iterator.addList(assignedNonInfantryGroundObjectList);
 	iterator.addList(assignedUndergroundUnitList);
 	iterator.addList(assignedAirUnitList);
+	UnitBase* unit, *sunit;
+    int itemid = lastSinglySelectedObject->getItemID();
 
 	while(!iterator.isIterationFinished()) {
 		*lastCheckedObject = currentGame->getObjectManager().getObject(*iterator);
+		unit = dynamic_cast<UnitBase*>(currentGame->getObjectManager().getObject(*iterator));
+		sunit = dynamic_cast<UnitBase*>(lastSinglySelectedObject);
 		if (((*lastCheckedObject)->getOwner()->getHouseID() == houseID)
 			&& !(*lastCheckedObject)->isSelected()
-			&& ((*lastCheckedObject)->getItemID() == itemID)) {
+			&& ((*lastCheckedObject)->getItemID() == itemid)
+			&& ( unit->isSalving() == sunit->isSalving() ) ) {
 
 			(*lastCheckedObject)->setSelected(true);
 			currentGame->getSelectedList().insert((*lastCheckedObject)->getObjectID());

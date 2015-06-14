@@ -494,7 +494,7 @@ void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, 
                 for(int i = screenborder->getTopLeftTile().x; i <= screenborder->getBottomRightTile().x; i++) {
                     for(int j = screenborder->getTopLeftTile().y; j <= screenborder->getBottomRightTile().y; j++) {
                         if(tileExists(i,j) && getTile(i,j)->hasAnObject()) {
-                            getTile(i,j)->selectAllPlayersUnitsOfType(houseID, lastSinglySelectedObject->getItemID(), &lastCheckedObject, &lastSelectedObject);
+                            getTile(i,j)->selectAllPlayersUnitsOfType(houseID, lastSinglySelectedObject, &lastCheckedObject, &lastSelectedObject);
                         }
                     }
 				}

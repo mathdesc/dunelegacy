@@ -337,7 +337,7 @@ public:
     }
 
 	void selectAllPlayersUnits(int houseID, ObjectBase** lastCheckedObject, ObjectBase** lastSelectedObject);
-	void selectAllPlayersUnitsOfType(int houseID, int itemID, ObjectBase** lastCheckedObject, ObjectBase** lastSelectedObject);
+	void selectAllPlayersUnitsOfType(int houseID, ObjectBase* lastSinglySelectedObject, ObjectBase** lastCheckedObject, ObjectBase** lastSelectedObject);
 	void unassignAirUnit(Uint32 objectID);
 	void unassignNonInfantryGroundObject(Uint32 objectID);
 	void unassignObject(Uint32 objectID);
