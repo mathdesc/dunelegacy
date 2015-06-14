@@ -28,6 +28,9 @@
 #include <SoundPlayer.h>
 #include <Bullet.h>
 
+#include <misc/draw_util.h>
+
+#define SALVO_TIMER_LAUNCHER 85
 
 Launcher::Launcher(House* newOwner) : TrackedUnit(newOwner) {
     Launcher::init();
@@ -53,7 +56,7 @@ void Launcher::init() {
 	numWeapons  = 2;
 	salveWeapon = 8;
 	canSalveAttackStuff = true;
-	salveWeaponDelay = 55;
+	salveWeaponDelay = SALVO_TIMER_LAUNCHER;
 	bulletType = Bullet_Rocket;
 	for (int i=0; i < salveWeapon  && salveWeapon < MAX_SALVE; i++) {
 		salveWeaponTimer[i] =  (salveWeaponDelay*i)+salveWeaponDelay;
@@ -62,6 +65,41 @@ void Launcher::init() {
 }
 
 Launcher::~Launcher() {
+}
+
+void Launcher::drawSelectionBox()
+{
+    SDL_Surface* selectionBox = NULL;
+
+    switch(currentZoomlevel) {
+        case 0:     selectionBox = pGFXManager->getUIGraphic(UI_SelectionBox_Zoomlevel0);   break;
+        case 1:     selectionBox = pGFXManager->getUIGraphic(UI_SelectionBox_Zoomlevel1);   break;
+        case 2:
+        default:    selectionBox = pGFXManager->getUIGraphic(UI_SelectionBox_Zoomlevel2);   break;
+    }
+
+    SDL_Rect dest = {   screenborder->world2screenX(realX) - selectionBox->w/2,
+                        screenborder->world2screenY(realY) - selectionBox->h/2,
+                        selectionBox->w,
+                        selectionBox->h };
+
+	SDL_BlitSurface(selectionBox, NULL, screen, &dest);
+
+	for(int i=1;i<=currentZoomlevel+1;i++) {
+        drawHLine(screen, dest.x+1, dest.y-i, dest.x+1 + ((int)((getHealth()/(float)getMaxHealth())*(selectionBox->w-3))), getHealthColor());
+	}
+
+	int salvotimer=0,max=0;
+	for (int i=0; i < salveWeapon  && salveWeapon < MAX_SALVE; i++) {
+		salvotimer +=  salveWeaponTimer[i] ;
+		max +=   (SALVO_TIMER_LAUNCHER*i)+SALVO_TIMER_LAUNCHER;
+	}
+
+	if((getOwner() == pLocalHouse)  && (salvotimer > 0)   ) {
+        for(int i=1;i<=currentZoomlevel+1;i++) {
+            drawHLine(screen, dest.x+1, dest.y-i-(currentZoomlevel+1), dest.x+1 +  ((int)((((float)salvotimer)/max)*(selectionBox->w-3))), COLOR_BLUE);
+        }
+	}
 }
 
 void Launcher::blitToScreen() {
@@ -173,20 +211,23 @@ void Launcher::salveAttack(Coord Pos, Coord Target) {
 				 * 	Target is not locked ? (ie. position attack or barrage fire)
 				 * 	Have we gain a stable ground or high point advantage ?
 				 *	Except when target locked decrease damage (to simulate lack of precision) when target is fogged or in unexplored terrain
+				 *	Build take few damage from salvo, salvo consist of a specific ammunition to barrage attack
 				 */
 				if (!(target.getObjPointer() != NULL && Target.isValid())) currentWeaponDamage *= 0.5; else currentWeaponDamage *= 0.75;
 				if ( currentGameMap->getTile(location)->isRock() || currentGameMap->getTile(location)->isDunes() ) currentWeaponDamage *= 1.15 ;
 				if (isFogged) currentWeaponDamage *= .80;
 				if (!isExplored) currentWeaponDamage *= 0.25;
-				/*fprintf(stderr,"Launcher::salveAttack dmg=%i/%i : air? %s locked? %s advg? %s fog? %s expl? %s\n", currentWeaponDamage, baseweapondmg,
+				if (target.getObjPointer() != NULL  && (target.getObjPointer())->isAStructure()) currentWeaponDamage *= .35;
+				/*fprintf(stderr,"Launcher::salveAttack dmg=%i/%i : air? %s struct?%s locked? %s advg? %s fog? %s expl? %s\n", currentWeaponDamage, baseweapondmg,
 															bAirBullet ? "y" : "n",
+															target.getObjPointer() != NULL  && (target.getObjPointer())->isAStructure() ? "y" : "n",
 															(target.getObjPointer() != NULL && Target.isValid()) ? "y" : "n" ,
 															( currentGameMap->getTile(location)->isRock() || currentGameMap->getTile(location)->isDunes() ) ? "y" : "n",
 															isFogged ? "y" : "n",
 															isExplored ? "y" : "n"
 				);*/
 
-				salveWeaponDelay = 55;
+				salveWeaponDelay = SALVO_TIMER_LAUNCHER;
 				primaryWeaponTimer = getWeaponReloadTime();
 				bulletList.push_back( new Bullet( objectID, &centerPoint, &targetCenterPoint, currentBulletType, currentWeaponDamage, bAirBullet) );
 				playAttackSound();

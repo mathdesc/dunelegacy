@@ -82,7 +82,8 @@ UnitBase::UnitBase(House* newOwner) : ObjectBase(newOwner) {
 	for (int i=0; i < salveWeapon  && salveWeapon < MAX_SALVE; i++) {
 		salveWeaponTimer[i] =  (salveWeaponDelay*i)+1;
 	}
-	salveWeaponDelay = 35;
+	salveWeaponDelaybase = BASE_SALVO_TIMER;
+	salveWeaponDelay = salveWeaponDelaybase;
 	deviationTimer = INVALID;
 }
 
@@ -124,6 +125,7 @@ UnitBase::UnitBase(InputStream& stream) : ObjectBase(stream) {
 	for (int i=0; i  < MAX_SALVE; i++) {
 		salveWeaponTimer[i] = stream.readSint32();
 	}
+	salveWeaponDelaybase = stream.readSint32();
 	salveWeaponDelay = stream.readSint32();
 	deviationTimer = stream.readSint32();
 }
@@ -186,6 +188,7 @@ void UnitBase::save(OutputStream& stream) const {
 	for (int i=0; i <  MAX_SALVE; i++) {
 		stream.writeSint32(salveWeaponTimer[i]);
 	}
+	stream.writeSint32(salveWeaponDelaybase);
 	stream.writeSint32(salveWeaponDelay);
 	stream.writeSint32(deviationTimer);
 }
@@ -310,8 +313,8 @@ void UnitBase::salveAttack(Coord Pos, Coord Target) {
 
 				bulletList.push_back( new Bullet( objectID, &centerPoint, &targetCenterPoint, currentBulletType, currentWeaponDamage, bAirBullet) );
 				playAttackSound();
-				salveWeaponDelay = 35;
-				salveWeaponTimer[i] = getWeaponReloadTime()+salveWeaponDelay*i;
+				salveWeaponDelay = BASE_SALVO_TIMER;
+				salveWeaponTimer[i] = getWeaponReloadTime()+ salveWeaponDelay*i+salveWeaponDelay;
 				primaryWeaponTimer = getWeaponReloadTime();
 
 		}
@@ -572,7 +575,8 @@ void UnitBase::engageTarget() {
         	if (salving) salving=false;
             setDestination(targetLocation);
             targetAngle = INVALID;
-        } else if(isTracked() && target.getObjPointer()->isInfantry() && currentGameMap->tileExists(targetLocation) && !currentGameMap->getTile(targetLocation)->isMountain() && forced) {
+        } else if((isTracked() && target.getObjPointer()->isInfantry() && currentGameMap->tileExists(targetLocation) && !currentGameMap->getTile(targetLocation)->isMountain()) &&
+        		(forced || (target.getUnitPointer() != NULL && target.getUnitPointer()->getTarget() == this && targetDistance <= target.getUnitPointer()->getWeaponRange() ) )) {
             // we squash the infantry unit because we are forced to
         	if (salving) salving=false;
             setDestination(targetLocation);

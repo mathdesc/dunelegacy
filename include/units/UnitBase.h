@@ -28,6 +28,7 @@
 class Tile;
 
 #define MAX_SALVE 10
+#define BASE_SALVO_TIMER 65
 
 class UnitBase : public ObjectBase
 {
@@ -323,7 +324,8 @@ protected:
 	Sint32  primaryWeaponTimer;     ///< When can the primary weapon shot again?
 	Sint32  secondaryWeaponTimer;   ///< When can the secondary weapon shot again?
 	Sint32	salveWeaponTimer[MAX_SALVE]; ///< When can the salve weapons shot again?
-	Sint32	salveWeaponDelay;			 ///< What is the delay between each salving weapons shot
+	Sint32	salveWeaponDelaybase;	///< What is the delay between each salving weapons shot (init time)
+	Sint32	salveWeaponDelay;		///< What is the delay between each salving weapons shot
 
     // deviation
 	Sint32          deviationTimer; ///< When to revert back to the original owner?

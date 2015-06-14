@@ -29,6 +29,7 @@ public:
 	void init();
 	virtual ~Launcher();
 
+	void drawSelectionBox();
 	void blitToScreen();
 	virtual void destroy();
 	virtual void salveAttack(Coord Pos, Coord Target);
