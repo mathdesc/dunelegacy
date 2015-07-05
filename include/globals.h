@@ -25,6 +25,27 @@
 #include <misc/RobustList.h>
 #include <SDL.h>
 
+//#define DEBUG
+
+#ifdef DEBUG
+#undef DEBUG
+#define DEBUG 1
+#else
+#define DEBUG 0
+#endif
+
+#define dbg_relax_print(...) \
+	do { if (DEBUG && (currentGame->getGameCycleCount() % (MILLI2CYCLES(1*1000)) == 0))  fprintf(stdout, __VA_ARGS__);} while (0)
+
+#define err_relax_print(...) \
+	do { if (DEBUG && (currentGame->getGameCycleCount() % (MILLI2CYCLES(1*1000)) == 0))  fprintf(stderr, __VA_ARGS__);} while (0)
+
+#define dbg_print(...) \
+	do { if (DEBUG)  fprintf(stdout, __VA_ARGS__);} while (0)
+
+#define err_print(...) \
+	do { if (DEBUG)  fprintf(stderr, __VA_ARGS__);} while (0)
+
 #define _(msgid) pTextManager->getLocalized(msgid)
 
 // forward declarations

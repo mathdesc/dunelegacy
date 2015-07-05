@@ -50,7 +50,7 @@ HumanPlayer::HumanPlayer(InputStream& stream, House* associatedHouse) : Player(s
     HumanPlayer::init();
 
     for(int i=0;i < NUMSELECTEDLISTS; i++) {
-        selectedLists[i] = stream.readUint32Set();
+        selectedLists[i] = stream.readUint32List();
     }
 }
 
@@ -66,7 +66,7 @@ void HumanPlayer::save(OutputStream& stream) const {
 
     // write out selection groups (Key 1 to 9)
     for(int i=0; i < NUMSELECTEDLISTS; i++) {
-        stream.writeUint32Set(selectedLists[i]);
+        stream.writeUint32List(selectedLists[i]);
     }
 }
 
@@ -110,11 +110,11 @@ void HumanPlayer::build() {
 						 if(bConstructionYardChecked == false && !pBuilder->isUpgrading()) {
 							 if(getHouse()->getNumStructures() > 3 && ((getHouse()->getProducedPower() - getHouse()->getPowerRequirement())*100) / (getHouse()->getPowerRequirement() +1) < 10 && pBuilder->isAvailableToBuild(Structure_WindTrap) ) {
 							      itemID = Structure_WindTrap;
-							      fprintf(stderr,"build windtrap\n");
+							      err_print("build windtrap\n");
 							 }
 							 else if(getHouse()->getCredits() > 2000 && ((getHouse()->getStoredCredits()+100 > getHouse()->getCapacity()) ) && pBuilder->isAvailableToBuild(Structure_Silo)) {
 								  itemID = Structure_Silo;
-								  fprintf(stderr,"build silo\n");
+								  err_print("build silo\n");
 							 }
 						 }
 
@@ -131,7 +131,7 @@ void HumanPlayer::build() {
 			 								Coord location = placeLocations.front();
 			 								const ConstructionYard* pConstYard = dynamic_cast<const ConstructionYard*>(pBuilder);
 			 								if(getMap().okayToPlaceStructure(location.x, location.y, itemsize.x, itemsize.y, false, pConstYard->getOwner())) {
-			 									fprintf(stderr,"build - place structure\n");
+			 									err_print("build - place structure\n");
 			 									doPlaceStructure(pConstYard, location.x, location.y);
 			 									placeLocations.pop_front();
 			 								} else if(itemID == Structure_Slab1) {
@@ -147,11 +147,11 @@ void HumanPlayer::build() {
 			 									doCancelItem(pConstYard, itemID);
 			 									placeLocations.pop_front();
 			 								}
-			 							} else fprintf(stderr,"no place locations ! \n");
+			 							} else err_print("no place locations ! \n");
 			 						}
 		}
 	   if(itemID != NONE) {
-		fprintf(stderr,"build - place location\n");
+		err_print("build - place location\n");
 		Coord location = findPlaceLocation(itemID);
 
 		if(location.isValid()) {
@@ -181,22 +181,22 @@ void HumanPlayer::build() {
 							&& (abs(i - location.x) < 2) && (abs(j - location.y) < 2)) {
 							if( (i == location.x) && (j == location.y) && pTile->getType() != Terrain_Slab) {
 								placeLocations.push_back(Coord(i,j));
-								fprintf(stderr,"build - produce slab1 \n");
+								err_print("build - produce slab1 \n");
 								doProduceItemAI(pBuilder, Structure_Slab4);
 							}
 						} else if(pTile->getType() != Terrain_Slab) {
 							placeLocations.push_back(Coord(i,j));
-							fprintf(stderr,"build - produce slab1 \n");
+							err_print("build - produce slab1 \n");
 							doProduceItemAI(pBuilder, Structure_Slab1);
 						}
 					}
 				}
 			}
-			fprintf(stderr,"build - produce silo \n");
+			err_print("build - produce silo \n");
 			placeLocations.push_back(placeLocation);
 			doProduceItemAI(pBuilder, itemID);
 		} else {
-			fprintf(stderr,"build - can't find location  \n");
+			err_print("build - can't find location  \n");
 			// we havn't found a placing location => build some random slabs
 			location = findPlaceLocation(Structure_Slab1);
 			if(location.isValid() && getMap().isWithinBuildRange(location.x, location.y, getHouse())) {
@@ -440,13 +440,13 @@ Coord HumanPlayer::findPlaceLocation(Uint32 itemID) {
 }
 
 
-void HumanPlayer::setGroupList(int groupListIndex, const std::set<Uint32>& newGroupList) {
+void HumanPlayer::setGroupList(int groupListIndex, const std::list<Uint32>& newGroupList) {
     selectedLists[groupListIndex].clear();
 
-    std::set<Uint32>::const_iterator iter;
+    std::list<Uint32>::const_iterator iter;
     for(iter = newGroupList.begin(); iter != newGroupList.end(); ++iter) {
         if(currentGame->getObjectManager().getObject(*iter) != NULL) {
-            selectedLists[groupListIndex].insert(*iter);
+            selectedLists[groupListIndex].push_back(*iter);
         }
     }
 

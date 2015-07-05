@@ -91,6 +91,7 @@ void RepairYard::deployRepairUnit(Carryall* pCarryall) {
 	lastAnimFrame = 5;
 
     UnitBase* pRepairUnit = repairUnit.getUnitPointer();
+    dbg_print("RepairYard::deployRepairUnit(carry:%s) \n", (pCarryall != NULL) ? "yes" : "no");
 	if(pCarryall != NULL) {
 	    pCarryall->giveCargo(pRepairUnit);
 	    pCarryall->setTarget(NULL);
@@ -99,7 +100,8 @@ void RepairYard::deployRepairUnit(Carryall* pCarryall) {
         Coord deployPos = currentGameMap->findDeploySpot(pRepairUnit, location, destination, structureSize);
         pRepairUnit->deploy(deployPos);
         pRepairUnit->setTarget(NULL);
-        pRepairUnit->setDestination(pRepairUnit->getLocation());
+    //    pRepairUnit->setDestination(pRepairUnit->getLocation());
+        pRepairUnit->setDestination(pRepairUnit->getGuardPoint());
 	}
 
 	repairUnit.pointTo(NONE);
@@ -132,6 +134,7 @@ void RepairYard::updateStructureSpecificStuff() {
 				pRepairUnit->addHealth();
 			}
 		} else if(((GroundUnit*)pRepairUnit)->isAwaitingPickup() == false) {
+
 		    // find carryall
 		    Carryall* pCarryall = NULL;
             if((pRepairUnit->getGuardPoint().isValid()) && getOwner()->hasCarryalls())	{

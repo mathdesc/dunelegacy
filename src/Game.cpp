@@ -95,6 +95,7 @@ Game::Game() {
 
 	bQuitGame = false;
 
+	bElect = false;
 	bReplay = false;
 
 	indicatorFrame = NONE;
@@ -159,7 +160,7 @@ Game::~Game() {
 	if(pNetworkManager != NULL) {
         pNetworkManager->setOnReceiveChatMessage(std::function<void (std::string, std::string)>());
         pNetworkManager->setOnReceiveCommandList(std::function<void (const std::string&, const CommandList&)>());
-        pNetworkManager->setOnReceiveSelectionList(std::function<void (std::string, std::set<Uint32>, int)>());
+        pNetworkManager->setOnReceiveSelectionList(std::function<void (std::string, std::list<Uint32>, int)>());
         pNetworkManager->setOnPeerDisconnected(std::function<void (std::string, bool, int)>());
 	}
 
@@ -1696,7 +1697,12 @@ bool Game::loadSaveGame(InputStream& stream) {
 
     } else {
         //load selection list
-        selectedList = stream.readUint32Set();
+        selectedList = stream.readUint32List();
+        selectedListCoord = stream.readUint32CoordPairList();
+
+   	 for(std::list<std::pair<Uint32,Coord>>::iterator iter2  = selectedListCoord.begin()  ;  iter2 != selectedListCoord.end(); ++iter2) {
+   		 fprintf(stdout,"Game::loadSaveGame first:%d second:%d,%d\n",iter2->first, iter2->second.x, iter2->second.y);
+   	 }
 
         //load the screenborder info
         screenborder->adjustScreenBorderToMapsize(currentGameMap->getSizeX(), currentGameMap->getSizeY());
@@ -1794,7 +1800,8 @@ bool Game::saveGame(std::string filename)
         // save selection lists
 
         // write out selected units list
-        fs.writeUint32Set(selectedList);
+        fs.writeUint32List(selectedList);
+        fs.writeUint32CoordPairList(selectedListCoord);
 
         // write the screenborder info
         screenborder->save(fs);
@@ -1837,9 +1844,9 @@ ObjectBase* Game::loadObject(InputStream& stream, Uint32 objectID)
 }
 
 
-void Game::selectAll(std::set<Uint32>& aList)
+void Game::selectAll(std::list<Uint32>& aList)
 {
-    std::set<Uint32>::iterator iter;
+    std::list<Uint32>::iterator iter;
     for(iter = aList.begin(); iter != aList.end(); ++iter) {
         ObjectBase *tempObject = objectManager.getObject(*iter);
         tempObject->setSelected(true);
@@ -1847,16 +1854,16 @@ void Game::selectAll(std::set<Uint32>& aList)
 }
 
 
-void Game::unselectAll(std::set<Uint32>& aList)
+void Game::unselectAll(std::list<Uint32>& aList)
 {
-    std::set<Uint32>::iterator iter;
+    std::list<Uint32>::iterator iter;
     for(iter = aList.begin(); iter != aList.end(); ++iter) {
         ObjectBase *tempObject = objectManager.getObject(*iter);
         tempObject->setSelected(false);
     }
 }
 
-void Game::onReceiveSelectionList(std::string name, std::set<Uint32> newSelectionList, int groupListIndex)
+void Game::onReceiveSelectionList(std::string name, std::list<Uint32> newSelectionList, int groupListIndex)
 {
     HumanPlayer* pHumanPlayer = dynamic_cast<HumanPlayer*>(getPlayerByName(name));
 
@@ -1871,7 +1878,7 @@ void Game::onReceiveSelectionList(std::string name, std::set<Uint32> newSelectio
             return;
         }
 
-        std::set<Uint32>::iterator iter;
+        std::list<Uint32>::iterator iter;
         for(iter = selectedByOtherPlayerList.begin(); iter != selectedByOtherPlayerList.end(); ++iter) {
             ObjectBase* pObject = objectManager.getObject(*iter);
             if(pObject != NULL) {
@@ -2045,22 +2052,24 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
         case SDLK_0: {
             //if ctrl and 0 remove selected units from all groups
             if(SDL_GetModState() & KMOD_CTRL) {
-                std::set<Uint32>::iterator iter;
+                std::list<Uint32>::iterator iter;
                 for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
                     ObjectBase* object = objectManager.getObject(*iter);
                     object->setSelected(false);
                     object->removeFromSelectionLists();
                 }
                 selectedList.clear();
+                selectedListCoord.clear();
                 currentGame->selectionChanged();
                 currentCursorMode = CursorMode_Normal;
             } else {
-                std::set<Uint32>::iterator iter;
+                std::list<Uint32>::iterator iter;
                 for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
                     ObjectBase* object = objectManager.getObject(*iter);
                     object->setSelected(false);
                 }
                 selectedList.clear();
+                selectedListCoord.clear();
                 currentGame->selectionChanged();
                 currentCursorMode = CursorMode_Normal;
             }
@@ -2084,12 +2093,12 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
 
                 pInterface->updateObjectInterface();
             } else {
-                std::set<Uint32>& groupList = pLocalPlayer->getGroupList(selectListIndex);
+                std::list<Uint32>& groupList = pLocalPlayer->getGroupList(selectListIndex);
 
                 // find out if we are choosing a group with all items already selected
                 bool bEverythingWasSelected = (selectedList.size() == groupList.size());
                 Coord averagePosition;
-                for(std::set<Uint32>::iterator iter = groupList.begin(); iter != groupList.end(); ++iter) {
+                for(std::list<Uint32>::iterator iter = groupList.begin(); iter != groupList.end(); ++iter) {
                     ObjectBase* object = objectManager.getObject(*iter);
                     bEverythingWasSelected = bEverythingWasSelected && object->isSelected();
                     averagePosition += object->getLocation();
@@ -2106,14 +2115,15 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
                     // we replace the list of the selected items with the items from this list
                     unselectAll(selectedList);
                     selectedList.clear();
+                    selectedListCoord.clear();
                     currentGame->selectionChanged();
                 }
 
                 // now we add the selected items
-                for(std::set<Uint32>::iterator iter = groupList.begin(); iter != groupList.end(); ++iter) {
+                for(std::list<Uint32>::iterator iter = groupList.begin(); iter != groupList.end(); ++iter) {
                     ObjectBase* object = objectManager.getObject(*iter);
                     object->setSelected(true);
-                    selectedList.insert(object->getObjectID());
+                    selectedList.emplace_back(object->getObjectID());
                     currentGame->selectionChanged();
                 }
 
@@ -2149,7 +2159,7 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
         case SDLK_a: {
             //set object to attack
             if(currentCursorMode != CursorMode_Attack) {
-                std::set<Uint32>::iterator iter;
+                std::list<Uint32>::iterator iter;
                 for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
 
                     ObjectBase* tempObject = objectManager.getObject(*iter);
@@ -2172,7 +2182,7 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
         case SDLK_s: {
             //set object to Salve attack
             if(currentCursorMode != CursorMode_SalveAttack) {
-                std::set<Uint32>::iterator iter;
+                std::list<Uint32>::iterator iter;
                 for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
 
                     ObjectBase* tempObject = objectManager.getObject(*iter);
@@ -2195,7 +2205,7 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
         case SDLK_c: {
             //set object to capture
             if(currentCursorMode != CursorMode_Capture) {
-                std::set<Uint32>::iterator iter;
+                std::list<Uint32>::iterator iter;
                 for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
 
                     ObjectBase* tempObject = objectManager.getObject(*iter);
@@ -2268,7 +2278,7 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
         case SDLK_m: {
             //set object to move
             if(currentCursorMode != CursorMode_Move) {
-                std::set<Uint32>::iterator iter;
+                std::list<Uint32>::iterator iter;
                 for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
 
                     ObjectBase* tempObject = objectManager.getObject(*iter);
@@ -2317,7 +2327,7 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
         } break;
 
         case SDLK_r: {
-            std::set<Uint32>::iterator iter;
+            std::list<Uint32>::iterator iter;
             for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
                 ObjectBase *tempObject = objectManager.getObject(*iter);
                 if(tempObject->isAStructure()) {
@@ -2328,8 +2338,82 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
             }
         } break;
 
+        case SDLK_z: {
+            std::list<Uint32>::iterator iter ;
+
+            if (bElect && ++electIter == selectedList.end()) bElect = false;
+
+            if (!bElect) {iter = selectedList.begin(); electIter = selectedList.begin();}
+            else iter = electIter;
+
+            ObjectBase *obj ;
+
+            // Prepare to Elect new (next) group member as Leader
+            for( ; iter != selectedList.end() &&  electIter != selectedList.end(); ++iter , ++electIter) {
+                obj = objectManager.getObject(*iter);
+                if(obj->isAUnit() && !dynamic_cast<UnitBase*>(obj)->isLeader()) {
+                			bElect = true;
+							break;
+                }
+            }
+
+            std::list<Uint32>::iterator itlist;
+            std::list<std::pair<Uint32,Coord>>::iterator itcoord,recalc;
+            std::list<Uint32> *list = &currentGame->getSelectedList();
+            std::list<std::pair<Uint32,Coord>> *listc = &currentGame->getSelectedListCoord();
+
+
+            for(itlist = list->begin() , itcoord = listc->begin() ; itlist != list->end(), itcoord != listc->end() ; ++itlist, ++itcoord) {
+            	ObjectBase *obj2 = objectManager.getObject(*itlist);
+            	if(obj2->isAUnit()) {
+
+						if (obj2 != obj) {
+							// Reset all the other to non-leader
+							dynamic_cast<UnitBase*>(obj2)->setLeader(false);
+						}
+						else {
+							// Set new leader, put it in front of list and listCoord
+							dynamic_cast<UnitBase*>(obj2)->setLeader(true);
+							if (itlist != list->begin())
+								list->splice(list->begin(),*list,itlist,list->end());
+
+							if (itcoord != listc->begin())		{
+								listc->splice(listc->begin(),*listc,itcoord,listc->end());
+								// Recalculate relative formation coordinates based on new group leader
+								for(recalc = selectedListCoord.begin() ; recalc != selectedListCoord.end(); ++recalc) {
+									ObjectBase *obj3 = objectManager.getObject(recalc->first);
+									Coord *coord3 = &recalc->second;
+									if(obj3->isAUnit()) {
+										if (obj3 != obj2) {
+											*coord3 = obj3->getLocation() - obj2->getLocation() ;
+										} else {
+											*coord3 = obj2->getLocation() -  obj3->getLocation();
+										}
+									}
+								}
+							}
+
+
+						}
+            	}
+
+            }
+
+/*			std::list<std::pair<Uint32,Coord>>::iterator test;
+ 	 	 	for(test = selectedListCoord.begin() ; test != selectedListCoord.end(); ++test) {
+				ObjectBase *obj3 = objectManager.getObject(test->first);
+				Coord coord = Coord((test->second).x,(test->second).y);
+				if(obj3->isAUnit()) {
+					fprintf(stderr,"%d(%d,%d) ",obj3->getObjectID(),coord.x,coord.y);
+
+				}
+			}
+			fprintf(stderr,"\n");*/
+
+        } break;
+
         case SDLK_u: {
-            std::set<Uint32>::iterator iter;
+            std::list<Uint32>::iterator iter;
             for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
                 ObjectBase *tempObject = objectManager.getObject(*iter);
                 if(tempObject->isABuilder()) {
@@ -2468,7 +2552,7 @@ bool Game::handlePlacementClick(int xPos, int yPos) {
 bool Game::handleSelectedObjectsAttackClick(int xPos, int yPos) {
     UnitBase* responder = NULL;
 
-    std::set<Uint32>::iterator iter;
+    std::list<Uint32>::iterator iter;
     for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
         ObjectBase *tempObject = objectManager.getObject(*iter);
         if(tempObject->isAUnit() && (tempObject->getOwner() == pLocalHouse) && tempObject->isRespondable()) {
@@ -2495,7 +2579,7 @@ bool Game::handleSelectedObjectsAttackClick(int xPos, int yPos) {
 bool Game::handleSelectedObjectsSalveAttackClick(int xPos, int yPos) {
     UnitBase* responder = NULL;
 
-    std::set<Uint32>::iterator iter;
+    std::list<Uint32>::iterator iter;
     for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
         ObjectBase *tempObject = objectManager.getObject(*iter);
         if(tempObject->isAUnit() && (tempObject->getOwner() == pLocalHouse) && tempObject->isRespondable()) {
@@ -2522,7 +2606,7 @@ bool Game::handleSelectedObjectsSalveAttackClick(int xPos, int yPos) {
 bool Game::handleSelectedObjectsMoveClick(int xPos, int yPos) {
     UnitBase* responder = NULL;
 
-    std::set<Uint32>::iterator iter;
+    std::list<Uint32>::iterator iter;
     for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
         ObjectBase *tempObject = objectManager.getObject(*iter);
         if (tempObject->isAUnit() && (tempObject->getOwner() == pLocalHouse) && tempObject->isRespondable()) {
@@ -2552,7 +2636,7 @@ bool Game::handleSelectedObjectsCaptureClick(int xPos, int yPos) {
     if((pStructure != NULL) && (pStructure->canBeCaptured()) && (pStructure->getOwner()->getTeam() != pLocalHouse->getTeam())) {
         InfantryBase* responder = NULL;
 
-        std::set<Uint32>::iterator iter;
+        std::list<Uint32>::iterator iter;
         for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
             ObjectBase *tempObject = objectManager.getObject(*iter);
             if (tempObject->isInfantry() && (tempObject->getOwner() == pLocalHouse) && tempObject->isRespondable()) {
@@ -2578,18 +2662,66 @@ bool Game::handleSelectedObjectsActionClick(int xPos, int yPos) {
     ObjectBase	*responder = NULL;
     ObjectBase	*tempObject = NULL;
 
-    std::set<Uint32>::iterator iter;
-    for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
-        tempObject = objectManager.getObject(*iter);
+    int x=0,y=0,i=0;
+    std::list<Uint32>::iterator iter;
+    std::list<std::pair<Uint32,Coord>>::iterator iter2;
 
-        if(tempObject->getOwner() == pLocalHouse && tempObject->isRespondable()) {
-            tempObject->handleActionClick(xPos, yPos);
+    if (selectedList.size() > 1) {
 
-            //if this object obey the command
-            if((responder == NULL) && tempObject->isRespondable())
-                responder = tempObject;
-        }
+    	// Handle Formation move on CTRL pressed down
+    	if  (SDL_GetModState() & KMOD_CTRL) {
+			for(iter = selectedList.begin()  ; iter != selectedList.end() ; ++iter ) {
+				tempObject = objectManager.getObject(*iter);
+				 for( iter2 = selectedListCoord.begin()  ;  iter2 != selectedListCoord.end(); ++iter2) {
+					 if (iter2->first != tempObject->getObjectID()) continue;
+					 	i++;
+						x=iter2->second.x;
+						y=iter2->second.y;
+						if(tempObject->getOwner() == pLocalHouse && tempObject->isRespondable() && tempObject->isAUnit()) {
+							//if this object obey the command
+							if((responder == NULL) && tempObject->isRespondable())
+								responder = tempObject;
+							dynamic_cast<UnitBase*>(tempObject)->setRegulatedSpeed(currentGame->objectData.data[tempObject->getItemID()][tempObject->getOriginalHouseID()].maxspeed);
+
+
+							// if Shift is pressed Handle a 90° Formation move
+							if  (SDL_GetModState() & KMOD_SHIFT) {
+								iter2->second.swapCoord();
+								x= iter2->second.x ;
+								y= iter2->second.y ;
+							}
+
+							dbg_print("Game::handleSelectedObjectsActionClick [%f,%f] Obj:<%d,%d> x=%d+%d y=%d+%d\n",dynamic_cast<UnitBase*>(tempObject)->getxSpeed(),dynamic_cast<UnitBase*>(tempObject)->getySpeed() ,tempObject->getObjectID(),iter2->first,xPos , x, yPos ,y);
+							tempObject->handleActionClick(xPos + x , yPos + y);
+						}
+				 }
+			}
+
+    	} else {
+    	    std::list<Uint32>::iterator iter;
+    	    for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
+    	        ObjectBase *tempObject = objectManager.getObject(*iter);
+    	        if (tempObject->isAUnit() && (tempObject->getOwner() == pLocalHouse) && tempObject->isRespondable()) {
+    	            responder = (UnitBase*) tempObject;
+    	            dynamic_cast<UnitBase*>(tempObject)->setRegulatedSpeed(0);
+    	            responder->handleActionClick(xPos,yPos);
+    	        }
+    	    }
+
+    	}
+
     }
+    else {
+    	iter = selectedList.begin();
+    	tempObject = objectManager.getObject(*iter);
+    	if(tempObject->getOwner() == pLocalHouse && tempObject->isRespondable()) {
+    		if((responder == NULL) && tempObject->isRespondable())
+					responder = tempObject;
+    		tempObject->handleActionClick(xPos , yPos);
+    	}
+
+    }
+
 
     if(responder) {
         responder->playConfirmSound();

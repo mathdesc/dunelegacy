@@ -1,0 +1,58 @@
+
+
+
+#16 Configurable hotkeys for commands
+
+
+#20 Starport prices
+Should be calculated on a bid/offer free market system
+
+
+#27 Ornitopther Maneuvers
+Ornitopthers used to circle and strafe during attack, it is indeed wise and quite usefull for them to stay still before being ordered to attack, but once ordered to engage something, they standing still makes them way too vulnerable to enemy fire due to the fact they will not move at all while shooting.
+
+
+#28-2  Waypoints for units
+
+
+#28-7 "Scatter key" for infantry (similar to Red Alert 2´s "X" key)
+
+#28-11 Hotkey S for all selected units to stop in their tracks
+Easy to do : consider the setDestination to here where you are.
+
+
+#30-8-1 Airlifting unit to repair and "back to the arena"
+Done but should be toggleable
+
+#30-8-1 Airlifting unit to battle
+Ability to order a liftoff. Would be imbalanced as it is since carryall are to fast and unhitteable (maybe burden them hard then and make them retreat on heavy anti-air fire) 
+ 
+
+#30-7 Deviator attack affecting an area, and with higher chance to convert
+In fact deviator damage is buggy, revamp it
+
+#30-5 Rally point indicator (just something to point out where it is; it could be similar to the one on Dune Dynasty)
+And a retreat fonction, based on damage purcentage it can take before retreating 
+
+#30-4- The ability to create more than one Wall tile when placing Wall tiles
+50% Transparent construction site picture backend by a stack of production
+
+
+#30-2 Unit veterancy (similar to C&C: Red Alert 2 and C&C: Generals)
+Left corner chevron badge (2x damage, 2x movements, 2x robustness, etc...)
+
+
+
+#32 Optional auto-repair of buildings 
+Already done but choose be made optionnal and dynamically disable/enable
+
+
+
+#35 HQ4X
+https://code.google.com/p/hqx/
+
+
+#36 Custom game on random map
+Currently, custom games (or multiplayer) can be played only on predesigned scenarios, though a random map generator already exists in the level editor. You can generate a map with the level editor, save it and then load it as scenario, but generating a temporary map directly in the custom game screen with a click would be much better
+
+

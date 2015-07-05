@@ -299,7 +299,7 @@ void House::update() {
 		if(this == pLocalHouse) {
 			currentGame->addToNewsTicker(_("@DUNE.ENG|145#As insufficient spice storage is available, spice is lost."));
 		}
-		else fprintf(stderr,"Player %d insufficient spice storage is available, spice is lost !\n", this->getHouseID() ); // AIPlayer::getPlayername().c_str(),pDamager->getObjectID());
+		else dbg_print("Player %d insufficient spice storage is available, spice is lost !\n", this->getHouseID() );
 
 	}
 

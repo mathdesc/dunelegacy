@@ -104,11 +104,11 @@ void AIPlayer::update() {
 }
 
 void AIPlayer::onIncrementStructures(int itemID) {
-	//fprintf(stderr,"Player %s onIncrementStructures %d!\n", AIPlayer::getPlayername().c_str(),itemID);
+	dbg_print("Player %s onIncrementStructures %d!\n", AIPlayer::getPlayername().c_str(),itemID);
 }
 
 void AIPlayer::onDecrementStructures(int itemID, const Coord& location) {
-	//fprintf(stderr,"Player %s onDecrementStructures %d!\n", AIPlayer::getPlayername().c_str(),itemID);
+	dbg_print("Player %s onDecrementStructures %d!\n", AIPlayer::getPlayername().c_str(),itemID);
 }
 
 void AIPlayer::onDamage(const ObjectBase* pObject, int damage, Uint32 damagerID) {
@@ -125,12 +125,12 @@ void AIPlayer::onDamage(const ObjectBase* pObject, int damage, Uint32 damagerID)
 		
 		if (pDamager->getItemID() == Unit_Sandworm) {
 			//scramble some free units to "freighten" the worm
-			fprintf(stderr,"Player %s want to freighten worm %d!\n", AIPlayer::getPlayername().c_str(),pDamager->getObjectID());
+			err_print("Player %s want to freighten worm %d!\n", AIPlayer::getPlayername().c_str(),pDamager->getObjectID());
 			this->scrambleUnitsAndDefendFromWorm(pDamager,5);
 		}
 		else {
 			//scramble some free units to defend
-			fprintf(stderr,"Player %s want to retaliate on %d!\n", AIPlayer::getPlayername().c_str(),pDamager->getObjectID());
+			err_print("Player %s want to retaliate on %d!\n", AIPlayer::getPlayername().c_str(),pDamager->getObjectID());
 			doRepair(const_cast<ObjectBase*>(pObject));
 			scrambleUnitsAndDefend(pDamager);
 
@@ -199,7 +199,7 @@ void AIPlayer::scrambleUnitsAndDefend(const ObjectBase* pIntruder, Uint8 number)
         }
         if (a == number) {
 			
-			fprintf(stderr,"Player %s scrambleUnitsAndDefend %d!\n", AIPlayer::getPlayername().c_str(),a);
+			err_print("Player %s scrambleUnitsAndDefend %d!\n", AIPlayer::getPlayername().c_str(),a);
 			return;
 		} 
     }
@@ -223,7 +223,7 @@ void AIPlayer::scrambleUnitsAndDefendFromWorm(const ObjectBase* pIntruder, Uint8
         }
         if (a == number) {
 			
-			fprintf(stderr,"Player %s scrambleUnitsAndDefendFromWorm %d!\n", AIPlayer::getPlayername().c_str(),a);
+			err_print("Player %s scrambleUnitsAndDefendFromWorm %d!\n", AIPlayer::getPlayername().c_str(),a);
 			return;
 		} 
     }

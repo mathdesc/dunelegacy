@@ -26,6 +26,8 @@
 #include <set>
 #include <exception>
 
+#include <DataTypes.h>
+
 class OutputStream
 {
 public:
@@ -99,6 +101,20 @@ public:
 	void writeBools(bool val1 = false, bool val2 = false, bool val3 = false, bool val4 = false, bool val5 = false, bool val6 = false, bool val7 = false, bool val8 = false) {
         Uint8 val = (val1) | (val2 << 1) | (val3 << 2) | (val4 << 3) | (val5 << 4) | (val6 << 5) | (val7 << 6) | (val8 << 7);
         writeUint8(val);
+	}
+
+	/**
+		Writes out a complete list of Uint32
+		\param	List	the list to write
+	*/
+	void writeUint32CoordPairList(const std::list<std::pair<Uint32,Coord>>& List) {
+		writeUint32((Uint32) List.size());
+		std::list<std::pair<Uint32,Coord>>::const_iterator iter;
+		for(iter=List.begin(); iter != List.end(); ++iter) {
+			writeSint32(iter->second.x);
+			writeSint32(iter->second.y);
+			writeUint32(iter->first);
+		}
 	}
 
 	/**

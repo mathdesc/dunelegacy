@@ -271,19 +271,26 @@ public:
         This method selects all units/structures in the list aList.
         \param aList the list containing all the units/structures to be selected
     */
-	void selectAll(std::set<Uint32>& aList);
+	void selectAll(std::list<Uint32>& aList);
 
     /**
         This method unselects all units/structures in the list aList.
         \param aList the list containing all the units/structures to be unselected
     */
-	void unselectAll(std::set<Uint32>& aList);
+	void unselectAll(std::list<Uint32>& aList);
 
     /**
         Returns a list of all currently selected objects.
         \return list of currently selected units/structures
     */
-	std::set<Uint32>& getSelectedList() { return selectedList; };
+	std::list<Uint32>& getSelectedList() { return selectedList; };
+
+
+    /**
+        Returns a list of Coord of all currently selected objects.
+        \return list of currently selected units/structures
+    */
+	std::list<std::pair<Uint32,Coord>>& getSelectedListCoord() { return selectedListCoord; };
 
 	/**
         Marks that the selection changed (and must be retransmitted to other players in multiplayer games)
@@ -291,13 +298,13 @@ public:
 	inline void selectionChanged() { bSelectionChanged = true; };
 
 
-	void onReceiveSelectionList(std::string name, std::set<Uint32> newSelectionList, int groupListIndex);
+	void onReceiveSelectionList(std::string name, std::list<Uint32> newSelectionList, int groupListIndex);
 
     /**
         Returns a list of all currently by  the other player selected objects (Only in multiplayer with multiple players per house).
         \return list of currently selected units/structures by the other player
     */
-	std::set<Uint32>& getSelectedByOtherPlayerList() { return selectedByOtherPlayerList; };
+	std::list<Uint32>& getSelectedByOtherPlayerList() { return selectedByOtherPlayerList; };
 
     /**
 		Called when a peer disconnects the game.
@@ -403,6 +410,10 @@ public:
         \return true if dragging should start or continue
     */
     bool onRadarClick(Coord worldPosition, bool bRightMouseButton, bool bDrag);
+
+
+
+    inline bool setElected(bool e) { bElect = e;}
 
 private:
 
@@ -547,6 +558,9 @@ private:
 	bool    bMenu;                      ///< Is there currently a menu shown (options or mentat menu)
 	bool	bReplay;					///< Is this game actually a replay
 
+	std::list<Uint32>::iterator electIter;
+	bool	bElect;
+
 	bool	bShowFPS;					///< Show the FPS
 
 	bool    bShowTime;                  ///< Show how long this game is running
@@ -565,8 +579,9 @@ private:
 	Uint32                  startWaitingForOtherPlayersTime;    ///< The time in milliseconds when we started waiting for other players
 
 	bool    bSelectionChanged;                          ///< Has the selected list changed (and must be retransmitted to other plays in multiplayer games)
-	std::set<Uint32> selectedList;                      ///< A set of all selected units/structures
-	std::set<Uint32> selectedByOtherPlayerList;         ///< This is only used in multiplayer games where two players control one house
+	std::list<Uint32> selectedList;                      ///< A set of all selected units/structures
+	std::list<std::pair<Uint32,Coord>>	 selectedListCoord;				///< A list of all selected units/structures coordinates
+	std::list<Uint32> selectedByOtherPlayerList;         ///< This is only used in multiplayer games where two players control one house
     RobustList<Explosion*> explosionList;               ///< A list containing all the explosions that must be drawn
 
     std::vector<House*> house;                          ///< All the houses of this game, index by their houseID; has the size NUM_HOUSES; unused houses are NULL

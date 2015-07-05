@@ -613,7 +613,7 @@ void NetworkManager::handlePacket(ENetPeer* peer, ENetPacketIStream& packetStrea
 			    PeerData* peerData = (PeerData*) peer->data;
 
                 int groupListIndex = packetStream.readSint32();
-			    std::set<Uint32> selectedList = packetStream.readUint32Set();
+			    std::list<Uint32> selectedList = packetStream.readUint32List();
 
 				if(pOnReceiveSelectionList) {
                     pOnReceiveSelectionList(peerData->name, selectedList, groupListIndex);
@@ -719,11 +719,11 @@ void NetworkManager::sendCommandList(const CommandList& commandList) {
     sendPacketToAllConnectedPeers(packetStream, 1);
 }
 
-void NetworkManager::sendSelectedList(const std::set<Uint32>& selectedList, int groupListIndex) {
+void NetworkManager::sendSelectedList(const std::list<Uint32>& selectedList, int groupListIndex) {
 	ENetPacketOStream packetStream(ENET_PACKET_FLAG_RELIABLE);
 	packetStream.writeUint32(NETWORKPACKET_SELECTIONLIST);
 	packetStream.writeSint32(groupListIndex);
-	packetStream.writeUint32Set(selectedList);
+	packetStream.writeUint32List(selectedList);
 
     sendPacketToAllConnectedPeers(packetStream, 0);
 }

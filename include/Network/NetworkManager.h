@@ -81,7 +81,7 @@ public:
 
 	void sendCommandList(const CommandList& commandList);
 
-    void sendSelectedList(const std::set<Uint32>& selectedList, int groupListIndex = -1);
+    void sendSelectedList(const std::list<Uint32>& selectedList, int groupListIndex = -1);
 
 	std::list<std::string> getConnectedPeers() const {
         std::list<std::string> peerNameList;
@@ -169,7 +169,7 @@ public:
 		Sets the function that should be called when a selection list is received.
 		\param	pOnReceiveSelectionList	function to call on receive
 	*/
-	inline void setOnReceiveSelectionList(std::function<void (std::string, std::set<Uint32>, int)> pOnReceiveSelectionList) {
+	inline void setOnReceiveSelectionList(std::function<void (std::string, std::list<Uint32>, int)> pOnReceiveSelectionList) {
         this->pOnReceiveSelectionList = pOnReceiveSelectionList;
 	}
 
@@ -231,7 +231,7 @@ private:
     std::function<ChangeEventList (std::string)>                    pGetChangeEventListForNewPlayerCallback;
     std::function<void (unsigned int)>                              pOnStartGame;
     std::function<void (const std::string&, const CommandList&)>    pOnReceiveCommandList;
-    std::function<void (std::string, std::set<Uint32>, int)>        pOnReceiveSelectionList;
+    std::function<void (std::string, std::list<Uint32>, int)>        pOnReceiveSelectionList;
 
 	LANGameFinderAndAnnouncer*	pLANGameFinderAndAnnouncer;
 	MetaServerClient*           pMetaServerClient;

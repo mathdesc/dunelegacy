@@ -195,7 +195,7 @@ protected:
 	}
 
 	void onReturn() {
-        std::set<Uint32>::const_iterator iter;
+        std::list<Uint32>::const_iterator iter;
 		for(iter = currentGame->getSelectedList().begin(); iter != currentGame->getSelectedList().end(); ++iter) {
             ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
             Harvester* pHarvester = dynamic_cast<Harvester*>(pObject);
@@ -206,7 +206,7 @@ protected:
 	}
 
 	void onDeploy() {
-        std::set<Uint32>::const_iterator iter;
+        std::list<Uint32>::const_iterator iter;
 		for(iter = currentGame->getSelectedList().begin(); iter != currentGame->getSelectedList().end(); ++iter) {
             ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
             MCV* pMCV = dynamic_cast<MCV*>(pObject);
@@ -217,7 +217,7 @@ protected:
 	}
 
 	void onDestruct() {
-        std::set<Uint32>::const_iterator iter;
+        std::list<Uint32>::const_iterator iter;
 		for(iter = currentGame->getSelectedList().begin(); iter != currentGame->getSelectedList().end(); ++iter) {
             ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
             Devastator* pDevastator = dynamic_cast<Devastator*>(pObject);
@@ -250,7 +250,7 @@ protected:
 	void setAttackMode(ATTACKMODE newAttackMode) {
 
 	    UnitBase* pLastUnit = NULL;
-        std::set<Uint32>::const_iterator iter;
+        std::list<Uint32>::const_iterator iter;
 		for(iter = currentGame->getSelectedList().begin(); iter != currentGame->getSelectedList().end(); ++iter) {
             ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
             UnitBase* pUnit = dynamic_cast<UnitBase*>(pObject);
@@ -296,7 +296,7 @@ protected:
 		bool bShowDeploy = false;
 		bool bShowDevastate = false;
 
-		std::set<Uint32>::const_iterator iter;
+		std::list<Uint32>::const_iterator iter;
 		for(iter = currentGame->getSelectedList().begin(); iter != currentGame->getSelectedList().end(); ++iter) {
             ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
             UnitBase* pUnit = dynamic_cast<UnitBase*>(pObject);

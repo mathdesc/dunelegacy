@@ -113,6 +113,14 @@ public:
 		return isValid();
 	};
 
+    inline Coord swapCoord() {
+    	Coord ret = *this;
+    	int tmp = x;
+    	x = y;
+    	y = tmp;
+		return ret;
+	};
+
 public:
 	int	x;
 	int y;

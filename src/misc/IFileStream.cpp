@@ -172,3 +172,12 @@ float IFileStream::readFloat()
 	memcpy(&tmp2,&tmp,sizeof(Uint32)); // workaround for a strange optimization in gcc 4.1
 	return tmp2;
 }
+
+Coord IFileStream::readCoord()
+{
+    Sint32 y = readSint32();
+    Sint32 x = readSint32();
+    Coord tmp(x,y);
+    return tmp;
+}
+

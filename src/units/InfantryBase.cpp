@@ -270,14 +270,14 @@ void InfantryBase::checkPos() {
                     pNewStructure->setHealth(oldHealth);
                     if(isSelected == true) {
                         pNewStructure->setSelected(true);
-                        currentGame->getSelectedList().insert(pNewStructure->getObjectID());
+                        currentGame->getSelectedList().push_back(pNewStructure->getObjectID());
                         currentGame->selectionChanged();
                         currentGame->getGameInterface().updateObjectInterface();
                     }
 
                     if(isSelectedByOtherPlayer == true) {
                         pNewStructure->setSelectedByOtherPlayer(true);
-                        currentGame->getSelectedByOtherPlayerList().insert(pNewStructure->getObjectID());
+                        currentGame->getSelectedByOtherPlayerList().push_back(pNewStructure->getObjectID());
                     }
 
                     if(containedUnitID != NONE) {

@@ -64,14 +64,14 @@ public:
         \param  groupListIndex   which list should be returned
         \return the n-th list.
 	*/
-	inline std::set<Uint32>& getGroupList(int groupListIndex) { return selectedLists[groupListIndex]; };
+	inline std::list<Uint32>& getGroupList(int groupListIndex) { return selectedLists[groupListIndex]; };
 
 	/**
         Sets one of the 9 saved units lists
         \param  groupListIndex     which list should be set
         \param  newGroupList        the new list to set
 	*/
-	void setGroupList(int groupListIndex, const std::set<Uint32>& newGroupList);
+	void setGroupList(int groupListIndex, const std::list<Uint32>& newGroupList);
 
 	static Player* create(House* associatedHouse, std::string playername) {
         return new HumanPlayer(associatedHouse, playername);
@@ -84,7 +84,7 @@ public:
 public:
     Uint32 nextExpectedCommandsCycle;                       ///< The next cycle we expect commands for (using for network games)
 
-    std::set<Uint32> selectedLists[NUMSELECTEDLISTS];       ///< Sets of all the different groups on key 1 to 9
+    std::list<Uint32> selectedLists[NUMSELECTEDLISTS];       ///< Sets of all the different groups on key 1 to 9
 
 private:
 	HumanPlayer(House* associatedHouse, std::string playername);

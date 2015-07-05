@@ -40,6 +40,7 @@ public:
 	Uint64 readUint64();
 	bool readBool();
 	float readFloat();
+	Coord readCoord();
 
 private:
 	FILE* fp;

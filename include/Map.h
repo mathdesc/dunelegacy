@@ -103,6 +103,7 @@ private:
 	Sint32  sizeY;                          ///< number of tiles this map is high (read only)
 	Tile*   tiles;                          ///< the 2d-array containing all the tiles of the map
 	ObjectBase* lastSinglySelectedObject;   ///< The last selected object. If selected again all units of the same type are selected
+	ObjectBase* groupLeader;   				///< The first selected object is the group leader for formation movement
 };
 
 

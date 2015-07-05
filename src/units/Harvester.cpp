@@ -300,9 +300,11 @@ void Harvester::drawSelectionBox()
         case 2:
         default:    selectionBox = pGFXManager->getUIGraphic(UI_SelectionBox_Zoomlevel2);   break;
     }
+	int x = screenborder->world2screenX(realX) - selectionBox->w/2;
+	int y = screenborder->world2screenY(realY) - selectionBox->h/2;
 
-    SDL_Rect dest = {   screenborder->world2screenX(realX) - selectionBox->w/2,
-                        screenborder->world2screenY(realY) - selectionBox->h/2,
+    SDL_Rect dest = {   x,
+                        y,
                         selectionBox->w,
                         selectionBox->h };
 
@@ -317,6 +319,22 @@ void Harvester::drawSelectionBox()
             drawHLine(screen, dest.x+1, dest.y-i-(currentZoomlevel+1), dest.x+1 + ((int)((((float)spice)/HARVESTERMAXSPICE)*(selectionBox->w-3))), COLOR_ORANGE);
         }
 	}
+
+	if (isLeader()) {
+		SDL_Surface** star = pGFXManager->getObjPic(ObjPic_Star,pLocalHouse->getHouseID());
+
+		int imageW = star[currentZoomlevel]->w/3;
+
+	    SDL_Rect dest = {   x - imageW/2,
+	                        y - star[currentZoomlevel]->h,
+	                        imageW,
+	                        star[currentZoomlevel]->h };
+
+		SDL_BlitSurface(star[currentZoomlevel],NULL, screen, &dest);
+
+	}
+
+
 }
 
 void Harvester::handleDamage(int damage, Uint32 damagerID, House* damagerOwner)

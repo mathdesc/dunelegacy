@@ -250,13 +250,17 @@ ObjectInterface* ObjectBase::getInterfaceContainer() {
 }
 
 void ObjectBase::removeFromSelectionLists() {
-    currentGame->getSelectedList().erase(getObjectID());
+    currentGame->getSelectedList().remove(getObjectID());
+
+    currentGame->getSelectedListCoord().remove(std::pair<Uint32,Coord>(getObjectID(),getLocation()));
+
     currentGame->selectionChanged();
-    currentGame->getSelectedByOtherPlayerList().erase(getObjectID());
+    currentGame->getSelectedByOtherPlayerList().remove(getObjectID());
+
     selected = false;
 
     for(int i=0; i < NUMSELECTEDLISTS; i++) {
-        pLocalPlayer->getGroupList(i).erase(getObjectID());
+        pLocalPlayer->getGroupList(i).remove(getObjectID());
     }
 }
 

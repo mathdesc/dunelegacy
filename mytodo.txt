@@ -15,7 +15,7 @@ Getting hand dirty :
 		-	 firepower of retaliate squad vs damager's
 		-	 
 
-AI is dumb make it smart
+AI is dumb make it smart : create a new
 ==========================
 
 

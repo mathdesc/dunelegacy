@@ -474,27 +474,30 @@ void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, 
 	ObjectBase	*lastCheckedObject = NULL;
 	ObjectBase *lastSelectedObject = NULL;
 
+	err_print("Map::selectObjects : [%d,%d]-[%d,%d] %d,%d \n",x1,y1,x2,y2,realX,realY);
 	//if selection rectangle is checking only one tile and has shift selected we want to add/ remove that unit from the selected group of units
 	if(!objectARGMode) {
 		currentGame->unselectAll(currentGame->getSelectedList());
 		currentGame->getSelectedList().clear();
+		currentGame->getSelectedListCoord().clear();
 		currentGame->selectionChanged();
 	}
 
 	if((x1 == x2) && (y1 == y2) && tileExists(x1, y1)) {
-
+		err_print("Map::selectObjects : selectAllPlayersUnitsOfType \n");
         if(getTile(x1,y1)->isExplored(houseID) || debug) {
             lastCheckedObject = getTile(x1,y1)->getObjectAt(realX, realY);
         } else {
 		    lastCheckedObject = NULL;
 		}
-
+        groupLeader = NULL;
 		if((lastCheckedObject != NULL) && (lastCheckedObject->getOwner()->getHouseID() == houseID)) {
 			if((lastCheckedObject == lastSinglySelectedObject) && ( !lastCheckedObject->isAStructure())) {
+				 groupLeader = lastSinglySelectedObject;
                 for(int i = screenborder->getTopLeftTile().x; i <= screenborder->getBottomRightTile().x; i++) {
                     for(int j = screenborder->getTopLeftTile().y; j <= screenborder->getBottomRightTile().y; j++) {
                         if(tileExists(i,j) && getTile(i,j)->hasAnObject()) {
-                            getTile(i,j)->selectAllPlayersUnitsOfType(houseID, lastSinglySelectedObject, &lastCheckedObject, &lastSelectedObject);
+                            getTile(i,j)->selectAllPlayersUnitsOfType(houseID, lastSinglySelectedObject, &lastCheckedObject, &lastSelectedObject, &groupLeader);
                         }
                     }
 				}
@@ -503,7 +506,7 @@ void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, 
 			} else if(!lastCheckedObject->isSelected())	{
 
 				lastCheckedObject->setSelected(true);
-				currentGame->getSelectedList().insert(lastCheckedObject->getObjectID());
+				currentGame->getSelectedList().emplace_back(lastCheckedObject->getObjectID());
 				currentGame->selectionChanged();
 				lastSelectedObject = lastCheckedObject;
 				lastSinglySelectedObject = lastSelectedObject;
@@ -511,7 +514,7 @@ void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, 
 			} else if(objectARGMode) {
 			    //holding down shift, unselect this unit
 				lastCheckedObject->setSelected(false);
-				currentGame->getSelectedList().erase(lastCheckedObject->getObjectID());
+				currentGame->getSelectedList().remove(lastCheckedObject->getObjectID());
 				currentGame->selectionChanged();
 			}
 
@@ -520,21 +523,24 @@ void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, 
 		}
 
 	} else {
-		lastSinglySelectedObject = NULL;
+		groupLeader = NULL;
+		err_print("Map::selectObjects : selectAllPlayersUnits \n");
 		for(int i = std::min(x1, x2); i <= std::max(x1, x2); i++) {
             for(int j = std::min(y1, y2); j <= std::max(y1, y2); j++) {
                 if(tileExists(i,j) && getTile(i,j)->hasAnObject() && getTile(i,j)->isExplored(houseID) && !getTile(i,j)->isFogged(houseID)) {
-                    getTile(i,j)->selectAllPlayersUnits(houseID, &lastCheckedObject, &lastSelectedObject);
+                    getTile(i,j)->selectAllPlayersUnits(houseID, &lastCheckedObject, &lastSelectedObject, &groupLeader);
+                    lastSinglySelectedObject = lastCheckedObject;
                 }
             }
         }
+		lastSinglySelectedObject = NULL;
 	}
 
 	//select an enemy unit if none of your units found
 	if(currentGame->getSelectedList().empty() && (lastCheckedObject != NULL) && !lastCheckedObject->isSelected()) {
 		lastCheckedObject->setSelected(true);
 		lastSelectedObject = lastCheckedObject;
-		currentGame->getSelectedList().insert(lastCheckedObject->getObjectID());
+		currentGame->getSelectedList().push_back(lastCheckedObject->getObjectID());
 		currentGame->selectionChanged();
 	} else if (lastSelectedObject != NULL) {
 		lastSelectedObject->playSelectSound();	//we only want one unit responding

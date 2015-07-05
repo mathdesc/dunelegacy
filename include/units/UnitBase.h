@@ -194,6 +194,8 @@ public:
 
 	inline void setLocation(const Coord& location) { setLocation(location.x, location.y); }
 
+	inline void setLeader(bool lead) { isGroupLeader = lead; }
+
     inline void setDestination(int newX, int newY) {
         if((destination.x != newX) || (destination.y != newY)) {
             ObjectBase::setDestination(newX, newY);
@@ -226,6 +228,7 @@ public:
 
     virtual float getMaxSpeed() const;
 
+
 	inline void clearPath() {
         pathList.clear();
         nextSpotFound = false;
@@ -237,6 +240,8 @@ public:
 	inline bool isTracked() const { return tracked; }
 
 	inline bool isTurreted() const { return turreted; }
+
+	inline bool isLeader() const { return isGroupLeader; }
 
 	inline bool isMoving() const { return moving; }
 
@@ -251,6 +256,12 @@ public:
 	inline const Coord& getGuardPoint() const { return guardPoint; }
 
 	virtual void playAttackSound();
+
+	inline float getxSpeed() const { return xSpeed; }
+	inline float getySpeed() const { return ySpeed; }
+
+	inline float getRegulatedSpeed() 			const { return regulatedSpeed; }
+	inline void  setRegulatedSpeed(float speed) 	  { regulatedSpeed = speed;}
 
 protected:
 
@@ -300,10 +311,12 @@ protected:
     bool    bFollow;                ///< Do we currently follow some other unit (specified by target)?
 
 
+    bool	isGroupLeader;			///< Is this unit a group leader of unit selection
     bool    moving;                 ///< Are we currently moving?
     bool    turning;                ///< Are we currently turning?
     bool    justStoppedMoving;      ///< Do we have just stopped moving?
     bool	salving;				///< Do the unit is in a salving mode
+    float	regulatedSpeed;			///< Do the unit is under speed regulation (i.e formation moves) [0,++]
     float	xSpeed;                 ///< Speed in x direction
     float	ySpeed;                 ///< Speed in y direction
     float   bumpyOffsetX;           ///< The bumpy offset in x direction which is already included in realX

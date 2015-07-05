@@ -50,6 +50,7 @@ Carryall::Carryall(House* newOwner) : AirUnit(newOwner)
 
     currentMaxSpeed = 2.0f;
 
+
 	curFlyPoint = 0;
 	for(int i=0; i < 8; i++) {
 		flyPoints[i].invalidate();
@@ -85,6 +86,7 @@ void Carryall::init()
 	owner->incrementUnits(itemID);
 
 	canAttackStuff = false;
+	respondable = false;
 
 	graphicID = ObjPic_Carryall;
 	graphic = pGFXManager->getObjPic(graphicID,getOwner()->getHouseID());
@@ -212,7 +214,8 @@ void Carryall::checkPos()
 
                 idle = true;
             }
-		} else if((isBooked() == false) && idle && !firstRun) {
+		} else if((isBooked() == false) && idle && !firstRun /*&&  !isSelected()*/) {
+
 			//fly around const yard
 			Coord point = this->getClosestPoint(location);
 
@@ -236,6 +239,7 @@ void Carryall::checkPos()
 
 				setGuardPoint(flyPoints[curFlyPoint]);
 				setDestination(guardPoint);
+
 			}
 		} else if(firstRun && owned) {
 			findConstYard();
@@ -263,6 +267,8 @@ void Carryall::deployUnit(Uint32 unitID)
         return;
 	}
 
+
+
 	pickedUpUnitList.remove(unitID);
 
 	soundPlayer->playSoundAt(Sound_Drop, location);
@@ -273,6 +279,7 @@ void Carryall::deployUnit(Uint32 unitID)
 		return;
     }
 
+	dbg_print(" Carryall::deployUnit  found:%s \n",found ? "yes" : "no");
 	if (found) {
 	    currentMaxSpeed = 0.0f;
 	    setSpeeds();
@@ -346,7 +353,7 @@ void Carryall::destroy()
 
 void Carryall::releaseTarget() {
     setTarget(NULL);
-
+    dbg_print(" Carryall::releaseTarget   \n");
     if(!hasCargo()) {
         booked = false;
         idle = true;
@@ -424,7 +431,7 @@ void Carryall::giveCargo(UnitBase* newUnit)
 	if(newUnit == NULL) {
 		return;
     }
-
+	dbg_print(" Carryall::giveCargo %d(%d)   \n", newUnit->getObjectID(),newUnit->getItemID());
 	booked = true;
 	pickedUpUnitList.push_back(newUnit->getObjectID());
 
@@ -447,16 +454,19 @@ void Carryall::pickupTarget()
         GroundUnit* pGroundUnitTarget = dynamic_cast<GroundUnit*>(pTarget);
 
         if(pTarget->getHealth() <= 0.0f) {
-            // unit died just in the moment we tried to pick it up => carryall also crushes
+            // unit died just in the moment we tried to pick it up => carryall also crashes
             setHealth(0.0f);
             return;
         }
 
 		if (  pTarget->hasATarget()
 			|| ( pGroundUnitTarget->getGuardPoint() != pTarget->getLocation())
-			|| pGroundUnitTarget->isBadlyDamaged())	{
+			|| pGroundUnitTarget->isBadlyDamaged())
+		{
 
-			if(pGroundUnitTarget->isBadlyDamaged() || (pTarget->hasATarget() == false && pTarget->getItemID() != Unit_Harvester))	{
+
+			if(pGroundUnitTarget->isBadlyDamaged() /*|| (pTarget->hasATarget() == false && pTarget->getItemID() != Unit_Harvester)*/)	{
+				dbg_print(" Carryall::pickupTarget %d(%d) do repair  \n", pTarget->getObjectID(),pTarget->getItemID());
 				pGroundUnitTarget->doRepair();
 			}
 
@@ -478,12 +488,14 @@ void Carryall::pickupTarget()
                     setDestination(target.getObjPointer()->getClosestPoint(location));
                 }
             } else if (pGroundUnitTarget->getDestination().isValid()) {
+            	dbg_print( " Carryall::pickupTarget %d(%d) go get it !  \n", pGroundUnitTarget->getObjectID(),pGroundUnitTarget->getItemID());
                 setDestination(pGroundUnitTarget->getDestination());
             }
 
             clearPath();
 
 		} else {
+			dbg_print( " Carryall::pickupTarget %d(%d) that is going to be pickup \n", pGroundUnitTarget->getObjectID(),pGroundUnitTarget->getItemID());
 			pGroundUnitTarget->setAwaitingPickup(false);
 			releaseTarget();
 		}
@@ -495,6 +507,7 @@ void Carryall::pickupTarget()
             ((Refinery*) pObject)->deployHarvester(this);
         } else if(pObject->getItemID() == Structure_RepairYard) {
             // get repaired unit
+        	dbg_print("Carryall::pickupTarget %d deployRepairUnit\n", this->getObjectID());
             ((RepairYard*) pObject)->deployRepairUnit(this);
         }
 	}

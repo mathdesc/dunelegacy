@@ -57,10 +57,12 @@ UnitBase::UnitBase(House* newOwner) : ObjectBase(newOwner) {
     guardPoint = Coord::Invalid();
     attackPos = Coord::Invalid();
 
+    isGroupLeader = false;
     moving = false;
     turning = false;
     justStoppedMoving = false;
 	salving = false;
+	regulatedSpeed = 0.0f;
     xSpeed = 0.0f;
     ySpeed = 0.0f;
     bumpyOffsetX = 0.0f;
@@ -97,7 +99,9 @@ UnitBase::UnitBase(InputStream& stream) : ObjectBase(stream) {
 	attackPos.x = stream.readSint32();
 	attackPos.y = stream.readSint32();
 
-	stream.readBools(&moving, &turning, &justStoppedMoving, &salving);
+
+	stream.readBools(&isGroupLeader, &moving, &turning, &justStoppedMoving, &salving);
+	regulatedSpeed = stream.readFloat();
 	xSpeed = stream.readFloat();
 	ySpeed = stream.readFloat();
 	bumpyOffsetX = stream.readFloat();
@@ -161,7 +165,8 @@ void UnitBase::save(OutputStream& stream) const {
 	stream.writeSint32(attackPos.x);
 	stream.writeSint32(attackPos.y);
 
-	stream.writeBools(moving, turning, justStoppedMoving,salving);
+	stream.writeBools(isGroupLeader,moving, turning, justStoppedMoving,salving);
+	stream.writeFloat(regulatedSpeed);
 	stream.writeFloat(xSpeed);
 	stream.writeFloat(ySpeed);
 	stream.writeFloat(bumpyOffsetX);
@@ -275,7 +280,7 @@ void UnitBase::attack() {
 void UnitBase::salveAttack(Coord Pos, Coord Target) {
 
 	if (!salveWeapon || !salving) {
-		fprintf(stderr,"UnitBase::salveAttack no more salving\n");
+		dbg_relax_print("UnitBase::salveAttack no more salving\n");
 		return;
 	}
 
@@ -291,7 +296,7 @@ void UnitBase::salveAttack(Coord Pos, Coord Target) {
 			if (target && target.getObjPointer() != NULL) {
 				targetCenterPoint = target.getObjPointer()->getClosestCenterPoint(location);
 				targetDistance = blockDistance(location, targetCenterPoint);
-				fprintf(stderr,"UnitBase::salveAttack targetdistance %lf weaponreach %d\n",targetDistance,getWeaponRange() );
+				dbg_relax_print("UnitBase::salveAttack targetdistance %lf weaponreach %d\n",targetDistance,getWeaponRange() );
 			}
 
 
@@ -305,7 +310,7 @@ void UnitBase::salveAttack(Coord Pos, Coord Target) {
 				targetCenterPoint = target.getObjPointer()->getClosestCenterPoint(location);
 				bAirBullet = target.getObjPointer()->isAFlyingUnit();
 			} else {
-				fprintf(stderr,"UnitBase::salveAttack cannot be done !\n");
+				dbg_print("UnitBase::salveAttack cannot be done !\n");
 				return;
 			}
 
@@ -415,6 +420,7 @@ void UnitBase::deviate(House* newOwner) {
 void UnitBase::drawSelectionBox() {
 
     SDL_Surface* selectionBox = NULL;
+    SDL_Surface* icon = NULL;
 
     switch(currentZoomlevel) {
         case 0:     selectionBox = pGFXManager->getUIGraphic(UI_SelectionBox_Zoomlevel0);   break;
@@ -434,6 +440,22 @@ void UnitBase::drawSelectionBox() {
 	for(int i=1;i<=currentZoomlevel+1;i++) {
         drawHLine(screen, x+1, y-i, x+1 + ((int)((getHealth()/(float)getMaxHealth())*(selectionBox->w-3))), getHealthColor());
 	}
+
+	if (isLeader()) {
+
+		SDL_Surface** star = pGFXManager->getObjPic(ObjPic_Star,pLocalHouse->getHouseID());
+
+		int imageW = star[currentZoomlevel]->w/3;
+
+	    SDL_Rect dest = {   x - imageW/2,
+	                        y - star[currentZoomlevel]->h,
+	                        imageW,
+	                        star[currentZoomlevel]->h };
+
+		SDL_BlitSurface(star[currentZoomlevel],NULL, screen, &dest);
+
+	}
+
 }
 
 void UnitBase::drawOtherPlayerSelectionBox() {
@@ -553,7 +575,7 @@ void UnitBase::engageTarget() {
         		setDestination(targetLocation);
         	}
         	else {
-        		//fprintf(stdout,"UnitBase::engageTarget setting salveattack unreached x=%d y=%d\n ",attackPos.x,attackPos.y);
+        		dbg_relax_print("UnitBase::engageTarget setting salveattack unreached x=%d y=%d\n ",attackPos.x,attackPos.y);
                 salveAttack(attackPos,targetLocation.Invalid());
         	}
             return;
@@ -586,24 +608,24 @@ void UnitBase::engageTarget() {
             setDestination(location);
             if (checkSalveRealoaded(salving)) {
             	targetAngle = newTargetAngle;
-            	//fprintf(stdout,"UnitBase::engageTarget get new angle (salving %s)\n",salving ? "yes" :"no");
+            	dbg_relax_print("UnitBase::engageTarget get new angle (salving %s)\n",salving ? "yes" :"no");
             }
         }
         attackPos = targetLocation;
 
         if (salving && (targetAngle == newTargetAngle)) {
         		attackPos = targetLocation;					// Saving attackPos when target become unreachable
-               	//fprintf(stdout,"UnitBase::engageTarget setting salveattack on TARGET x=%d y=%d\n ",attackPos.x,attackPos.y);
+        		dbg_relax_print("UnitBase::engageTarget setting salveattack on TARGET x=%d y=%d\n ",attackPos.x,attackPos.y);
                	salveAttack(attackPos,targetLocation);
                	return;
         }
         if (salving && targetAngle != newTargetAngle) {
-               	//fprintf(stdout,"UnitBase::engageTarget setting salveattack on POSITION x=%d y=%d\n ",attackPos.x,attackPos.y);
+        		dbg_relax_print("UnitBase::engageTarget setting salveattack on POSITION x=%d y=%d\n ",attackPos.x,attackPos.y);
                	salveAttack(attackPos,targetLocation.Invalid());
                	return;
         }
         if(!salving && getCurrentAttackAngle() == newTargetAngle) {
-        	//fprintf(stderr,"nosalving attack x=%d y=%d!\n",targetLocation.x,targetLocation.y);
+        	dbg_relax_print("nosalving attack x=%d y=%d!\n",targetLocation.x,targetLocation.y);
             attack();
         }
 
@@ -625,7 +647,7 @@ void UnitBase::engageTarget() {
     	            targetAngle = newTargetAngle;
 
     	            if(getCurrentAttackAngle() == newTargetAngle ) {
-    	            	//fprintf(stderr,"attackPos (x=%d,y=%d) attack \n ",attackPos.x,attackPos.y);
+    	            	dbg_relax_print("attackPos (x=%d,y=%d) attack \n ",attackPos.x,attackPos.y);
     	                attack();
     	            }
     	        } else {
@@ -644,20 +666,25 @@ void UnitBase::move() {
 	}
 
 	if (salveWeapon >= 1 && !checkSalveRealoaded(salving)) {
-		//  fprintf(stdout,"UnitBase::move cancel whist salving (salving:%s) \n",salving ? "keepfiring" :"canceled");
 		return;
 	}
 
-	//if (isSelected()) fprintf(stdout,"UnitBase::move done (moving:%s justStoppedMoving:%s)\n", moving ? "y" : "n", justStoppedMoving ? "y" : "n");
 
 	if(moving && !justStoppedMoving) {
-		if((isBadlyDamaged() == false) || isAFlyingUnit()) {
-			realX += xSpeed;
-			realY += ySpeed;
-		} else {
-			realX += xSpeed/2;
-			realY += ySpeed/2;
+		float maxxspeed, maxyspeed;
+
+		maxxspeed = getxSpeed();
+		maxyspeed = getySpeed();
+
+		if((isBadlyDamaged() == true) && !isAFlyingUnit()) {
+			maxxspeed /= 2;
+			maxyspeed /= 2;
 		}
+
+
+		realX += maxxspeed;
+		realY += maxyspeed;
+
 
 		// check if vehicle is on the first half of the way
 		float fromDistanceX;
@@ -961,7 +988,7 @@ void UnitBase::doSalveAttackPos(int xPos, int yPos, bool bForced) {
 	setForced(bForced);
 	attackPos.x = xPos;
 	attackPos.y = yPos;
-	fprintf(stderr,"UnitBase::doSalveAttackPos (x=%d,y=%d)  \n ",xPos,yPos);
+	err_print("UnitBase::doSalveAttackPos (x=%d,y=%d)  \n ",xPos,yPos);
 	salving = true;
 	clearPath();
 	findTargetTimer = 0;
@@ -977,7 +1004,7 @@ void UnitBase::doAttackPos(int xPos, int yPos, bool bForced) {
 	setForced(bForced);
 	attackPos.x = xPos;
 	attackPos.y = yPos;
-	fprintf(stderr,"UnitBase::doAttackPos (x=%d,y=%d)  \n ",xPos,yPos);
+	err_print("UnitBase::doAttackPos (x=%d,y=%d)  \n ",xPos,yPos);
 	salving = false;
 	clearPath();
 	findTargetTimer = 0;
@@ -1021,7 +1048,7 @@ void UnitBase::doSalveAttackObject(Uint32 TargetObjectID, bool bForced) {
 		salving = false;
 		doAttackObject(pObject, bForced);
 	}
-	fprintf(stderr,"UnitBase::doSalveAttackObject (id=%d,salving? %s)  \n ",TargetObjectID, salving ? "true" : "false");
+	err_print("UnitBase::doSalveAttackObject (id=%d,salving? %s)  \n ",TargetObjectID, salving ? "true" : "false");
 }
 
 void UnitBase::doAttackObject(Uint32 TargetObjectID, bool bForced) {
@@ -1031,7 +1058,7 @@ void UnitBase::doAttackObject(Uint32 TargetObjectID, bool bForced) {
         return;
 	}
 	salving = false;
-	fprintf(stderr,"UnitBase::doAttackObject (id=%d,salving? %s)  \n ",TargetObjectID, salving ? "true" : "false");
+	err_print("UnitBase::doAttackObject (id=%d,salving? %s)  \n ",TargetObjectID, salving ? "true" : "false");
     doAttackObject(pObject, bForced);
 }
 
@@ -1243,11 +1270,38 @@ void UnitBase::setPickedUp(UnitBase* newCarrier) {
 	clearPath();
 }
 
+
 float UnitBase::getMaxSpeed() const {
-    return currentGame->objectData.data[itemID][originalHouseID].maxspeed;
+
+	float maxrelativespeed = currentGame->objectData.data[itemID][originalHouseID].maxspeed;
+	bool inList = false;
+
+	if (currentGame->getSelectedList().size() > 1 ) {
+		std::list<Uint32> *list = &currentGame->getSelectedList();
+		std::list<Uint32>::iterator test;
+		for(test = list->begin() ; test != list->end(); ++test) {
+			ObjectBase *obj = currentGame->getObjectManager().getObject(*test);
+			UnitBase *unit = dynamic_cast<UnitBase*>(obj);
+			if(obj->isAUnit() && unit->getRegulatedSpeed()) {
+				maxrelativespeed = std::min(maxrelativespeed,currentGame->objectData.data[obj->getItemID()][obj->getOriginalHouseID()].maxspeed);
+				if (this  == unit) {
+					unit->setRegulatedSpeed(maxrelativespeed);
+					inList = true;
+				}
+			}
+		}
+	}
+
+	if (inList)
+		return maxrelativespeed;
+	else
+		return currentGame->objectData.data[itemID][originalHouseID].maxspeed;
 }
 
+
 void UnitBase::setSpeeds() {
+
+
 	float speed = getMaxSpeed();
 
 	if(!isAFlyingUnit()) {
@@ -1293,8 +1347,8 @@ void UnitBase::setTarget(const ObjectBase* newTarget) {
 
 void UnitBase::targeting() {
     if(findTargetTimer == 0) {
-    	/*if (this->isSelected()) fprintf(stderr,"UnitBase::targeting salving:%s notarget:%s(%d) noattackpos:%s notmoving:%s notjuststopped:%s notforced:%s guardpoint:[%d,%d]\n", salving ? "yes" : "no",!target ? "y" : "n", target.getObjectID(),
-    			!attackPos ? "y" : "n", !moving ? "y" : "n", !justStoppedMoving ? "y" : "n", !forced ? "y" : "n", guardPoint.x ,guardPoint.y);*/
+    	if (this->isSelected()) err_relax_print("UnitBase::targeting salving:%s notarget:%s(%d) noattackpos:%s notmoving:%s notjuststopped:%s notforced:%s guardpoint:[%d,%d]\n", salving ? "yes" : "no",!target ? "y" : "n", target.getObjectID(),
+    			!attackPos ? "y" : "n", !moving ? "y" : "n", !justStoppedMoving ? "y" : "n", !forced ? "y" : "n", guardPoint.x ,guardPoint.y);
 
         if(attackMode != STOP) {
             if(!target && !attackPos && !moving && !justStoppedMoving && !forced) {

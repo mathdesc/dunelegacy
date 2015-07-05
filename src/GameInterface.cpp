@@ -178,6 +178,9 @@ void GameInterface::updateObjectInterface() {
 		ObjectBase* pObject = currentGame->getObjectManager().getObject( *(currentGame->getSelectedList().begin()));
 		Uint32 newObjectID = pObject->getObjectID();
 
+		// Drop leadership if you are only to be selected
+		if (pObject->isAUnit()) dynamic_cast<UnitBase*>(pObject)->setLeader(false);
+
 		if(newObjectID != objectID) {
 			removeOldContainer();
 
@@ -198,7 +201,6 @@ void GameInterface::updateObjectInterface() {
 			}
 		}
 	} else if(currentGame->getSelectedList().size() > 1) {
-
 	    if((pObjectContainer == NULL) || (objectID != NONE)) {
 	        // either there was nothing selected before or exactly one unit
 

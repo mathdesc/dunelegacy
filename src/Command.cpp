@@ -133,6 +133,7 @@ void Command::executeCommand() const {
                 return;
 			}
             unit->doMove2Pos((int) parameter[1], (int) parameter[2], (bool) parameter[3]);
+          //  fprintf(stderr, "Command::executeCommand %d %d %d\n", (int) parameter[1],(int) parameter[2],(int) parameter[3]);
 		} break;
 
 		case CMD_UNIT_MOVE2OBJECT: {

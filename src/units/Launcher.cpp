@@ -77,9 +77,11 @@ void Launcher::drawSelectionBox()
         case 2:
         default:    selectionBox = pGFXManager->getUIGraphic(UI_SelectionBox_Zoomlevel2);   break;
     }
+	int x = screenborder->world2screenX(realX) - selectionBox->w/2;
+	int y = screenborder->world2screenY(realY) - selectionBox->h/2;
 
-    SDL_Rect dest = {   screenborder->world2screenX(realX) - selectionBox->w/2,
-                        screenborder->world2screenY(realY) - selectionBox->h/2,
+    SDL_Rect dest = {   x,
+                        y,
                         selectionBox->w,
                         selectionBox->h };
 
@@ -100,6 +102,21 @@ void Launcher::drawSelectionBox()
             drawHLine(screen, dest.x+1, dest.y-i-(currentZoomlevel+1), dest.x+1 +  ((int)((((float)salvotimer)/max)*(selectionBox->w-3))), COLOR_BLUE);
         }
 	}
+
+	if (isLeader()) {
+		SDL_Surface** star = pGFXManager->getObjPic(ObjPic_Star,pLocalHouse->getHouseID());
+
+		int imageW = star[currentZoomlevel]->w/3;
+
+	    SDL_Rect dest = {   x - imageW/2,
+	                        y - star[currentZoomlevel]->h,
+	                        imageW,
+	                        star[currentZoomlevel]->h };
+
+		SDL_BlitSurface(star[currentZoomlevel],NULL, screen, &dest);
+
+	}
+
 }
 
 void Launcher::blitToScreen() {
@@ -153,10 +170,10 @@ void Launcher::destroy() {
 
 
 void Launcher::salveAttack(Coord Pos, Coord Target) {
-	//fprintf(stderr,"Launcher::salveAttack salveWeaponTimer=%i %i %i %i %i %i %i %i %i %i\n",salveWeaponTimer[0],salveWeaponTimer[1],salveWeaponTimer[2],salveWeaponTimer[3],salveWeaponTimer[4],salveWeaponTimer[5],salveWeaponTimer[6],salveWeaponTimer[7]);
+	dbg_relax_print("Launcher::salveAttack salveWeaponTimer=%i %i %i %i %i %i %i %i %i %i\n",salveWeaponTimer[0],salveWeaponTimer[1],salveWeaponTimer[2],salveWeaponTimer[3],salveWeaponTimer[4],salveWeaponTimer[5],salveWeaponTimer[6],salveWeaponTimer[7]);
 
 	if (salveWeapon < 1 || !salving) {
-		fprintf(stderr,"Launcher::salveAttack no more salving\n");
+		dbg_relax_print("Launcher::salveAttack no more salving\n");
 		return;
 	}
 
@@ -172,7 +189,7 @@ void Launcher::salveAttack(Coord Pos, Coord Target) {
 			if (target && target.getObjPointer() != NULL) {
 				targetCenterPoint = target.getObjPointer()->getClosestCenterPoint(location);
 				targetDistance = blockDistance(location, targetCenterPoint);
-			//	fprintf(stderr,"Launcher::salveAttack targetdistance %lf weaponreach %d targetvalid? %s\n",targetDistance,getWeaponRange(),Target.isValid() ? "true" : "false" );
+				dbg_relax_print("Launcher::salveAttack targetdistance %lf weaponreach %d targetvalid? %s\n",targetDistance,getWeaponRange(),Target.isValid() ? "true" : "false" );
 			}
 
 			if (target.getObjPointer() != NULL && Target.isValid()) {
@@ -192,7 +209,7 @@ void Launcher::salveAttack(Coord Pos, Coord Target) {
 				isFogged = currentGameMap->getTile(Pos)->isFogged(owner->getHouseID());
 				isExplored = currentGameMap->getTile(Pos)->isExplored(owner->getHouseID());
 			} else {
-				//fprintf(stderr,"Launcher::salveAttack cannot be done !\n");
+				dbg_relax_print("Launcher::salveAttack cannot be done !\n");
 				// Give a chance to navigate to the target if we are able to move
 		        if(checkSalveRealoaded(salving) && currentGame->randomGen.rand(0, 50) == 0) {
 		            navigate();
@@ -218,14 +235,14 @@ void Launcher::salveAttack(Coord Pos, Coord Target) {
 				if (isFogged) currentWeaponDamage *= .80;
 				if (!isExplored) currentWeaponDamage *= 0.25;
 				if (target.getObjPointer() != NULL  && (target.getObjPointer())->isAStructure()) currentWeaponDamage *= .35;
-				/*fprintf(stderr,"Launcher::salveAttack dmg=%i/%i : air? %s struct?%s locked? %s advg? %s fog? %s expl? %s\n", currentWeaponDamage, baseweapondmg,
+				dbg_relax_print("Launcher::salveAttack dmg=%i/%i : air? %s struct?%s locked? %s advg? %s fog? %s expl? %s\n", currentWeaponDamage, baseweapondmg,
 															bAirBullet ? "y" : "n",
 															target.getObjPointer() != NULL  && (target.getObjPointer())->isAStructure() ? "y" : "n",
 															(target.getObjPointer() != NULL && Target.isValid()) ? "y" : "n" ,
 															( currentGameMap->getTile(location)->isRock() || currentGameMap->getTile(location)->isDunes() ) ? "y" : "n",
 															isFogged ? "y" : "n",
 															isExplored ? "y" : "n"
-				);*/
+				);
 
 				salveWeaponDelay = SALVO_TIMER_LAUNCHER;
 				primaryWeaponTimer = getWeaponReloadTime();

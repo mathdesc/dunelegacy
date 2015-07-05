@@ -553,31 +553,53 @@ void Tile::clearTerrain() {
 }
 
 
-void Tile::selectAllPlayersUnits(int houseID, ObjectBase** lastCheckedObject, ObjectBase** lastSelectedObject) {
+void Tile::selectAllPlayersUnits(int houseID, ObjectBase** lastCheckedObject, ObjectBase** lastSelectedObject, ObjectBase** groupLeader) {
 	ConcatIterator<Uint32> iterator;
 	iterator.addList(assignedInfantryList);
 	iterator.addList(assignedNonInfantryGroundObjectList);
 	iterator.addList(assignedUndergroundUnitList);
 	iterator.addList(assignedAirUnitList);
 
+
+
 	while(!iterator.isIterationFinished()) {
 		*lastCheckedObject = currentGame->getObjectManager().getObject(*iterator);
+
 		if (((*lastCheckedObject)->getOwner()->getHouseID() == houseID)
 			&& !(*lastCheckedObject)->isSelected()
 			&& (*lastCheckedObject)->isAUnit()
 			&& ((*lastCheckedObject)->isRespondable()))	{
 
+
+			if (*groupLeader == NULL) {
+				*groupLeader = (*lastCheckedObject);
+				dynamic_cast<UnitBase*>(*lastCheckedObject)->setLeader(true);
+				err_print("Tile::selectAllPlayersUnits obj:%d Become group leader\n",(*lastCheckedObject)->getObjectID());
+			}
+			else dynamic_cast<UnitBase*>(*lastCheckedObject)->setLeader(false);
+
 			(*lastCheckedObject)->setSelected(true);
-			currentGame->getSelectedList().insert((*lastCheckedObject)->getObjectID());
+			currentGame->getSelectedList().push_back((*lastCheckedObject)->getObjectID());
+
+
+			currentGame->getSelectedListCoord().push_back(std::make_pair<Uint32,Coord> ( (*lastCheckedObject)->getObjectID(), (*lastCheckedObject)->getLocation() - (*groupLeader)->getLocation() ) );
+			err_print("Tile::selectAllPlayersUnits (o:%d) Obj:%d %d,%d \n",(*groupLeader)->getObjectID(), (*lastCheckedObject)->getObjectID(),((*lastCheckedObject)->getLocation() - (*groupLeader)->getLocation()).x , ((*lastCheckedObject)->getLocation() - (*groupLeader)->getLocation()).y);
+
+
 			currentGame->selectionChanged();
 			*lastSelectedObject = *lastCheckedObject;
+
+
 		}
+
 		++iterator;
+
 	}
+	currentGame->setElected(false);
 }
 
 
-void Tile::selectAllPlayersUnitsOfType(int houseID, ObjectBase* lastSinglySelectedObject, ObjectBase** lastCheckedObject, ObjectBase** lastSelectedObject) {
+void Tile::selectAllPlayersUnitsOfType(int houseID, ObjectBase* lastSinglySelectedObject, ObjectBase** lastCheckedObject, ObjectBase** lastSelectedObject, ObjectBase** groupLeader) {
 	ConcatIterator<Uint32> iterator;
 	iterator.addList(assignedInfantryList);
 	iterator.addList(assignedNonInfantryGroundObjectList);
@@ -595,13 +617,24 @@ void Tile::selectAllPlayersUnitsOfType(int houseID, ObjectBase* lastSinglySelect
 			&& ((*lastCheckedObject)->getItemID() == itemid)
 			&& ( unit->isSalving() == sunit->isSalving() ) ) {
 
+			if (*groupLeader == (*lastCheckedObject)) {
+				dynamic_cast<UnitBase*>(*lastCheckedObject)->setLeader(true);
+				err_print("Tile::selectAllPlayersUnits obj:%d Become group leader\n",(*lastCheckedObject)->getObjectID());
+			}
+			else dynamic_cast<UnitBase*>(*lastCheckedObject)->setLeader(false);
+
+
 			(*lastCheckedObject)->setSelected(true);
-			currentGame->getSelectedList().insert((*lastCheckedObject)->getObjectID());
+			currentGame->getSelectedList().push_back((*lastCheckedObject)->getObjectID());
+			currentGame->getSelectedListCoord().push_back(std::make_pair<Uint32,Coord> ((*lastCheckedObject)->getObjectID(), ((*lastCheckedObject)->getLocation() - lastSinglySelectedObject->getLocation())) );
+			err_print("Tile::selectAllPlayersUnitsOfType obj:%d %d,%d \n", (*lastCheckedObject)->getObjectID(),((*lastCheckedObject)->getLocation() - lastSinglySelectedObject->getLocation()).x , ((*lastCheckedObject)->getLocation() - lastSinglySelectedObject->getLocation()).y);
 			currentGame->selectionChanged();
 			*lastSelectedObject = *lastCheckedObject;
 		}
 		++iterator;
 	}
+	currentGame->setElected(false);
+	dbg_print("Tile::selectAllPlayersUnitsOfType size <%d,%d>\n",currentGame->getSelectedList().size(),currentGame->getSelectedListCoord().size());
 }
 
 

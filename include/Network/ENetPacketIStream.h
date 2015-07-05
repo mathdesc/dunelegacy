@@ -124,6 +124,13 @@ public:
         return tmp2;
     }
 
+	Coord readCoord() {
+	    Sint32 y = readSint32();
+	    Sint32 x = readSint32();
+	    Coord tmp(x,y);
+	    return tmp;
+    }
+
 private:
     size_t  currentPos;
 	ENetPacket* packet;

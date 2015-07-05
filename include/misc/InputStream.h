@@ -26,6 +26,10 @@
 #include <set>
 #include <exception>
 
+#include <DataTypes.h>
+
+
+
 class InputStream
 {
 public:
@@ -44,6 +48,7 @@ public:
 	virtual Uint64 readUint64() = 0;
 	virtual bool readBool() = 0;
 	virtual float readFloat() = 0;
+	virtual Coord readCoord() = 0;
 
 	/**
         Reads in a Sint8 value.
@@ -115,6 +120,19 @@ public:
 		Uint32 size = readUint32();
 		for(unsigned int i=0; i < size; i++) {
 			List.push_back(readUint32());
+		}
+		return List;
+	}
+
+	/**
+		Reads a list of pair Uint32,Coord written by writeUint32CoordPairList().
+		\return	the read list
+	*/
+	std::list<std::pair<Uint32,Coord>> readUint32CoordPairList() {
+		std::list<std::pair<Uint32,Coord>> List;
+		Uint32 size = readUint32();
+		for(unsigned int i=0; i < size; i++) {
+			List.push_back(std::pair<Uint32,Coord>(readUint32(),readCoord()));
 		}
 		return List;
 	}
