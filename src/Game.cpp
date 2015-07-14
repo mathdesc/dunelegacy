@@ -136,7 +136,16 @@ Game::Game() {
 	gameCycleCount = 0;
 	skipToGameCycle = 0;
 
+	FrameTime = new float[sideBarPos.x*2];
+
+	for (int i=0; i<sideBarPos.x*2;i++)
+		FrameTime[i] = 31.25f;
+
 	averageFrameTime = 31.25f;
+	maxFrameTime = 31.25f;
+	minFrameTime = 31.25f;
+	varFrameTime = 0;
+
 	debug = false;
 
 	powerIndicatorPos.x = 14;
@@ -198,6 +207,7 @@ Game::~Game() {
 		house[i] = NULL;
 	}
 
+	delete FrameTime;
 	delete currentGameMap;
 	currentGameMap = NULL;
 	delete screenborder;
@@ -645,12 +655,42 @@ void Game::drawScreen()
 
 	if(bShowFPS) {
 		char	temp[50];
-		snprintf(temp,50,"fps: %.1f ", 1000.0f/averageFrameTime);
+		snprintf(temp,50,"fps: %.1f (min:%.1f,max:%.1f,dev:%.1f)", 1000.0f/averageFrameTime,minFrameTime,maxFrameTime,sqrt(varFrameTime));
 
 		SDL_Surface* fpsSurface = pFontManager->createSurfaceWithText(temp, COLOR_WHITE, FONT_STD12);
-        SDL_Rect drawLocation = { sideBarPos.x - strlen(temp)*8, 60, fpsSurface->w, fpsSurface->h };
+
+		int x = 0;
+		int y = 120;
+		int maxdraw=sideBarPos.x*2;
+		maxFrameTime=0;minFrameTime=999;
+		double diff,sq_diff_sum;
+
+
+        SDL_Rect drawLocation = { x, y, fpsSurface->w, fpsSurface->h };
+        int fy = drawLocation.y+drawLocation.h;
+        drawRect(screen, drawLocation.x, topBarPos.h, sideBarPos.x, fy,COLOR_YELLOW);
+        int color;
+
+        for (int i=1, j=2;i<maxdraw;i+=1,j=(j+1)%sideBarPos.x) {
+
+        		minFrameTime = std::min(minFrameTime,FrameTime[i]);
+        		maxFrameTime = std::max(maxFrameTime,FrameTime[i]);
+        	      diff = FrameTime[i] - (1000.0f/averageFrameTime);
+        	      sq_diff_sum += diff * diff;
+
+        		color = FrameTime[i] >= averageFrameTime ? COLOR_GREEN : COLOR_RED;
+        		if (i == gameCycleCount%(sideBarPos.x*2)) color = COLOR_LIGHTBLUE;
+        		drawLine (screen, drawLocation.x+j-1, fy - (FrameTime[i-1]*2), drawLocation.x+j, fy - (FrameTime[i]*2), color);
+
+        	drawHLine(screen,drawLocation.x+j, fy - (minFrameTime*2), drawLocation.x+j, COLOR_RED);
+        	drawHLine(screen,drawLocation.x+j, fy - ((1000.0f/averageFrameTime)*2), drawLocation.x+j, COLOR_LIGHTBLUE);
+        	drawHLine(screen,drawLocation.x+j, fy - (maxFrameTime*2), drawLocation.x+j, COLOR_GREEN);
+        }
+        varFrameTime = sq_diff_sum / maxdraw;
 		SDL_BlitSurface(fpsSurface, NULL, screen, &drawLocation);
 		SDL_FreeSurface(fpsSurface);
+
+
 	}
 
 	if(bShowTime) {
@@ -930,6 +970,11 @@ void Game::doInput()
                                     pInterface->addToNewsTicker(harvesterMessage);
                                 }
                             }
+
+
+                        } else {
+                        	// TODO : Get info on army selection
+
                         }
 
                         pInterface->updateObjectInterface();
@@ -1094,6 +1139,8 @@ void Game::drawCursor()
                             if((pStructure != NULL) && (pStructure->canBeCaptured()) && (pStructure->getOwner()->getTeam() != pLocalHouse->getTeam())) {
                                 dest.y += ((getGameCycleCount() / 10) % 5);
                             }
+                        } else {
+                        	// TODO : Get info on army selection
                         }
                     }
 
@@ -1247,7 +1294,7 @@ void Game::runMainLoop() {
 	int     frameTime = 0;
 	int     numFrames = 0;
 
-    //fprintf(stderr, "Random Seed (GameCycle %d): 0x%0X\n", GameCycleCount, RandomGen.getSeed());
+    //fprintf(stderr, "Random Seed (GameCycle %d): 0x%0X\n", gameCycleCount, randomGen.getSeed());
 
 	//main game loop
     do {
@@ -1267,7 +1314,10 @@ void Game::runMainLoop() {
         numFrames++;
 
         if (bShowFPS) {
+
             averageFrameTime = 0.999f * averageFrameTime + 0.001f * frameTime;
+            FrameTime[gameCycleCount%(sideBarPos.x*2)] = frameTime;
+            //fprintf(stderr, "Cycle %d: fps:%lf\n", gameCycleCount,  FrameTime[gameCycleCount%(sideBarPos.x*2)]);
         }
 
         if(settings.video.frameLimit == true) {
@@ -1298,7 +1348,7 @@ void Game::runMainLoop() {
                     HumanPlayer* pPlayer = dynamic_cast<HumanPlayer*>(getPlayerByName(*iter));
                     if(pPlayer != NULL) {
                         if(pPlayer->nextExpectedCommandsCycle <= gameCycleCount) {
-                            //fprintf(stderr, "Cycle %d: Waiting for player '%s' to send data for cycle %d...\n", GameCycleCount, pPlayer->getPlayername().c_str(), pPlayer->nextExpectedCommandsCycle);
+                            fprintf(stderr, "Cycle %d: Waiting for player '%s' to send data for cycle %d...\n", gameCycleCount, pPlayer->getPlayername().c_str(), pPlayer->nextExpectedCommandsCycle);
                             bWaitForNetwork = true;
                         }
                     }
@@ -1994,7 +2044,7 @@ void Game::handleChatInput(SDL_KeyboardEvent& keyboardEvent) {
 
             std::string md5string = md5stream.str();
 
-            if((bCheatsEnabled == false) && (md5string == "0xB8766C8EC7A61036B69893FC17AAF21E")) {
+            if((bCheatsEnabled == false) && ((md5string == "0xB8766C8EC7A61036B69893FC17AAF21E") || typingChatMessage.compare("/cheat")  == 0 )) {
                 bCheatsEnabled = true;
                 pInterface->getChatManager().addInfoMessage("Cheat mode enabled");
             } else if((bCheatsEnabled == true) && (md5string == "0xB8766C8EC7A61036B69893FC17AAF21E")) {
@@ -2004,25 +2054,58 @@ void Game::handleChatInput(SDL_KeyboardEvent& keyboardEvent) {
                     pInterface->getChatManager().addInfoMessage("You win this game");
                     setGameWon();
                 }
-            } else if((bCheatsEnabled == true) && (md5string == "0x1A12BE3DBE54C5A504CAA6EE9782C1C8")) {
+            } else if((bCheatsEnabled == true) && ((md5string == "0x1A12BE3DBE54C5A504CAA6EE9782C1C8") || typingChatMessage.compare("/debug on")  == 0 )) {
                 if(debug == true) {
                     pInterface->getChatManager().addInfoMessage("You are already in debug mode");
                 } else if (gameType != GAMETYPE_CUSTOM_MULTIPLAYER) {
                     pInterface->getChatManager().addInfoMessage("Debug mode enabled");
                     debug = true;
                 }
-            } else if((bCheatsEnabled == true) && (md5string == "0x54F68155FC64A5BC66DCD50C1E925C0B")) {
+            } else if((bCheatsEnabled == true) && ((md5string == "0x54F68155FC64A5BC66DCD50C1E925C0B") || typingChatMessage.compare("/debug off")  == 0 )) {
                 if(debug == false) {
                     pInterface->getChatManager().addInfoMessage("You are not in debug mode");
                 } else if (gameType != GAMETYPE_CUSTOM_MULTIPLAYER) {
                     pInterface->getChatManager().addInfoMessage("Debug mode disabled");
                     debug = false;
                 }
-            } else if((bCheatsEnabled == true) && (md5string == "0xCEF1D26CE4B145DE985503CA35232ED8")) {
+            } else if((bCheatsEnabled == true) && (md5string == "0xCEF1D26CE4B145DE985503CA35232ED8") || typingChatMessage.compare("/givecreds")  == 0) {
                 if (gameType != GAMETYPE_CUSTOM_MULTIPLAYER) {
                     pInterface->getChatManager().addInfoMessage("You got some credits");
                     pLocalHouse->returnCredits(10000.0f);
                 }
+            } else if((bCheatsEnabled == true) && (md5string == "0xCEF1D26CE4B145DE985503CA35232ED8") || typingChatMessage.compare("/givecredsAI")  == 0 ) {
+				if (gameType != GAMETYPE_CUSTOM_MULTIPLAYER) {
+					pInterface->getChatManager().addInfoMessage("You give some credits to AIs");
+					for(int i=0;i<NUM_HOUSES;i++) {
+						if (house[i] != NULL && house[i]->isAI() == true && house[i]->isAlive() == true ) {
+							house[i]->returnCredits(10000.0f);
+						}
+					}
+				}
+            } else if((bCheatsEnabled == true) &&  (typingChatMessage.compare("/fog")  == 0 )) {
+				if (gameType != GAMETYPE_CUSTOM_MULTIPLAYER) {
+					if(gameInitSettings.getGameOptions().fogOfWar == true) {
+						pInterface->getChatManager().addInfoMessage("You disabled FOG");
+						gameInitSettings.setGameOptions().fogOfWar = false;
+					} else {
+						pInterface->getChatManager().addInfoMessage("You enabled FOG");
+						gameInitSettings.setGameOptions().fogOfWar = true;
+					}
+				}
+            } else if((bCheatsEnabled == true) && (typingChatMessage.compare("/nuclearday")  == 0 )) {
+				if (gameType != GAMETYPE_CUSTOM_MULTIPLAYER) {
+					pInterface->getChatManager().addInfoMessage("SuperWeapon INSANE recharge rate !!!");
+
+				    for(RobustList<StructureBase*>::iterator iter = structureList.begin(); iter != structureList.end(); ++iter) {
+				        StructureBase* tempStructure = *iter;
+				        if (tempStructure->getItemID() == Structure_Palace) {
+				        	Palace* pPalace = dynamic_cast<Palace*>(tempStructure);
+				        	if (! pPalace->isSpecialWeaponReady()) {
+				        		pPalace->setSpecialWeaponReady();
+				        	}
+				        }
+				    }
+				}
             } else {
                 if(pNetworkManager != NULL) {
                     pNetworkManager->sendChatMessage(typingChatMessage);

@@ -59,8 +59,9 @@ public:
         return specialWeaponTimer*100.0f/getMaxSpecialWeaponTimer();
     }
 
-	inline bool isSpecialWeaponReady() const { return (specialWeaponTimer == 0); }
-	inline int getSpecialWeaponTimer() const { return specialWeaponTimer; }
+	inline void setSpecialWeaponReady() { specialWeaponTimer = 0; nuclearday=true;}
+	inline bool isSpecialWeaponReady() const { return (specialWeaponTimer == 0 || nuclearday); }
+	inline int getSpecialWeaponTimer() const { return nuclearday ? 0 : specialWeaponTimer; }
 	inline int getMaxSpecialWeaponTimer() const {
 	    if(originalHouseID == HOUSE_HARKONNEN || originalHouseID == HOUSE_SARDAUKAR) {
 	        // 10 min
@@ -83,6 +84,7 @@ protected:
 
 private:
 	Sint32  specialWeaponTimer;       ///< When is the special weapon ready?
+	bool	nuclearday = false;
 };
 
 #endif // PALACE_H

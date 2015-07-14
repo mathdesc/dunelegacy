@@ -1,4 +1,4 @@
 To compile with c++11 capable toolchain
 =========
- Run ./configure CPPFLAGS="-std=c++11"
+ Run ./configure CPPFLAGS="-std=c++11" --enable-debug
  

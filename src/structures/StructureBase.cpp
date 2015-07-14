@@ -311,7 +311,7 @@ void StructureBase::setJustPlaced() {
 bool StructureBase::update() {
     //update map
     if(currentGame->randomGen.rand(0,40) == 0) {
-        // PROBLEM: causes very low fps
+        // TODO PROBLEM: causes very low fps
         currentGameMap->viewMap(owner->getTeam(), location, getViewRange());
     }
 

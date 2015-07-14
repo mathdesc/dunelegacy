@@ -1023,6 +1023,7 @@ bool Tile::isFogged(int houseID) {
 	if(currentGame->getGameInitSettings().getGameOptions().fogOfWar == false) {
 		return false;
 	} else if((currentGame->getGameCycleCount() - lastAccess[houseID]) >= MILLI2CYCLES(10*1000)) {
+		// TODO : shroud regain should be made an option
 		return true;
 	} else {
 		return false;

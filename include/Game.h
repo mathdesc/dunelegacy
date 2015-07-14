@@ -413,7 +413,7 @@ public:
 
 
 
-    inline bool setElected(bool e) { bElect = e;}
+    inline void setElected(bool e) { bElect = e;}
 
 private:
 
@@ -529,7 +529,13 @@ private:
 	int         indicatorTimer;
 	Coord       indicatorPosition;
 
-	float       averageFrameTime;   ///< The weighted average of the frame time of all previous frames (smoothed fps = 1000.0f/averageFrameTime)
+	float       averageFrameTime;	///< The weighted average of the frame time of all previous frames (smoothed fps = 1000.0f/averageFrameTime)
+	float		*FrameTime;
+	float		minFrameTime;
+	float		maxFrameTime;
+	double 		varFrameTime;
+	float		devFrameTime;
+
 
 	Uint32      gameCycleCount;
 

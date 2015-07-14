@@ -25,7 +25,7 @@
 #include <misc/RobustList.h>
 #include <SDL.h>
 
-//#define DEBUG
+#define DEBUG
 
 #ifdef DEBUG
 #undef DEBUG

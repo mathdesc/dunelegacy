@@ -799,6 +799,7 @@ void INIMapLoader::loadReinforcements()
                 getOrCreateHouse(houseID);  // create house if not yet available
                 std::shared_ptr<Trigger> newTrigger = std::shared_ptr<Trigger>(new ReinforcementTrigger(houseID, itemID, dropLocation, bRepeat, dropCycle));
                 pGame->getTriggerManager().addTrigger(newTrigger);
+                logWarning("loadReinforcements addTrigger\n");
             }
         }
 	}

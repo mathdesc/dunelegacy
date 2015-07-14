@@ -31,6 +31,8 @@
 Uint32 getPixel(SDL_Surface *surface, int x, int y);
 
 void putPixel(SDL_Surface *surface, int x, int y, Uint32 color);
+void drawLineNoLock(SDL_Surface *surface, int x0, int y0, int x1, int y1, Uint32 color);
+void drawLine(SDL_Surface *surface, int x0, int y0, int x1, int y1, Uint32 color);
 
 void drawHLineNoLock(SDL_Surface *surface, int x1, int y, int x2, Uint32 color);
 void drawVLineNoLock(SDL_Surface *surface, int x, int y1, int y2, Uint32 color);

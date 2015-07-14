@@ -20,6 +20,7 @@
 #include <globals.h>
 
 #include <stdexcept>
+#include <math.h>
 
 
 Uint32 getPixel(SDL_Surface *surface, int x, int y) {
@@ -79,6 +80,49 @@ void putPixel(SDL_Surface *surface, int x, int y, Uint32 color) {
 		case 4:
 			*(Uint32 *)p = color;
 			break;
+		}
+	}
+}
+
+void drawLineNoLock(SDL_Surface *surface, int x0, int y0, int x1, int y1, Uint32 color) {
+
+		int i;
+		double x = x1 - x0;
+		double y = y1 - y0;
+		double length = sqrt( x*x + y*y );
+		double addx = x / length;
+		double addy = y / length;
+		x = x0;
+		y = y0;
+
+		for ( i = 0; i < length; i += 1) {
+			putPixel(surface, x, y, color);
+			x += addx;
+			y += addy;
+
+		}
+}
+
+void drawLine(SDL_Surface *surface, int x0, int y0, int x1, int y1, Uint32 color) {
+	if(!SDL_MUSTLOCK(surface) || (SDL_LockSurface(surface) == 0)) {
+		int i;
+		double x = x1 - x0;
+		double y = y1 - y0;
+		double length = sqrt( x*x + y*y );
+		double addx = x / length;
+		double addy = y / length;
+		x = x0;
+		y = y0;
+
+		for ( i = 0; i < length; i += 1) {
+			putPixel(surface, x, y, color);
+			x += addx;
+			y += addy;
+
+		}
+
+		if (SDL_MUSTLOCK(surface)) {
+					SDL_UnlockSurface(surface);
 		}
 	}
 }

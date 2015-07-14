@@ -44,10 +44,56 @@ Current
 ========
 
 1. Harvester behavior concerning threat (worms, enemies)
-- Prevent harvester to go back to spice field if it's under the threat of a sworm (find a new spot)
+	- Prevent harvester to go back to spice field if it's under the threat of a sworm (find a new spot)
 	- evaluate spice field threats
 	- new function to find spice not only based on shortest distance
 	
 2. Find target generally find the nearest target (even if not offensive)
 	- particular case of the launcher which try to shoot down caryall instead of tanks/structures
 	- partciular case of the orni, fooling behind caryall instead of tanks/structures
+
+
+
+3. Minor House are imba, I want to extend major house capabilities and give specificities to minor house, as such:
+
+Atreides Palace : Allied with the fremen. Palace should produce respondable fremen that are trained in the way of the voice. 
+	- like sonic tanks except it will no cost any power
+	- doesn't appear on the radar & are hidden whist not moving, they should turn into a feared ambush force as well as a good source of intel.
+
+Harkonnen Palace : Allied with Corino. Harkonnen already benefit what is considered the most imba superweapon in the game. But in this extension, I might 
+be willing to grant it the capability to bury mines when a missile hits the ground without any structures or enemy. And probably set the
+same reload time as the other house.
+	- Mines will look like spice blooms
+	- setting double reloadtime seemed as a necessity to (try to ) rebalance game between the other faction. It should be
+	made obsolete by this extension redesign. This detered the gameplay, we'll recover the only offset that should exist
+	between faction superweapon : the time the house start building the superweapon. 
+
+Ordos Palace : Allied with the Tleilaxu. As for now Sabotor is a weak superweapon. In this extension, I want it to be capable of a discreetly sabotage vehicules (a sort of destructive nanoparticules)
+& units (a sort of poisonning) while still be able to commit suicide on buildings. I want to give him a better viewrange and become a source of intel.
+	- Sabotage vehicules & unit : use the degradebuilding & apply it to them, inssure sabotor will stay shrouded until spotted. Could be spot only by a radar (an extended radar view range)
+	- Explode vehicule : after planing explosive, saboter can use a remote (10 tiles) control to trig explosive (same as the desvastator's autodestruct area damage)
+
+Fremen Palace : Allied with Shaï-Ulud. Palace should produce fremens that calls & rides worms. As worm prefers attack harvester and heavy unit, freemens would
+could spread havok around enemy harvestering ops and defend the worms from ornithoper attacks (indeed actually they are
+really overpow. against worms!) and shoot them in air.
+	- Sandworm should be considered to have a cargo (as frigate)
+	- Riding freemen would travel the same speed as worm while also revealing map
+		
+
+Sardokar Palace : Allied with the Space Guild. Give sardokar the ability to call elite sardokars troops reinforcement anywhere on the map.
+	- pretty much like mechanics of the fremen, except we can order a drop place precisely.
+	- use the frigate dropship, reusing in fact the reinforcement mechanics
+	- reintroduce the sardokar unit (replaced by regular troopers) 
+	- CHOAM price will drop for 2 minutes (cut off transport tax)
+ 
+Mercenary Palace : Allied with the desert smugglers. Ability to build village at 10 tiles distance form map border. This village will not be not visible on the radar and offer smugglers services.
+Services will be really cheap harvesters (half cost), ornis (half cost) and regular troopers (half cost)
+	- this village has about the same view range the radar has. 
+	- reuse CHOAM market principle on those unit, time to order timer should be made 2 minutes or so
+	- smugglers blackmarket offers very cheap prices but very low quantities.
+	- make use of the frigate dropship, reusing the reinforcement mechanics. The frigate should appear clocked (use worm shimmermask)
+	- the village will look like part of the wor, or the starport 
+
+
+
+ 

@@ -21,6 +21,23 @@
 
 #include <stdexcept>
 
+#define DEBUG
+
+#ifdef DEBUG
+#undef DEBUG
+#define DEBUG 1
+#else
+#define DEBUG 0
+#endif
+
+
+#define dbg_print(...) \
+	do { if (DEBUG )  fprintf(stdout, __VA_ARGS__);} while (0)
+
+#define err_print(...) \
+	do { if (DEBUG )  fprintf(stderr, __VA_ARGS__);} while (0)
+
+
 TriggerManager::TriggerManager()
 {
 }
@@ -52,21 +69,24 @@ void TriggerManager::trigger(Uint32 CycleNumber)
         std::shared_ptr<Trigger> currentTrigger = triggers.front();
         triggers.pop_front();
         currentTrigger->trigger();
+        dbg_print("Trigger start\n");
     }
 }
 
 void TriggerManager::addTrigger(std::shared_ptr<Trigger> newTrigger)
 {
     std::list<std::shared_ptr<Trigger> >::iterator iter;
-
+    dbg_print("TriggerManager addTrigger try\n");
     for(iter = triggers.begin(); iter != triggers.end(); ++iter) {
         if((*iter)->getCycleNumber() > newTrigger->getCycleNumber()) {
             triggers.insert(iter, newTrigger);
+            dbg_print("TriggerManager insert addTrigger\n");
             return;
         }
     }
 
     triggers.push_back(newTrigger);
+    dbg_print("TriggerManager addTrigger\n");
 }
 
 void TriggerManager::saveTrigger(OutputStream& stream, std::shared_ptr<Trigger> t) const

@@ -33,6 +33,7 @@ In fact deviator damage is buggy, revamp it
 
 #30-5 Rally point indicator (just something to point out where it is; it could be similar to the one on Dune Dynasty)
 And a retreat fonction, based on damage purcentage it can take before retreating 
+Also have and rally point indicator for production structures
 
 #30-4- The ability to create more than one Wall tile when placing Wall tiles
 50% Transparent construction site picture backend by a stack of production
