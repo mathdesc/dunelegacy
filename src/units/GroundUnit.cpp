@@ -116,25 +116,37 @@ void GroundUnit::playSelectSound() {
 }
 
 bool GroundUnit::requestCarryall() {
+
 	if (getOwner()->hasCarryalls())	{
 		Carryall* carryall = NULL;
+		float distance = std::numeric_limits<float>::infinity();
 
-        RobustList<UnitBase*>::const_iterator iter;
+		RobustList<UnitBase*>::const_iterator iter;
+		UnitBase* unit, *bestunit = NULL;
 	    for(iter = unitList.begin(); iter != unitList.end(); ++iter) {
-			UnitBase* unit = *iter;
+			unit = *iter;
 			if ((unit->getOwner() == owner) && (unit->getItemID() == Unit_Carryall)) {
 				if(!((Carryall*)unit)->isBooked()) {
-					carryall = (Carryall*)unit;
-					carryall->setTarget(this);
-					carryall->clearPath();
-					bookCarrier(carryall);
-
-					//setDestination(&location);	//stop moving, and wait for carryall to arrive
-
-					return true;
+					if (distance >  std::min(distance,blockDistance(this->location, unit->getLocation())) ) {
+						bestunit=unit;
+						distance = std::min(distance,blockDistance(this->location, unit->getLocation()));
+					}
 				}
 			}
 		}
+
+
+	    if (bestunit != NULL) {
+			carryall = (Carryall*)bestunit;
+			carryall->setTarget(this);
+			carryall->clearPath();
+			bookCarrier(carryall);
+
+			//setDestination(&location);	//stop moving, and wait for carryall to arrive
+
+			return true;
+	    }
+
 	}
 	return false;
 }
@@ -179,7 +191,7 @@ void GroundUnit::doRepair() {
 	if(getHealth() < getMaxHealth()) {
 		//find a repair yard to return to
 
-		float	closestLeastBookedRepairYardDistance = 1000000.0f;
+		float	closestLeastBookedRepairYardDistance = std::numeric_limits<float>::infinity();
         RepairYard* bestRepairYard = NULL;
 
         RobustList<StructureBase*>::const_iterator iter;

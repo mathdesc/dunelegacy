@@ -45,6 +45,7 @@ void WOR::init() {
 	numImagesY = 1;
 	firstAnimFrame = 2;
 	lastAnimFrame = 3;
+	unitproducer = true;
 }
 
 WOR::~WOR() {

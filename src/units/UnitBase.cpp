@@ -356,7 +356,7 @@ int UnitBase::getCurrentAttackAngle() const {
 	return drawnAngle;
 }
 
-void UnitBase::deploy(const Coord& newLocation) {
+void UnitBase::deploy(const Coord& newLocation, bool sound) {
 
 	if(currentGameMap->tileExists(newLocation)) {
 		setLocation(newLocation);
@@ -368,8 +368,30 @@ void UnitBase::deploy(const Coord& newLocation) {
 		setRespondable(true);
 		setActive(true);
 		setVisible(VIS_ALL, true);
+
+
+		if(sound) {
+			Voice_enum voice = NUM_VOICE;
+
+			if (isAFlyingUnit()) {
+				voice = UnitLaunched;
+			} else if (isInfantry()) {
+				voice = UnitDeployed;
+			} else if (isAUnit() && itemID != Unit_Harvester) {
+				voice = VehiculeDeployed;
+			} else if (isAUnit() && itemID == Unit_Harvester) {
+				voice = HarvesterDeployed;
+			}
+
+
+			if(getOwner() == pLocalHouse && voice < NUM_VOICE) {
+				soundPlayer->playVoiceAt(voice,getOwner()->getHouseID(),location);
+			}
+		}
 	}
+
 }
+
 
 void UnitBase::destroy() {
 
@@ -385,7 +407,7 @@ void UnitBase::destroy() {
         if(currentGame->randomGen.rand(1,100) <= getInfSpawnProp()) {
             UnitBase* pNewUnit = currentGame->getHouse(originalHouseID)->createUnit(Unit_Soldier);
             pNewUnit->setHealth(pNewUnit->getMaxHealth()/2);
-            pNewUnit->deploy(location);
+            pNewUnit->deploy(location, false);
 
             if(owner->getHouseID() != originalHouseID) {
                 // deviation is inherited
@@ -625,7 +647,7 @@ void UnitBase::engageTarget() {
                	return;
         }
         if(!salving && getCurrentAttackAngle() == newTargetAngle) {
-        	dbg_relax_print("nosalving attack x=%d y=%d!\n",targetLocation.x,targetLocation.y);
+        	dbg_relax_print("UnitBase::engageTarget nosalving attack x=%d y=%d!\n",targetLocation.x,targetLocation.y);
             attack();
         }
 
@@ -660,8 +682,8 @@ void UnitBase::engageTarget() {
 }
 
 void UnitBase::move() {
-	 // TODO flyunit should reveal map !
-	if(!moving && !justStoppedMoving && (isAFlyingUnit() == false) && currentGame->randomGen.rand(0,40) == 0 && itemID != Unit_Sandworm) {
+
+	if(!moving && !justStoppedMoving && itemID != Unit_Sandworm) {
 		currentGameMap->viewMap(owner->getTeam(), location, getViewRange() );
 	}
 
@@ -1282,7 +1304,7 @@ float UnitBase::getMaxSpeed() const {
 		for(test = list->begin() ; test != list->end(); ++test) {
 			ObjectBase *obj = currentGame->getObjectManager().getObject(*test);
 			UnitBase *unit = dynamic_cast<UnitBase*>(obj);
-			if(obj->isAUnit() && unit->getRegulatedSpeed()) {
+			if(obj->isAUnit() && unit->getRegulatedSpeed() != 0) {
 				maxrelativespeed = std::min(maxrelativespeed,currentGame->objectData.data[obj->getItemID()][obj->getOriginalHouseID()].maxspeed);
 				if (this  == unit) {
 					unit->setRegulatedSpeed(maxrelativespeed);
@@ -1292,10 +1314,18 @@ float UnitBase::getMaxSpeed() const {
 		}
 	}
 
-	if (inList)
+	if (inList) {
+		//if (isSelected()) dbg_print("UnitBase::getMaxSpeed(L) %d speed:%.1f(%.1f) \n", objectID, maxrelativespeed,regulatedSpeed);
 		return maxrelativespeed;
-	else
+	}
+	else if (regulatedSpeed != 0 && currentGame->getSelectedList().size() > 1 ) {
+		//if (isSelected()) dbg_print("UnitBase::getMaxSpeed(R) %d speed:%.1f(%.1f) \n", objectID, maxrelativespeed,regulatedSpeed);
+		return regulatedSpeed;
+	}
+	else {
+		//if (isSelected()) dbg_print("UnitBase::getMaxSpeed(N) %d speed:%.1f(%.1f) \n", objectID, maxrelativespeed,regulatedSpeed);
 		return currentGame->objectData.data[itemID][originalHouseID].maxspeed;
+	}
 }
 
 
@@ -1306,10 +1336,17 @@ void UnitBase::setSpeeds() {
 
 	if(!isAFlyingUnit()) {
 		speed += speed*(1.0f - getTerrainDifficulty((TERRAINTYPE) currentGameMap->getTile(location)->getType()));
-		if(isBadlyDamaged()) {
-            speed *= HEAVILYDAMAGEDSPEEDMULTIPLIER;
-		}
 	}
+
+	if(isBadlyDamaged()) {
+        speed *= HEAVILYDAMAGEDSPEEDMULTIPLIER;
+	}
+
+	if(itemID == Unit_Carryall && isSelected()) {
+		// Selected Carryall enable player control but fly a lower speed
+        speed *= CARRYALL_MANUAL_SPEED;
+	}
+
 
 	switch(drawnAngle){
         case LEFT:      xSpeed = -speed;                    ySpeed = 0;         break;
@@ -1347,7 +1384,8 @@ void UnitBase::setTarget(const ObjectBase* newTarget) {
 
 void UnitBase::targeting() {
     if(findTargetTimer == 0) {
-    	if (this->isSelected()) err_relax_print("UnitBase::targeting salving:%s notarget:%s(%d) noattackpos:%s notmoving:%s notjuststopped:%s notforced:%s guardpoint:[%d,%d]\n", salving ? "yes" : "no",!target ? "y" : "n", target.getObjectID(),
+
+    	if (this->isSelected()) err_relax_print("UnitBase::targeting AreaGuardRange:%d salving:%s notarget:%s(%d) noattackpos:%s notmoving:%s notjuststopped:%s notforced:%s guardpoint:[%d,%d]\n", getAreaGuardRange(), salving ? "yes" : "no",!target ? "y" : "n", target.getObjectID(),
     			!attackPos ? "y" : "n", !moving ? "y" : "n", !justStoppedMoving ? "y" : "n", !forced ? "y" : "n", guardPoint.x ,guardPoint.y);
 
         if(attackMode != STOP) {

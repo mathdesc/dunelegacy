@@ -91,6 +91,41 @@ void SoundPlayer::playSound(Sound_enum soundID, int volume)
 	}
 }
 
+
+void SoundPlayer::playVoiceAt(Voice_enum id, int houseID, const Coord& location) {
+	if(soundOn) {
+        if( !currentGameMap->tileExists(location)
+            || !currentGameMap->getTile(location)->isExplored(pLocalHouse->getHouseID()) ) {
+            return;
+        }
+		Mix_Chunk* tmp;
+
+		Coord realCoord = location * TILESIZE + Coord(TILESIZE/2, TILESIZE/2);
+		int volume = 0;
+
+		if(screenborder->isInsideScreen(realCoord, Coord(TILESIZE, TILESIZE)) ) {
+			volume = sfxVolume;
+		} else if(screenborder->isInsideScreen(realCoord, Coord(TILESIZE*16, TILESIZE*16)) ) {
+			volume = (sfxVolume*3) /4;
+        } else if(screenborder->isInsideScreen(realCoord, Coord(TILESIZE*24, TILESIZE*24)) ) {
+        	volume = sfxVolume / 2;
+        } else {
+        	volume = sfxVolume / 4;
+        }
+
+
+		if((tmp = pSFXManager->getVoice(id,houseID)) == NULL) {
+			fprintf(stderr,"There is no voice with id %d!\n",id);
+			exit(EXIT_FAILURE);
+		}
+
+		int channel = Mix_PlayChannel(-1, tmp, 0);
+		if(channel != -1) {
+            Mix_Volume(channel, (volume*sfxVolume)/MIX_MAX_VOLUME);
+        }
+	}
+}
+
 void SoundPlayer::playVoice(Voice_enum id, int houseID) {
 	if(soundOn) {
 		Mix_Chunk* tmp;

@@ -298,6 +298,13 @@ public:
 	void blitSelectionRects(int xPos, int yPos);
 
 
+    /**
+        This method draws the rally point for structure
+        \param structure the object object pointer to draw rally point from
+        \param color to be drawn
+    */
+	void drawRallyPoint(ObjectBase* structure, Uint32 color, Coord size);
+
 	inline void update() {
 
 	    // Performance tweak because this function is called alot (every game cycle for every tile)
@@ -335,9 +342,8 @@ public:
             tracksCounter[direction] = 5000;
 	    }
     }
-
-	void selectAllPlayersUnits(int houseID, ObjectBase** lastCheckedObject, ObjectBase** lastSelectedObject,ObjectBase** groupLeader);
-	void selectAllPlayersUnitsOfType(int houseID, ObjectBase* lastSinglySelectedObject, ObjectBase** lastCheckedObject, ObjectBase** lastSelectedObject,ObjectBase** groupLeader);
+	void selectAllPlayersUnits(int houseID, ObjectBase** lastCheckedObject, ObjectBase** lastSelectedObject, ObjectBase* groupLeader) ;
+	void selectAllPlayersUnitsOfType(int houseID, ObjectBase* lastSinglySelectedObject, ObjectBase** lastCheckedObject, ObjectBase** lastSelectedObject,ObjectBase* groupLeader);
 	void unassignAirUnit(Uint32 objectID);
 	void unassignNonInfantryGroundObject(Uint32 objectID);
 	void unassignObject(Uint32 objectID);

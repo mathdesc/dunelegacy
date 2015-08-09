@@ -150,6 +150,7 @@ std::vector<std::string> FileManager::getMissingFiles() {
 
 SDL_RWops* FileManager::openFile(std::string filename) {
 	SDL_RWops* ret;
+	//fprintf(stdout,"Loading file %s\n",filename.c_str());
 
     // try loading external file
     std::vector<std::string> searchPath = getSearchPath();

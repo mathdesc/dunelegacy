@@ -121,7 +121,7 @@ void ReinforcementTrigger::trigger()
                     UnitBase* pUnit2Drop = dropHouse->createUnit(units2Drop.front());
                     units2Drop.erase(units2Drop.begin());
 
-                    pUnit2Drop->deploy(newCoord);
+                    pUnit2Drop->deploy(newCoord,true);
 
                     if (newCoord.x == 0) {
                         pUnit2Drop->setAngle(RIGHT);

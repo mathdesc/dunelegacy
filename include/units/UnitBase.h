@@ -45,7 +45,7 @@ public:
 	virtual ObjectInterface* getInterfaceContainer();
 
 	virtual void checkPos() = 0;
-	virtual void deploy(const Coord& newLocation);
+	virtual void deploy(const Coord& newLocation, bool sound = false);
 
 	virtual void destroy();
 	void deviate(House* newOwner);
@@ -178,7 +178,7 @@ public:
         Is this object in a range we can attack.
         \param  object  the object to check
     */
-	virtual bool isInWeaponRange(const ObjectBase* object) const;
+	bool isInWeaponRange(const ObjectBase* object) const;
 
 	void setAngle(int newAngle);
 

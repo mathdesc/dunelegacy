@@ -299,7 +299,6 @@ void House::update() {
 		if(this == pLocalHouse) {
 			currentGame->addToNewsTicker(_("@DUNE.ENG|145#As insufficient spice storage is available, spice is lost."));
 		}
-		else dbg_print("Player %d insufficient spice storage is available, spice is lost !\n", this->getHouseID() );
 
 	}
 
@@ -722,7 +721,7 @@ UnitBase* House::placeUnit(int itemID, int xPos, int yPos) {
 	if (newUnit) {
 		Coord pos = Coord(xPos, yPos);
 		if (newUnit->canPass(xPos, yPos)) {
-			newUnit->deploy(pos);
+			newUnit->deploy(pos,false);
 		} else {
 			newUnit->setVisible(VIS_ALL, false);
 			newUnit->destroy();

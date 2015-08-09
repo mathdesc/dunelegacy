@@ -35,7 +35,7 @@ public:
 
 	virtual ObjectInterface* getInterfaceContainer();
 
-	void deployRepairUnit(Carryall* pCarryall = NULL);
+	bool deployRepairUnit(Carryall* pCarryall = NULL);
 
 	inline void book() { bookings++; }
 	inline void unBook() { bookings--; }

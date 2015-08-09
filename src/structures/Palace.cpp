@@ -68,6 +68,7 @@ void Palace::init() {
 	numImagesY = 1;
 	firstAnimFrame = 2;
 	lastAnimFrame = 3;
+	unitproducer = true;
 }
 
 Palace::~Palace() {
@@ -218,7 +219,7 @@ bool Palace::callFremen() {
 				j = currentGame->randomGen.rand(-1, 1);
 			} while (!currentGameMap->getTile(x + i, y + j)->infantryNotFull());
 
-			pFremen->deploy(Coord(x + i,y + j));
+			pFremen->deploy(Coord(x + i,y + j), false);
 
 			pFremen->doSetAttackMode(HUNT);
 			pFremen->setRespondable(false);

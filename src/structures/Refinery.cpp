@@ -113,34 +113,45 @@ void Refinery::assignHarvester(Harvester* newHarvester) {
 	curAnimFrame = 8;
 }
 
-void Refinery::deployHarvester(Carryall* pCarryall) {
-	unBook();
-	drawnAngle = 0;
-	extractingSpice = false;
+bool Refinery::deployHarvester(Carryall* pCarryall) {
 
-	if(firstRun) {
-		if(getOwner() == pLocalHouse) {
-			soundPlayer->playVoice(HarvesterDeployed,getOwner()->getHouseID());
+	bool deployed = false;
+	Harvester* pHarvester = (Harvester*) harvester.getObjPointer();
+
+	if (harvester && (harvester.getObjPointer() != NULL)) {
+		unBook();
+		drawnAngle = 0;
+		extractingSpice = false;
+
+
+		if(firstRun) {
+			if(getOwner() == pLocalHouse) {
+				soundPlayer->playVoice(HarvesterDeployed,getOwner()->getHouseID());
+			}
 		}
-	}
 
-	firstRun = false;
+		firstRun = false;
 
-    Harvester* pHarvester = (Harvester*) harvester.getObjPointer();
-	if(pCarryall != NULL) {
-	    pCarryall->giveCargo(pHarvester);
-	    pCarryall->setTarget(NULL);
-	    pCarryall->setDestination(pHarvester->getGuardPoint());
-	} else {
-        Coord deployPos = currentGameMap->findDeploySpot(pHarvester, location, destination, structureSize);
-        pHarvester->deploy(deployPos);
-	}
+		if(pCarryall != NULL) {
+			pCarryall->giveCargo(pHarvester);
+			pCarryall->setTarget(NULL);
+			pCarryall->setDestination(pHarvester->getGuardPoint());
+			deployed = true;
+		} else {
+			Coord deployPos = currentGameMap->findDeploySpot(pHarvester, location, destination, structureSize);
+			pHarvester->deploy(deployPos);
+			deployed = true;
+		}
 
-	if(bookings == 0) {
-        stopAnimate();
-	} else {
-        startAnimate();
+		if(bookings == 0) {
+			stopAnimate();
+		} else {
+			startAnimate();
+		}
+
+		harvester.pointTo(NONE);
 	}
+	return deployed;
 }
 
 void Refinery::startAnimate() {
@@ -178,14 +189,17 @@ void Refinery::updateStructureSpecificStuff() {
 		} else if(pHarvester->isAwaitingPickup() == false) {
 		    // find carryall
 		    Carryall* pCarryall = NULL;
+		    float distance = std::numeric_limits<float>::infinity();
             if((pHarvester->getGuardPoint().isValid()) && getOwner()->hasCarryalls())	{
                 RobustList<UnitBase*>::const_iterator iter;
                 for(iter = unitList.begin(); iter != unitList.end(); ++iter) {
                     UnitBase* unit = *iter;
-                    if ((unit->getOwner() == owner) && (unit->getItemID() == Unit_Carryall)) {
-                        if (((Carryall*)unit)->isRespondable() && !((Carryall*)unit)->isBooked()) {
-                            pCarryall = (Carryall*)unit;
-                        }
+                    if ((unit->getOwner() == owner) && (unit->getItemID() == Unit_Carryall) && !((Carryall*)unit)->isBooked()) {
+
+                    	if (distance >  std::min(distance,blockDistance(this->location, unit->getLocation())) ) {
+                    		distance = std::min(distance,blockDistance(this->location, unit->getLocation()));
+                    		pCarryall = (Carryall*)unit;
+                    	}
                     }
                 }
             }

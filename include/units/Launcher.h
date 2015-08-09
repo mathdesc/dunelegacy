@@ -33,11 +33,6 @@ public:
 	void blitToScreen();
 	virtual void destroy();
 	virtual void salveAttack(Coord Pos, Coord Target);
-	/**
-	    Is this object in a range we can attack.
-	    \param  object  the object to check
-	*/
-	virtual bool isInWeaponRange(const ObjectBase* object) const ;
 
 	virtual bool canAttack(const ObjectBase* object) const;
 

@@ -147,7 +147,7 @@ void SFXManager::loadEnglishVoice() {
 		Mix_Chunk* Deployed = getChunkFromFile(HouseString + "DEPLOY.VOC");
 		lngVoice[HarvesterDeployed*NUM_HOUSES+VoiceNum] = concat3Chunks(HouseNameChunk, Harvester, Deployed);
 		Mix_FreeChunk(Harvester);
-		Mix_FreeChunk(Deployed);
+
 
 		// "Contruction complete"
 		lngVoice[ConstructionComplete*NUM_HOUSES+VoiceNum] = getChunkFromFile(HouseString + "CONST.VOC");
@@ -156,7 +156,6 @@ void SFXManager::loadEnglishVoice() {
 		Mix_Chunk* Vehicle = getChunkFromFile(HouseString + "VEHICLE.VOC");
 		Mix_Chunk* Repaired = getChunkFromFile(HouseString + "REPAIR.VOC");
 		lngVoice[VehicleRepaired*NUM_HOUSES+VoiceNum] = concat2Chunks(Vehicle, Repaired);
-		Mix_FreeChunk(Vehicle);
 		Mix_FreeChunk(Repaired);
 
 		// "Frigate has arrived"
@@ -165,6 +164,16 @@ void SFXManager::loadEnglishVoice() {
 		lngVoice[FrigateHasArrived*NUM_HOUSES+VoiceNum] = concat2Chunks(FrigateChunk, HasArrivedChunk);
 		Mix_FreeChunk(FrigateChunk);
 		Mix_FreeChunk(HasArrivedChunk);
+
+
+		// "... unit deployed"
+        Mix_Chunk* Unit = getChunkFromFile(HouseString + "UNIT.VOC");
+		lngVoice[UnitDeployed*NUM_HOUSES+VoiceNum] = concat3Chunks(HouseNameChunk, Unit, Deployed);
+		Mix_FreeChunk(Unit);
+
+		// "... vehicule deployed"
+		lngVoice[VehiculeDeployed*NUM_HOUSES+VoiceNum] = concat3Chunks(HouseNameChunk, Vehicle, Deployed);
+		Mix_FreeChunk(Deployed);
 
 		// "Your mission is complete"
 		lngVoice[YourMissionIsComplete*NUM_HOUSES+VoiceNum] = getChunkFromFile(HouseString + "WIN.VOC");
@@ -182,6 +191,12 @@ void SFXManager::loadEnglishVoice() {
 		Mix_FreeChunk(RadarActivatedChunk);
 		Mix_FreeChunk(RadarDeactivatedChunk);
 
+		// "vehicule located" (drop impossible in the area)
+		Mix_Chunk* Located2 = getChunkFromFile(HouseString + "LOCATED.VOC");
+		lngVoice[DropImpossible*NUM_HOUSES+VoiceNum] = concat2Chunks(Vehicle,Located2);
+		Mix_FreeChunk(Vehicle);
+		Mix_FreeChunk(Located2);
+
 		// "Bloom located"
 		Mix_Chunk* Bloom = getChunkFromFile(HouseString + "BLOOM.VOC");
 		Mix_Chunk* Located = getChunkFromFile(HouseString + "LOCATED.VOC");
@@ -193,21 +208,54 @@ void SFXManager::loadEnglishVoice() {
         Mix_Chunk* WarningChunk = getChunkFromFile(HouseString + "WARNING.VOC");
         Mix_Chunk* WormSignChunk = getChunkFromFile(HouseString + "WORMY.VOC");
         lngVoice[WarningWormSign*NUM_HOUSES+VoiceNum] = concat2Chunks(WarningChunk, WormSignChunk);
-        Mix_FreeChunk(WarningChunk);
+
         Mix_FreeChunk(WormSignChunk);
 
         // "Our base is under attack"
 		lngVoice[BaseIsUnderAttack*NUM_HOUSES+VoiceNum] = getChunkFromFile(HouseString + "ATTACK.VOC");
 
         // "Saboteur approaching" and "Missile approaching"
+		// "Enemy approaching from " (direction)
         Mix_Chunk* SabotChunk = getChunkFromFile(HouseString + "SABOT.VOC");
         Mix_Chunk* MissileChunk = getChunkFromFile(HouseString + "MISSILE.VOC");
+        Mix_Chunk* Enemy = getChunkFromFile(HouseString + "ENEMY.VOC");
         Mix_Chunk* ApproachingChunk = getChunkFromFile(HouseString + "APPRCH.VOC");
+        Mix_Chunk* North = getChunkFromFile(HouseString + "NORTH.VOC");
+        Mix_Chunk* East = getChunkFromFile(HouseString + "EAST.VOC");
+        Mix_Chunk* West = getChunkFromFile(HouseString + "WEST.VOC");
+        Mix_Chunk* South = getChunkFromFile(HouseString + "SOUTH.VOC");
         lngVoice[SaboteurApproaching*NUM_HOUSES+VoiceNum] = concat2Chunks(SabotChunk, ApproachingChunk);
         lngVoice[MissileApproaching*NUM_HOUSES+VoiceNum] = concat2Chunks(MissileChunk, ApproachingChunk);
+        lngVoice[EnemyApproachingNorth*NUM_HOUSES+VoiceNum] = concat4Chunks(WarningChunk, Enemy, ApproachingChunk,North);
+        lngVoice[EnemyApproachingEast*NUM_HOUSES+VoiceNum] = concat4Chunks(WarningChunk, Enemy, ApproachingChunk,East);
+        lngVoice[EnemyApproachingWest*NUM_HOUSES+VoiceNum] = concat4Chunks(WarningChunk, Enemy, ApproachingChunk,West);
+        lngVoice[EnemyApproachingSouth*NUM_HOUSES+VoiceNum] = concat4Chunks(WarningChunk, Enemy, ApproachingChunk,South);
         Mix_FreeChunk(SabotChunk);
         Mix_FreeChunk(MissileChunk);
         Mix_FreeChunk(ApproachingChunk);
+        Mix_FreeChunk(North);
+        Mix_FreeChunk(East);
+        Mix_FreeChunk(West);
+        Mix_FreeChunk(South);
+        Mix_FreeChunk(WarningChunk);
+
+        // "Unit launched"
+
+        Mix_Chunk* Unit2 = getChunkFromFile(HouseString + "UNIT.VOC");
+        Mix_Chunk* Launched = getChunkFromFile(HouseString + "LAUNCH.VOC");
+        lngVoice[UnitLaunched*NUM_HOUSES+VoiceNum] = concat2Chunks(Unit2, Launched);
+        Mix_FreeChunk(Unit2);
+        Mix_FreeChunk(Launched);
+
+
+        lngVoice[Five*NUM_HOUSES+VoiceNum] =  getChunkFromFile(HouseString + "FIVE.VOC");
+        lngVoice[Four*NUM_HOUSES+VoiceNum] =  getChunkFromFile(HouseString + "FOUR.VOC");
+		lngVoice[Three*NUM_HOUSES+VoiceNum] = getChunkFromFile(HouseString + "THREE.VOC");
+		lngVoice[Two*NUM_HOUSES+VoiceNum] = getChunkFromFile(HouseString + "TWO.VOC");
+		lngVoice[One*NUM_HOUSES+VoiceNum] =  getChunkFromFile(HouseString + "ONE.VOC");
+
+
+
 
 		Mix_FreeChunk(HouseNameChunk);
 	}
@@ -277,6 +325,7 @@ void SFXManager::loadEnglishVoice() {
 	soundChunk[Sound_MachineGun] = getChunkFromFile("GUNMULTI.VOC");
 	soundChunk[Sound_Sonic] = Mix_LoadWAV_RW(pFileManager->openFile("SONIC.WAV"),1);
 	soundChunk[Sound_RocketSmall] = getChunkFromFile("MISLTINP.VOC");
+	soundChunk[Sound_AirBrakes]  = getChunkFromFile("BRAKES2P.VOC");
 }
 
 
@@ -409,6 +458,7 @@ void SFXManager::loadNonEnglishVoice(std::string languagePrefix) {
 	soundChunk[Sound_MachineGun] = getChunkFromFile("GUNMULTI.VOC");
 	soundChunk[Sound_Sonic] = Mix_LoadWAV_RW(pFileManager->openFile("SONIC.WAV"),1);
 	soundChunk[Sound_RocketSmall] = getChunkFromFile("MISLTINP.VOC");
+	soundChunk[Sound_AirBrakes]  = getChunkFromFile("BRAKES2P.VOC");
 }
 
 Mix_Chunk* SFXManager::getNonEnglishVoice(Voice_enum id, int house) {

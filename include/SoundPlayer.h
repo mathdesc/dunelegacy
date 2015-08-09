@@ -57,6 +57,7 @@ public:
 	*/
 	void setSound(bool value) { soundOn = value; }
 
+	void playVoiceAt(Voice_enum id, int houseID, const Coord& location);
 	void playVoice(Voice_enum id, int houseID);
 
 	void playSound(Mix_Chunk* sound);

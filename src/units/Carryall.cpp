@@ -46,7 +46,7 @@ Carryall::Carryall(House* newOwner) : AirUnit(newOwner)
 
     aDropOfferer = false;
     droppedOffCargo = false;
-    respondable = false;
+    respondable = true;
 
     currentMaxSpeed = 2.0f;
 
@@ -86,7 +86,7 @@ void Carryall::init()
 	owner->incrementUnits(itemID);
 
 	canAttackStuff = false;
-	respondable = false;
+	respondable = true;
 
 	graphicID = ObjPic_Carryall;
 	graphic = pGFXManager->getObjPic(graphicID,getOwner()->getHouseID());
@@ -126,16 +126,10 @@ bool Carryall::update() {
         return false;
     }
 
-    float dist = distanceFrom(location.x*TILESIZE + TILESIZE/2, location.y*TILESIZE + TILESIZE/2,
-                                destination.x*TILESIZE + TILESIZE/2, destination.y*TILESIZE + TILESIZE/2);
 
-    if((target || hasCargo()) && dist < 256.0f) {
-        currentMaxSpeed = (((2.0f - currentGame->objectData.data[itemID][originalHouseID].maxspeed)/256.0f) * (256.0f - dist)) + currentGame->objectData.data[itemID][originalHouseID].maxspeed;
-        setSpeeds();
-    } else {
-        currentMaxSpeed = std::min(currentMaxSpeed + 0.2f, currentGame->objectData.data[itemID][originalHouseID].maxspeed);
-        setSpeeds();
-    }
+    setSpeeds();
+
+   // dbg_relax_print(" >Carryall::deployUnit  speed:%.1f(%.1f) trydeploy=%d \n", currentMaxSpeed,getRegulatedSpeed(),tryDeploy);
 
 	// check if this carryall has to be removed because it has just brought something
 	// to the map (e.g. new harvester)
@@ -153,15 +147,133 @@ bool Carryall::update() {
 	return true;
 }
 
-float Carryall::getMaxSpeed() const {
-    return currentMaxSpeed;
+float Carryall::getMaxSpeed()  {
+
+    float dist = distanceFrom(location.x*TILESIZE + TILESIZE/2, location.y*TILESIZE + TILESIZE/2,
+                                destination.x*TILESIZE + TILESIZE/2, destination.y*TILESIZE + TILESIZE/2);
+
+    if((target || hasCargo()) && dist < 256.0f) {
+		currentMaxSpeed = (((2.0f - currentGame->objectData.data[itemID][originalHouseID].maxspeed)/256.0f) * (256.0f - dist)) + currentGame->objectData.data[itemID][originalHouseID].maxspeed;
+        currentMaxSpeed /= (float)tryDeploy+1 ;
+
+    } else {
+        currentMaxSpeed = std::min(currentMaxSpeed + 0.2f, currentGame->objectData.data[itemID][originalHouseID].maxspeed);
+
+    }
+
+
+	float maxrelativespeed = currentMaxSpeed;
+	bool inList = false;
+
+	if (currentGame->getSelectedList().size() > 1 ) {
+		std::list<Uint32> *list = &currentGame->getSelectedList();
+		std::list<Uint32>::iterator test;
+		for(test = list->begin() ; test != list->end(); ++test) {
+			ObjectBase *obj = currentGame->getObjectManager().getObject(*test);
+			UnitBase *unit = dynamic_cast<UnitBase*>(obj);
+			if(obj->isAUnit() && unit->getRegulatedSpeed() != 0) {
+				if (unit->getItemID() == Unit_Carryall)
+					maxrelativespeed = std::min(maxrelativespeed,((Carryall*) unit)->currentMaxSpeed);
+				else if (unit->getItemID() == Unit_Harvester)
+					maxrelativespeed = std::min(maxrelativespeed,((Harvester*) unit)->currentMaxSpeed);
+				else
+					maxrelativespeed = std::min(maxrelativespeed, currentGame->objectData.data[itemID][originalHouseID].maxspeed);
+				maxrelativespeed = std::min(maxrelativespeed,currentGame->objectData.data[obj->getItemID()][obj->getOriginalHouseID()].maxspeed);
+				if (this  == unit) {
+					unit->setRegulatedSpeed(maxrelativespeed);
+					inList = true;
+				}
+			}
+		}
+	}
+
+	if (inList) {
+		return maxrelativespeed;
+	}
+	else if (regulatedSpeed != 0 && currentGame->getSelectedList().size() > 1 ) {
+		return regulatedSpeed;
+	}
+	else {
+		return currentMaxSpeed;
+	}
+
+
 }
+
+
+void Carryall::setSpeeds() {
+
+
+	float speed = getMaxSpeed();
+
+	if(isBadlyDamaged()) {
+        speed *= HEAVILYDAMAGEDSPEEDMULTIPLIER;
+	}
+
+	if(isSelected() && owner == pLocalHouse) {
+		// Selected Carryall enable player control but fly a lower speed
+        speed *= CARRYALL_MANUAL_SPEED;
+	}
+
+
+	switch(drawnAngle){
+        case LEFT:      xSpeed = -speed;                    ySpeed = 0;         break;
+        case LEFTUP:    xSpeed = -speed*DIAGONALSPEEDCONST; ySpeed = xSpeed;    break;
+        case UP:        xSpeed = 0;                         ySpeed = -speed;    break;
+        case RIGHTUP:   xSpeed = speed*DIAGONALSPEEDCONST;  ySpeed = -xSpeed;   break;
+        case RIGHT:     xSpeed = speed;                     ySpeed = 0;         break;
+        case RIGHTDOWN: xSpeed = speed*DIAGONALSPEEDCONST;  ySpeed = xSpeed;    break;
+        case DOWN:      xSpeed = 0;                         ySpeed = speed;     break;
+        case LEFTDOWN:  xSpeed = -speed*DIAGONALSPEEDCONST; ySpeed = -xSpeed;   break;
+	}
+}
+
 
 void Carryall::deploy(const Coord& newLocation) {
-	AirUnit::deploy(newLocation);
+	AirUnit::deploy(newLocation, true);
 
-	respondable = false;
+	respondable = true;
 }
+
+void Carryall::flyAround() {
+
+	//fly around set flyPoints
+	Coord point = this->getClosestPoint(location);
+
+	if(point == guardPoint) {
+		//arrived at point, move to next
+		curFlyPoint++;
+
+		if(curFlyPoint >= 8) {
+			curFlyPoint = 0;
+		}
+
+        int looped = 0;
+		while(!(currentGameMap->tileExists(flyPoints[curFlyPoint].x, flyPoints[curFlyPoint].y)) && looped <= 2) {
+			curFlyPoint++;
+
+			if(curFlyPoint >= 8) {
+				curFlyPoint = 0;
+				looped++;
+			}
+		}
+
+		setGuardPoint(flyPoints[curFlyPoint]);
+		setDestination(guardPoint);
+
+	}
+}
+
+void Carryall::doMove2Pos(int xPos, int yPos, bool bForced) {
+
+
+	UnitBase::doMove2Pos(xPos,yPos,bForced);
+	 dbg_print(" Carryall::doMove2Pos %d,%d %d,%d  \n", xPos,yPos, guardPoint.x, guardPoint.y);
+	this->guardPoint = Coord(xPos,yPos);
+	findConstYard();
+	 dbg_print(" Carryall::doMove2Pos %d,%d %d,%d  \n", xPos,yPos, guardPoint.x, guardPoint.y);
+}
+
 
 void Carryall::checkPos()
 {
@@ -185,7 +297,7 @@ void Carryall::checkPos()
                     // => do not drop this here
                     break;
                 }
-
+                //dbg_print(" Carryall::checkPos %d,%d %d,%d  \n", destination.x,destination.y, guardPoint.x, guardPoint.y);
                 deployUnit(unitID);
                 droppedUnits++;
 
@@ -211,41 +323,17 @@ void Carryall::checkPos()
             } else {
                 setTarget(NULL);
                 setDestination(guardPoint);
-
                 idle = true;
             }
-		} else if((isBooked() == false) && idle && !firstRun /*&&  !isSelected()*/) {
-
-			//fly around const yard
-			Coord point = this->getClosestPoint(location);
-
-			if(point == guardPoint) {
-				//arrived at point, move to next
-				curFlyPoint++;
-
-				if(curFlyPoint >= 8) {
-					curFlyPoint = 0;
-				}
-
-                int looped = 0;
-				while(!(currentGameMap->tileExists(flyPoints[curFlyPoint].x, flyPoints[curFlyPoint].y)) && looped <= 2) {
-					curFlyPoint++;
-
-					if(curFlyPoint >= 8) {
-						curFlyPoint = 0;
-						looped++;
-					}
-				}
-
-				setGuardPoint(flyPoints[curFlyPoint]);
-				setDestination(guardPoint);
-
-			}
+		} else if( (isBooked() == false) && idle && !firstRun &&  !(isSelected() && owner == pLocalHouse)) {
+				flyAround();
 		} else if(firstRun && owned) {
 			findConstYard();
 			setGuardPoint(constYardPoint);
 			setDestination(guardPoint);
 			firstRun = false;
+		} else if (isSelected()) {
+            //dbg_relax_print(" Carryall::checkPos %d,%d %d,%d  \n", destination.x,destination.y, guardPoint.x, guardPoint.y);
 		}
 	}
 
@@ -269,9 +357,6 @@ void Carryall::deployUnit(Uint32 unitID)
 
 
 
-	pickedUpUnitList.remove(unitID);
-
-	soundPlayer->playSoundAt(Sound_Drop, location);
 
 	UnitBase* pUnit = (UnitBase*) (currentGame->getObjectManager().getObject(unitID));
 
@@ -279,7 +364,7 @@ void Carryall::deployUnit(Uint32 unitID)
 		return;
     }
 
-	dbg_print(" Carryall::deployUnit  found:%s \n",found ? "yes" : "no");
+
 	if (found) {
 	    currentMaxSpeed = 0.0f;
 	    setSpeeds();
@@ -292,6 +377,7 @@ void Carryall::deployUnit(Uint32 unitID)
 						pUnit->setTarget(object);
 						pUnit->setGettingRepaired();
 						pUnit = NULL;
+
 					} else {
 					    // carryall has booked this repair yard but now will not go there => unbook
 						((RepairYard*)object)->unBook();
@@ -303,6 +389,7 @@ void Carryall::deployUnit(Uint32 unitID)
 					if (((Refinery*)object)->isFree()) {
 						((Harvester*)pUnit)->setTarget(object);
 						((Harvester*)pUnit)->setReturned();
+
 						pUnit = NULL;
 						goingToRepairYard = false;
 					}
@@ -312,8 +399,58 @@ void Carryall::deployUnit(Uint32 unitID)
 
 		if(pUnit != NULL) {
 			pUnit->setAngle(drawnAngle);
-			Coord deployPos = currentGameMap->findDeploySpot(pUnit, location);
-			pUnit->deploy(deployPos);
+			if (deployPos.isInvalid()) {
+				dbg_print(" Carryall::deployUnit _deployPos was invalid, new deployPos\n");
+				deployPos = currentGameMap->findDeploySpot(pUnit, location, pUnit->getDestination().isValid() ? pUnit->getDestination() : Coord::Invalid());
+			}
+
+			bool sound ;
+
+			if (pUnit->isAFlyingUnit()) {
+				sound = true;
+			} else if (pUnit->isInfantry()) {
+				sound = true;
+			} else if (pUnit->isAUnit() && pUnit->getItemID() != Unit_Harvester ) {
+				sound = true;
+			} else  {
+				sound = false;
+			}
+
+			dbg_print(" Carryall::deployUnit UnitDeploying to destination(%d,%d-%d,%d) [#%d] \n", pUnit->getDestination().x,pUnit->getDestination().y,deployPos.x,deployPos.y,tryDeploy);
+			if (abs(location.x - deployPos.x) <= 1 && abs(location.y - deployPos.y) <= 1) {
+				pUnit->deploy(deployPos, sound);
+				deployPos.invalidate();
+				tryDeploy = 0;
+				pUnit = NULL;
+			}
+			else {
+				tryDeploy++;
+				if (tryDeploy > 3) {
+					tryDeploy = 0;
+					if (pUnit->canPass(location.x,location.y)) {
+						pUnit->deploy(location, sound);
+						dbg_print(" Carryall::deployUnit UnitDeploying for too long, DUMPING cargo @(%d,%d) instead of destination(%d,%d-%d,%d) [#%d] \n",location.x, location.y, pUnit->getDestination().x,pUnit->getDestination().y,deployPos.x,deployPos.y,tryDeploy);
+						deployPos.invalidate();
+						pUnit = NULL;
+					} else {
+						dbg_print(" Carryall::deployUnit UnitDeploying for too long, CAN NOT DUMP cargo @(%d,%d) instead of destination(%d,%d-%d,%d) [#%d] \n",location.x, location.y, pUnit->getDestination().x,pUnit->getDestination().y,deployPos.x,deployPos.y,tryDeploy);
+						deployPos = currentGameMap->findDeploySpot(pUnit, location, pUnit->getDestination().isValid() ? pUnit->getDestination() : Coord::Invalid());
+						return;
+					}
+				} else {
+					setDestination(deployPos);
+					if(pUnit->getOwner() == pLocalHouse) {
+						soundPlayer->playVoiceAt(DropImpossible,pLocalHouse->getHouseID(),deployPos);
+					}
+					return;
+				}
+			}
+		}
+
+		if (true) {
+			pickedUpUnitList.remove(unitID);
+			soundPlayer->playSoundAt(Sound_Drop, location);
+			setFallbackPos(Coord::Invalid());
 		}
 
 		if (pickedUpUnitList.empty())
@@ -365,18 +502,23 @@ void Carryall::engageTarget()
 {
     if(target && (target.getObjPointer() == NULL)) {
         // the target does not exist anymore
+    	dbg_print(" Carryall::engageTarget target doesnt exist any more  \n");
         releaseTarget();
         return;
     }
 
+    // TODO : change the logic to be able to pickup & keep cargo of forced carryall
     if(target && (target.getObjPointer()->isActive() == false)) {
         // the target changed its state to inactive
+    	dbg_print(" Carryall::engageTarget target is not active any more  \n");
         releaseTarget();
         return;
     }
 
-    if(target && target.getObjPointer()->isAGroundUnit() && !((GroundUnit*)target.getObjPointer())->isAwaitingPickup()) {
+    // TODO : change the logic to be able to pickup & keep cargo of forced carryall
+    if(target && target.getObjPointer()->isAGroundUnit() && !((GroundUnit*)target.getObjPointer())->isAwaitingPickup() /* && !wasForced() */) {
         // the target changed its state to not awaiting pickup anymore
+    	dbg_print(" Carryall::engageTarget target is not more awaiting pickup or carryall is not forced to pick it up (!awaiting:%s,!forced:%s)  \n",!((GroundUnit*)target.getObjPointer())->isAwaitingPickup() ? "y" : "n", !wasForced() ? "y" : "n");
         releaseTarget();
         return;
     }
@@ -388,7 +530,7 @@ void Carryall::engageTarget()
     }
 
     Coord targetLocation;
-    if(target.getObjPointer()->getItemID() == Structure_Refinery) {
+    if (target.getObjPointer()->getItemID() == Structure_Refinery) {
         targetLocation = target.getObjPointer()->getLocation() + Coord(2,0);
     } else {
         targetLocation = target.getObjPointer()->getClosestPoint(location);
@@ -411,14 +553,20 @@ void Carryall::engageTarget()
 
         if(hasCargo()) {
             if(target.getObjPointer()->isAStructure()) {
-                while(pickedUpUnitList.begin() != pickedUpUnitList.end()) {
-                    deployUnit(*(pickedUpUnitList.begin()) );
-                }
+            	if (((StructureBase*)(target.getObjPointer()))->getItemID() == Structure_RepairYard && ((RepairYard*)(target.getObjPointer()))->isFree()) {
+					while(pickedUpUnitList.begin() != pickedUpUnitList.end()) {
+						deployUnit(*(pickedUpUnitList.begin()) );
+					}
+					setTarget(NULL);
+					setDestination(guardPoint);
 
-                setTarget(NULL);
-                setDestination(guardPoint);
+            	} else {
+            		flyAround();
+            	}
+
             }
         } else {
+        	tryDeploy=0;
             pickupTarget();
         }
     } else {
@@ -434,6 +582,9 @@ void Carryall::giveCargo(UnitBase* newUnit)
 	dbg_print(" Carryall::giveCargo %d(%d)   \n", newUnit->getObjectID(),newUnit->getItemID());
 	booked = true;
 	pickedUpUnitList.push_back(newUnit->getObjectID());
+	tryDeploy=0;
+	deployPos.invalidate();
+	setFallbackPos(newUnit->getLocation());
 
 	newUnit->setPickedUp(this);
 
@@ -441,10 +592,13 @@ void Carryall::giveCargo(UnitBase* newUnit)
 		drawnFrame = 1;
 
 	droppedOffCargo = false;
+
 }
 
 void Carryall::pickupTarget()
 {
+	if (hasCargo()) return;
+
     currentMaxSpeed = 0.0f;
     setSpeeds();
 
@@ -477,6 +631,8 @@ void Carryall::pickupTarget()
 
 			drawnFrame = 1;
 			booked = true;
+			soundPlayer->playSoundAt(Sound_AirBrakes,location);
+			setFallbackPos(location);
 
             if(newTarget && ((newTarget->getItemID() == Structure_Refinery)
                               || (newTarget->getItemID() == Structure_RepairYard)))
@@ -497,19 +653,29 @@ void Carryall::pickupTarget()
 		} else {
 			dbg_print( " Carryall::pickupTarget %d(%d) that is going to be pickup \n", pGroundUnitTarget->getObjectID(),pGroundUnitTarget->getItemID());
 			pGroundUnitTarget->setAwaitingPickup(false);
-			releaseTarget();
+			//releaseTarget();
 		}
 	} else {
         // get unit from structure
         ObjectBase* pObject = target.getObjPointer();
+        bool deployed = false;
         if(pObject->getItemID() == Structure_Refinery) {
             // get harvester
-            ((Refinery*) pObject)->deployHarvester(this);
+        	deployed = ((Refinery*) pObject)->deployHarvester(this);
         } else if(pObject->getItemID() == Structure_RepairYard) {
             // get repaired unit
         	dbg_print("Carryall::pickupTarget %d deployRepairUnit\n", this->getObjectID());
-            ((RepairYard*) pObject)->deployRepairUnit(this);
+        	deployed = ((RepairYard*) pObject)->deployRepairUnit(this);
+        } else if (pObject->getItemID() == Structure_StarPort) {
+            // get orderer unit
+        	dbg_print("Carryall::pickupTarget %d deployOrderedUnit\n", this->getObjectID());
+        	deployed = ((StarPort*) pObject)->deployOrderedUnit(this);
         }
+
+        if (!deployed) {
+        	releaseTarget();
+        }
+
 	}
 }
 
@@ -537,9 +703,17 @@ void Carryall::targeting() {
 	}
 }
 
+bool Carryall::canPass(int xPos, int yPos) const
+{
+	// When selected units fly at lower altitude and then cannot pass above other flying unit
+	return (isSelected() && owner == pLocalHouse) ? AirUnit::canPass(xPos, yPos) && !currentGameMap->getTile(xPos, yPos)->hasAnAirUnit() : AirUnit::canPass(xPos, yPos) ;
+}
+
+
+
 
 void Carryall::findConstYard() {
-    float	closestYardDistance = 1000000.0f;
+    float	closestYardDistance = std::numeric_limits<float>::infinity();;
     ConstructionYard* bestYard = NULL;
 
     RobustList<StructureBase*>::const_iterator iter;
@@ -558,11 +732,15 @@ void Carryall::findConstYard() {
         }
     }
 
-    if(bestYard) {
+    if(bestYard && guardPoint.isInvalid()) {
         constYardPoint = bestYard->getClosestPoint(location);
+        dbg_print("Carryall::findConstYard getting bestYard %d,%d\n", constYardPoint.x,constYardPoint.y);
     } else {
         constYardPoint = guardPoint;
+        dbg_print("Carryall::findConstYard getting specified guardPoint %d,%d\n", constYardPoint.x,constYardPoint.y);
     }
+
+
 
     // make all circles a bit different
     constYardPoint.x += (getObjectID() % 5) - 2;
@@ -586,3 +764,6 @@ void Carryall::findConstYard() {
         flyPoints[i] = constYardPoint + pUsedCircle[i];
     }
 }
+
+
+

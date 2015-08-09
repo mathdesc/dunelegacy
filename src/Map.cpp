@@ -34,6 +34,8 @@
 #include <stack>
 #include <set>
 
+#include <AStarSearch.h>
+
 Map::Map(int xSize, int ySize)
  : sizeX(xSize), sizeY(ySize), tiles(NULL), lastSinglySelectedObject(NULL) {
 
@@ -342,6 +344,7 @@ Coord Map::getMapPos(int angle, const Coord& source) const {
 		case (RIGHTDOWN):   return Coord(source.x + 1 , source.y + 1);   break;
 		default:            return Coord(source.x     , source.y);       break;
 	}
+	return source;
 }
 
 //building size is num squares
@@ -363,6 +366,7 @@ Coord Map::findDeploySpot(UnitBase* pUnit, const Coord origin, const Coord gathe
 
 	int ranX = origin.x;
 	int ranY = origin.y;
+	std::list<Coord> pathList;
 
 	do {
 		edge = currentGame->randomGen.rand(0, 3);
@@ -386,6 +390,7 @@ Coord Map::findDeploySpot(UnitBase* pUnit, const Coord origin, const Coord gathe
             default:
                 break;
 		}
+		Coord temp = Coord(ranX, ranY);
 
 		bool bOK2Deploy = pUnit->canPass(ranX, ranY);
 
@@ -394,21 +399,26 @@ Coord Map::findDeploySpot(UnitBase* pUnit, const Coord origin, const Coord gathe
 		    bOK2Deploy = false;
 		}
 
-		if(bOK2Deploy) {
-			if(gatherPoint.isInvalid()) {
-				closestPoint.x = ranX;
-				closestPoint.y = ranY;
-				found = true;
-			} else {
-				Coord temp = Coord(ranX, ranY);
-				if(blockDistance(temp, gatherPoint) < closestDistance) {
-					closestDistance = blockDistance(temp, gatherPoint);
+
+		if (gatherPoint.isInvalid()  && bOK2Deploy) {
 					closestPoint.x = ranX;
 					closestPoint.y = ranY;
-					foundClosest = true;
-				}
+					found = true;
+		} else if (bOK2Deploy) {
+			// A gather point is defined, let's find a Reacheable path to it
+			AStarSearch pathfinder(currentGameMap, pUnit, temp, gatherPoint);
+			pathList = pathfinder.getFoundReacheablePath();
+
+
+			if(blockDistance(temp, gatherPoint) < closestDistance && !pathList.empty()) {
+				closestDistance = blockDistance(temp, gatherPoint);
+				closestPoint.x = ranX;
+				closestPoint.y = ranY;
+				foundClosest = true;
 			}
 		}
+
+
 
 		if(counter++ >= 100) {
 		    //if hasn't found a spot on tempObject layer in 100 tries, goto next
@@ -417,10 +427,13 @@ Coord Map::findDeploySpot(UnitBase* pUnit, const Coord origin, const Coord gathe
 			if(++depth > (std::max(currentGameMap->getSizeX(), currentGameMap->getSizeY()))) {
 				closestPoint.invalidate();
 				found = true;
-				fprintf(stderr, "Cannot find deploy position because the map is full!\n"); fflush(stderr);
+				fprintf(stderr, "Cannot find deploy position because the map is full pathlist.size=%d!\n",pathList.size()); fflush(stderr);
 			}
 		}
 	} while (!found && (!foundClosest || (counter > 0)));
+
+	//if (counter > 10) dbg_print("Map::findDeploySpot tries %d for %d(%d)!\n",counter,pUnit->getItemID(),pUnit->getObjectID());
+	//else dbg_print("Map::findDeploySpot (in %d tries) assigned %d(%d) to (%d,%d)!\n",counter,pUnit->getItemID(),pUnit->getObjectID(),closestPoint.x,closestPoint.y);
 
 	return closestPoint;
 }
@@ -469,53 +482,187 @@ void Map::removeObjectFromMap(Uint32 objectID) {
 	}
 }
 
-void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, int realY, bool objectARGMode) {
+
+void Map::recalutateCoordinates(const ObjectBase* objLeader, bool forcedRecal = false) {
+
+
+	{
+		std::list<std::pair<Uint32,Coord>>::iterator test;
+		for(test = currentGame->getSelectedListCoord().begin() ; test != currentGame->getSelectedListCoord().end(); ++test) {
+			ObjectBase *obj3 = currentGame->getObjectManager().getObject(test->first);
+			Coord coord = Coord((test->second).x,(test->second).y);
+			if(obj3->isAUnit()) {
+				fprintf(stdout,"%d(%d,%d) ",obj3->getObjectID(),coord.x,coord.y);
+
+			}
+		}
+		fprintf(stdout,"\n");
+	}
+
+
+	std::list<Uint32>::iterator itlist;
+	std::list<std::pair<Uint32,Coord>>::iterator itcoord,recalc;
+	std::list<Uint32> *list = &currentGame->getSelectedList();
+	std::list<std::pair<Uint32,Coord>> *listc = &currentGame->getSelectedListCoord();
+
+
+	for(itlist = list->begin() , itcoord = listc->begin() ; itlist != list->end(), itcoord != listc->end() ; ++itlist, ++itcoord) {
+		ObjectBase *obj2 = currentGame->getObjectManager().getObject(*itlist);
+
+		if (obj2 == NULL) {
+			err_print("Map::recalutateCoordinates Out of bound Selectionlist (most probably getSelectedListCoord().size() != getSelectedList().size()) !\n");
+			break;
+		}
+
+		if(obj2->isAUnit()) {
+
+			if (obj2 != objLeader) {
+				// Reset all the other to non-leader
+				((UnitBase*)(obj2))->setLeader(false);
+			}
+			else {
+				// Set new leader, put it in front of list and listCoord
+				((UnitBase*)(obj2))->setLeader(true);
+				// if leading unit is not it front of list, put it
+				if (itlist != list->begin())
+					list->splice(list->begin(),*list,itlist,list->end());
+
+				// if leading unit is not it front of coordlist, put it
+				if (itcoord != listc->begin())		{
+					listc->splice(listc->begin(),*listc,itcoord,listc->end());
+					forcedRecal=true;
+				}
+
+				if (forcedRecal) {
+					// Recalculate relative formation coordinates based on new group leader
+					for(recalc = currentGame->getSelectedListCoord().begin() ; recalc != currentGame->getSelectedListCoord().end(); ++recalc) {
+						ObjectBase *obj3 = currentGame->getObjectManager().getObject(recalc->first);
+						Coord *coord3 = &recalc->second;
+						if(obj3->isAUnit()) {
+							if (obj3 != obj2) {
+								// Recalculate based on obj2(leader)
+								*coord3 = obj3->getLocation() - obj2->getLocation() ;
+								err_print("Map::recalutateCoordinates calculating %d,%d (%d) \n",coord3->x,coord3->y,obj3->getObjectID());
+							} else {
+								// Recalculate on self (0,0)
+								*coord3 = Coord (0,0);
+								err_print("Map::recalutateCoordinates resetting 0,0 (%d) \n",obj2->getObjectID());
+										//obj2->getLocation() -  obj3->getLocation();
+							}
+						}
+					}
+				}
+
+
+			}
+		}
+
+	}
+
+	{
+		std::list<std::pair<Uint32,Coord>>::iterator test;
+		for(test = currentGame->getSelectedListCoord().begin() ; test != currentGame->getSelectedListCoord().end(); ++test) {
+			ObjectBase *obj3 = currentGame->getObjectManager().getObject(test->first);
+			Coord coord = Coord((test->second).x,(test->second).y);
+			if(obj3->isAUnit()) {
+				fprintf(stderr,"%d(%d,%d) ",obj3->getObjectID(),coord.x,coord.y);
+
+			}
+		}
+		fprintf(stderr,"\n");
+	}
+
+}
+
+void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, int realY, const Uint32 objectARGMode) {
 
 	ObjectBase	*lastCheckedObject = NULL;
 	ObjectBase *lastSelectedObject = NULL;
 
 	err_print("Map::selectObjects : [%d,%d]-[%d,%d] %d,%d \n",x1,y1,x2,y2,realX,realY);
 	//if selection rectangle is checking only one tile and has shift selected we want to add/ remove that unit from the selected group of units
-	if(!objectARGMode) {
+	if(!objectARGMode & KMOD_SHIFT) {
 		currentGame->unselectAll(currentGame->getSelectedList());
 		currentGame->getSelectedList().clear();
 		currentGame->getSelectedListCoord().clear();
 		currentGame->selectionChanged();
+		currentGame->setGroupLeader(NULL);
 	}
 
 	if((x1 == x2) && (y1 == y2) && tileExists(x1, y1)) {
-		err_print("Map::selectObjects : selectAllPlayersUnitsOfType \n");
+
         if(getTile(x1,y1)->isExplored(houseID) || debug) {
             lastCheckedObject = getTile(x1,y1)->getObjectAt(realX, realY);
+            if (lastCheckedObject != NULL)
+          	 err_print("Map::selectObjects : selectAllPlayersUnitsOfType %d AreaGuardRange:%d\n",lastCheckedObject->getObjectID(), lastCheckedObject->getAreaGuardRange());
         } else {
 		    lastCheckedObject = NULL;
 		}
-        groupLeader = NULL;
+      //  groupLeader = NULL;
 		if((lastCheckedObject != NULL) && (lastCheckedObject->getOwner()->getHouseID() == houseID)) {
 			if((lastCheckedObject == lastSinglySelectedObject) && ( !lastCheckedObject->isAStructure())) {
-				 groupLeader = lastSinglySelectedObject;
+				currentGame->setGroupLeader(lastSinglySelectedObject);
                 for(int i = screenborder->getTopLeftTile().x; i <= screenborder->getBottomRightTile().x; i++) {
                     for(int j = screenborder->getTopLeftTile().y; j <= screenborder->getBottomRightTile().y; j++) {
                         if(tileExists(i,j) && getTile(i,j)->hasAnObject()) {
-                            getTile(i,j)->selectAllPlayersUnitsOfType(houseID, lastSinglySelectedObject, &lastCheckedObject, &lastSelectedObject, &groupLeader);
+                            getTile(i,j)->selectAllPlayersUnitsOfType(houseID, lastSinglySelectedObject, &lastCheckedObject, &lastSelectedObject, currentGame->getGroupLeader());
                         }
                     }
 				}
 				lastSinglySelectedObject = NULL;
 
-			} else if(!lastCheckedObject->isSelected())	{
+				if (currentGame->getGroupLeader() != NULL)
+					currentGameMap->recalutateCoordinates(currentGame->getGroupLeader(),true);
 
+			} else if(!lastCheckedObject->isSelected())	{
 				lastCheckedObject->setSelected(true);
 				currentGame->getSelectedList().emplace_back(lastCheckedObject->getObjectID());
+				if (currentGame->getSelectedList().size() == 2) {
+					currentGame->setGroupLeader( currentGame->getObjectManager().getObject((currentGame->getSelectedList()).front()) );
+				}
+
+				if (currentGame->getGroupLeader() == NULL)
+					currentGame->getSelectedListCoord().push_back(std::make_pair<Uint32,Coord> ( (lastCheckedObject)->getObjectID(), ((lastCheckedObject)->getLocation() - (lastCheckedObject)->getLocation()) ) );
+				else
+					currentGame->getSelectedListCoord().push_back(std::make_pair<Uint32,Coord> ((lastCheckedObject)->getObjectID(), ((lastCheckedObject)->getLocation() - (currentGame->getGroupLeader())->getLocation())) );
 				currentGame->selectionChanged();
 				lastSelectedObject = lastCheckedObject;
 				lastSinglySelectedObject = lastSelectedObject;
+				 if (currentGame->getGroupLeader() != NULL)
+					 currentGameMap->recalutateCoordinates(currentGame->getGroupLeader(),true);
 
-			} else if(objectARGMode) {
+			} else if(objectARGMode & KMOD_SHIFT) {
 			    //holding down shift, unselect this unit
 				lastCheckedObject->setSelected(false);
 				currentGame->getSelectedList().remove(lastCheckedObject->getObjectID());
+
+				std::remove_if(currentGame->getSelectedListCoord().begin(), currentGame->getSelectedListCoord().end(), [=](std::pair<Uint32,Coord> & item) { return item.first == (lastCheckedObject)->getObjectID() ;} );
+				currentGame->getSelectedListCoord().pop_back();
+
 				currentGame->selectionChanged();
+				// If the removed object was the leader, reset a new leader
+				if (lastCheckedObject->isAUnit() && ((UnitBase*)lastCheckedObject)->isLeader()) {
+					((UnitBase*)lastCheckedObject)->setLeader(false);
+					if (currentGame->getSelectedList().size() > 1) {
+						std::list<Uint32> *list = &currentGame->getSelectedList();
+						std::list<Uint32>::iterator iter = list->begin();
+						while (iter != list->end()) {
+							ObjectBase *obj = currentGame->getObjectManager().getObject(*iter);
+							if (obj != NULL && obj->isAUnit()) {
+								((UnitBase*)obj)->setLeader(true);
+								currentGame->setGroupLeader(obj);
+								break;
+							}
+							else iter++;
+						}
+
+						 if (currentGame->getGroupLeader() != NULL)
+							 currentGameMap->recalutateCoordinates(currentGame->getGroupLeader(),true);
+
+					} else {
+						 ;
+					}
+				}
 			}
 
 		} else {
@@ -523,16 +670,123 @@ void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, 
 		}
 
 	} else {
-		groupLeader = NULL;
+		//currentGame->setGroupLeader(NULL);
 		err_print("Map::selectObjects : selectAllPlayersUnits \n");
+		bool alsoAir = false;
+
+		if (objectARGMode & KMOD_CTRL) {
+			//holding down ctrl to select also airborn unit
+			alsoAir = true;
+			err_print("Map::selectObjects : Also AIR \n");
+		}
+
 		for(int i = std::min(x1, x2); i <= std::max(x1, x2); i++) {
             for(int j = std::min(y1, y2); j <= std::max(y1, y2); j++) {
                 if(tileExists(i,j) && getTile(i,j)->hasAnObject() && getTile(i,j)->isExplored(houseID) && !getTile(i,j)->isFogged(houseID)) {
-                    getTile(i,j)->selectAllPlayersUnits(houseID, &lastCheckedObject, &lastSelectedObject, &groupLeader);
+                    getTile(i,j)->selectAllPlayersUnits(houseID, &lastCheckedObject, &lastSelectedObject, currentGame->getGroupLeader());
                     lastSinglySelectedObject = lastCheckedObject;
                 }
             }
         }
+
+		std::list<Uint32> *list = &currentGame->getSelectedList();
+		std::list<Uint32>::iterator iter = list->begin();
+		// Do we only have air units in the selection ?
+		bool onlyAir = true;
+		while (iter != list->end()) {
+			ObjectBase *obj = currentGame->getObjectManager().getObject(*iter);
+			UnitBase *unit = dynamic_cast<UnitBase*>(obj);
+			if(obj->isAUnit() && !unit->isAFlyingUnit()) {
+				onlyAir = false;
+				break;
+			}
+			iter++;
+		}
+
+		// We are told not to select Air units and selection does not only have air born unit
+		if (!alsoAir && !onlyAir) {
+			err_print("Tile::selectAllPlayersUnits alsoAir:%s onlyAir:%s \n", alsoAir ? "y" :"n", onlyAir ? "y" : "n" );
+			if (currentGame->getSelectedList().size() > 1 ) {
+				iter = list->begin();
+				while (iter != list->end()) {
+					ObjectBase *obj = currentGame->getObjectManager().getObject(*iter);
+					UnitBase *unit = dynamic_cast<UnitBase*>(obj);
+					if(obj->isAUnit() && unit->isAFlyingUnit()) {
+						unit->setSelected(false);
+						unit->setLeader(false);
+
+						iter = currentGame->getSelectedList().erase(iter);
+						std::remove_if(currentGame->getSelectedListCoord().begin(), currentGame->getSelectedListCoord().end(), [=](std::pair<Uint32,Coord> & item) { return item.first == (unit)->getObjectID() ;} );
+						currentGame->getSelectedListCoord().pop_back();
+						//err_print("Tile::selectAllPlayersUnits removing %d -- Coord (%d,%d) \n", unit->getObjectID(),  ((unit)->getLocation() - ((currentGame->getGroupLeader()))->getLocation()).x, ((unit)->getLocation() - ((currentGame->getGroupLeader()))->getLocation()).y);
+
+						if  ( currentGame->getSelectedList().size() > 1 ) {
+							if (iter == list->end()) {
+								std::list<Uint32>::iterator iter2 = list->begin();
+								obj = currentGame->getObjectManager().getObject(*iter2);
+							} else {
+								obj = currentGame->getObjectManager().getObject(*iter);
+							}
+							((UnitBase*)(obj))->setLeader(true);
+							 currentGame->setGroupLeader(obj);
+							err_print("Tile::selectAllPlayersUnits default FLY group leader %d \n", (currentGame->getGroupLeader())->getObjectID());
+						} else {
+							 currentGame->setGroupLeader(NULL);
+						}
+						currentGame->selectionChanged();
+
+					} else {
+						((UnitBase*)(obj))->setLeader(false);
+						iter++;
+						if (iter == list->end()) {
+							std::list<Uint32>::iterator iter2 = list->begin();
+							obj = currentGame->getObjectManager().getObject(*iter2);
+						} else {
+							obj = currentGame->getObjectManager().getObject(*iter);
+						}
+						((UnitBase*)(obj))->setLeader(true);
+						 currentGame->setGroupLeader(obj);
+
+						//err_print("Tile::selectAllPlayersUnits default group leader %d \n", (currentGame->getGroupLeader())->getObjectID());
+					}
+
+
+				}
+				 if ( currentGame->getGroupLeader() != NULL)
+					 currentGameMap->recalutateCoordinates(currentGame->getGroupLeader(),true);
+			}
+
+		}
+
+
+		if(objectARGMode & KMOD_SHIFT) {
+			// Multiple object were added : reset a new leader
+			bool resetLead = false;
+			if (currentGame->getSelectedList().size() > 1) {
+				dbg_print("Tile::selectAllPlayersUnits resetlead on added OBJ \n");
+
+				std::list<Uint32> *list = &currentGame->getSelectedList();
+				std::list<Uint32>::iterator iter = list->begin();
+				while (iter != list->end()) {
+					ObjectBase *obj = currentGame->getObjectManager().getObject(*iter);
+					if (obj != NULL && obj->isAUnit() && !resetLead) {
+						((UnitBase*)obj)->setLeader(true);
+						currentGame->setGroupLeader(obj);
+						resetLead = true;
+						iter++;
+					} else if (obj != NULL && obj->isAUnit() && resetLead && ((UnitBase*)obj)->isLeader()) {
+						((UnitBase*)obj)->setLeader(false);
+						iter++;
+					} else {
+						iter++;
+					}
+
+				}
+				 if (currentGame->getGroupLeader() != NULL)
+					 currentGameMap->recalutateCoordinates(currentGame->getGroupLeader(),true);
+			}
+		}
+
 		lastSinglySelectedObject = NULL;
 	}
 
@@ -546,9 +800,6 @@ void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, 
 		lastSelectedObject->playSelectSound();	//we only want one unit responding
 	}
 
-/*
-	if ((selectedList->getNumElements() == 1) && lastSelectedObject && lastSelectedObject->isAStructure() && ((StructureBase*)lastSelectedObject)->isABuilder())
-		((BuilderBase*)lastSelectedObject)->checkBuildList();*/
 }
 
 
@@ -674,3 +925,5 @@ void Map::createSpiceField(Coord location, int radius, bool centerIsThickSpice) 
         }
     }
 }
+
+

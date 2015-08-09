@@ -413,7 +413,9 @@ public:
 
 
 
-    inline void setElected(bool e) { bElect = e;}
+
+	inline ObjectBase* getGroupLeader() { return groupLeader; }
+	inline void setGroupLeader(ObjectBase* lead) {  groupLeader = lead; }
 
 private:
 
@@ -485,6 +487,10 @@ private:
         \return true if action click is possible
     */
     bool handleSelectedObjectsActionClick(int xPos, int yPos);
+
+
+
+    ObjectBase* findGroupLeader();
 
 public:
     enum {
@@ -565,7 +571,6 @@ private:
 	bool	bReplay;					///< Is this game actually a replay
 
 	std::list<Uint32>::iterator electIter;
-	bool	bElect;
 
 	bool	bShowFPS;					///< Show the FPS
 
@@ -594,6 +599,10 @@ private:
 
     std::multimap<std::string, Player*> playerName2Player;  ///< mapping player names to players (one entry per player)
     std::map<Uint8, Player*> playerID2Player;               ///< mapping player ids to players (one entry per player)
+
+
+
+	ObjectBase* groupLeader;   				///< The first selected object is the group leader for formation movement
 };
 
 #endif // GAME_H

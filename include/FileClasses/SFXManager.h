@@ -32,8 +32,11 @@ typedef enum {
 	ConstructionComplete,
 	VehicleRepaired,
 	FrigateHasArrived,
+	UnitDeployed,
+	VehiculeDeployed,
 	YourMissionIsComplete,
 	YouHaveFailedYourMission,
+	DropImpossible,
 	RadarActivated,
 	RadarDeactivated,
 	BloomLocated,
@@ -41,6 +44,16 @@ typedef enum {
 	BaseIsUnderAttack,  ///< unused
     SaboteurApproaching,
     MissileApproaching,
+    EnemyApproachingNorth,
+    EnemyApproachingEast,
+    EnemyApproachingWest,
+    EnemyApproachingSouth,
+    UnitLaunched,
+    Five,
+    Four,
+    Three,
+    Two,
+    One,
 	NUM_VOICE
 } Voice_enum;
 
@@ -83,6 +96,7 @@ typedef enum {
 	Sound_MachineGun,
 	Sound_Sonic,
 	Sound_RocketSmall,
+	Sound_AirBrakes,
 	NUM_SOUNDCHUNK
 } Sound_enum;
 

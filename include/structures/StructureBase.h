@@ -134,6 +134,8 @@ public:
     };
 	inline size_t getNumSmoke() const { return smoke.size(); };
 
+	inline bool isUnitProducer() const { return unitproducer; }
+
 protected:
     /**
         Used for updating things that are specific to that particular structure. Is called from
@@ -144,6 +146,8 @@ protected:
 
 	// constant for all structures of the same type
     Coord	structureSize;      ///< The size of this structure in tile coordinates (e.g. (3,2) for a refinery)
+
+    bool	unitproducer;		///< can produce unit
 
     // structure state
 	bool    repairing;          ///< currently repairing?

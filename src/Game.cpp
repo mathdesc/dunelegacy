@@ -60,6 +60,7 @@
 #include <structures/Palace.h>
 #include <units/Harvester.h>
 #include <units/InfantryBase.h>
+#include <Tile.h>
 
 #include <sstream>
 #include <iomanip>
@@ -95,7 +96,6 @@ Game::Game() {
 
 	bQuitGame = false;
 
-	bElect = false;
 	bReplay = false;
 
 	indicatorFrame = NONE;
@@ -933,7 +933,7 @@ void Game::doInput()
                                                         rectStartX, rectStartY, rectFinishX, rectFinishY,
                                                         screenborder->screen2worldX(finalMouseX),
                                                         screenborder->screen2worldY(finalMouseY),
-                                                        SDL_GetModState() & KMOD_SHIFT);
+                                                        (SDL_GetModState() & (KMOD_SHIFT | KMOD_CTRL)) );
 
                         if(selectedList.size() == 1) {
                             ObjectBase* pObject = objectManager.getObject( *selectedList.begin());
@@ -970,6 +970,8 @@ void Game::doInput()
                                     pInterface->addToNewsTicker(harvesterMessage);
                                 }
                             }
+
+
 
 
                         } else {
@@ -1158,7 +1160,9 @@ void Game::drawCursor()
 
 	if(SDL_BlitSurface(pCursor, NULL, screen, &dest) != 0) {
         fprintf(stderr,"Game::drawCursor(): %s\n", SDL_GetError());
-	}
+	} /*else {
+		err_relax_print("dest %d,%d,%d,%d\n",dest.x,dest.y,dest.w,dest.h);
+	}*/
 }
 
 void Game::doWindTrapPalatteAnimation() {
@@ -1759,6 +1763,9 @@ bool Game::loadSaveGame(InputStream& stream) {
         screenborder->load(stream);
     }
 
+    // assign a groupleader
+    groupLeader = findGroupLeader();
+
     // load triggers
     triggerManager.load(stream);
 
@@ -1910,6 +1917,8 @@ void Game::unselectAll(std::list<Uint32>& aList)
     for(iter = aList.begin(); iter != aList.end(); ++iter) {
         ObjectBase *tempObject = objectManager.getObject(*iter);
         tempObject->setSelected(false);
+        if (tempObject->isAUnit())
+        	((UnitBase*)tempObject)->setRegulatedSpeed(0.0f);
     }
 }
 
@@ -2068,12 +2077,12 @@ void Game::handleChatInput(SDL_KeyboardEvent& keyboardEvent) {
                     pInterface->getChatManager().addInfoMessage("Debug mode disabled");
                     debug = false;
                 }
-            } else if((bCheatsEnabled == true) && (md5string == "0xCEF1D26CE4B145DE985503CA35232ED8") || typingChatMessage.compare("/givecreds")  == 0) {
+            } else if((bCheatsEnabled == true) && ((md5string == "0xCEF1D26CE4B145DE985503CA35232ED8") || typingChatMessage.compare("/givecreds")  == 0)) {
                 if (gameType != GAMETYPE_CUSTOM_MULTIPLAYER) {
                     pInterface->getChatManager().addInfoMessage("You got some credits");
                     pLocalHouse->returnCredits(10000.0f);
                 }
-            } else if((bCheatsEnabled == true) && (md5string == "0xCEF1D26CE4B145DE985503CA35232ED8") || typingChatMessage.compare("/givecredsAI")  == 0 ) {
+            } else if((bCheatsEnabled == true) && ((md5string == "0xCEF1D26CE4B145DE985503CA35232ED8") || typingChatMessage.compare("/givecredsAI")  == 0 )) {
 				if (gameType != GAMETYPE_CUSTOM_MULTIPLAYER) {
 					pInterface->getChatManager().addInfoMessage("You give some credits to AIs");
 					for(int i=0;i<NUM_HOUSES;i++) {
@@ -2106,6 +2115,62 @@ void Game::handleChatInput(SDL_KeyboardEvent& keyboardEvent) {
 				        }
 				    }
 				}
+            } else if((bCheatsEnabled == true) && (typingChatMessage.compare("/gomjabbar")  == 0 )) {
+            	if (gameType != GAMETYPE_CUSTOM_MULTIPLAYER) {
+            		pInterface->getChatManager().addInfoMessage("I remember your Gom Jabbar");
+
+            	    std::set<Uint32>	affectedAirUnits;
+            	    std::set<Uint32>    affectedGroundAndUndergroundUnits;
+
+            		for(int i = 1 ; i <= currentGameMap->getSizeX(); i++) {
+            			for(int j = 1 ; j <= currentGameMap->getSizeY(); j++) {
+            				if(currentGameMap->tileExists(i, j)) {
+            				    Tile* pTile = currentGameMap->getTile(i,j);
+
+            	                affectedAirUnits.insert(pTile->getAirUnitList().begin(), pTile->getAirUnitList().end());
+            	                affectedGroundAndUndergroundUnits.insert(pTile->getInfantryList().begin(), pTile->getInfantryList().end());
+            	                affectedGroundAndUndergroundUnits.insert(pTile->getUndergroundUnitList().begin(), pTile->getUndergroundUnitList().end());
+            	                affectedGroundAndUndergroundUnits.insert(pTile->getNonInfantryGroundObjectList().begin(), pTile->getNonInfantryGroundObjectList().end());
+            				}
+            			}
+            		}
+
+                    std::set<Uint32>::const_iterator iter;
+                    for(iter = affectedGroundAndUndergroundUnits.begin(); iter != affectedGroundAndUndergroundUnits.end() ;++iter) {
+                        ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
+                        if ((pObject->getItemID() != Unit_Sandworm) && (pObject->isAGroundUnit() || pObject->isInfantry())) {
+                            pObject->handleDamage( lroundf((pObject->getHealth()*.95)), NULL, pLocalHouse);
+                        }
+                    }
+                    for(iter = affectedAirUnits.begin(); iter != affectedAirUnits.end() ;++iter) {
+					   ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
+					   if (pObject->getOwner() != pLocalHouse) {
+						   pObject->handleDamage( lroundf((pObject->getHealth()*.95)), NULL, pObject->getOwner());
+					   }
+                    }
+
+
+            	}
+            } else if((bCheatsEnabled == true) && (typingChatMessage.compare("/putlow")  == 0 )) {
+
+            	pInterface->getChatManager().addInfoMessage("I remember your Gom Jabbar");
+            	 std::list<Uint32>::const_iterator iter;
+            	 for(iter = selectedList.begin(); iter != selectedList.end() ;++iter) {
+            		 ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
+            		 pObject->handleDamage( lroundf((pObject->getHealth()*.95)), NULL, pObject->getOwner());
+            	 }
+
+
+            } else if((bCheatsEnabled == true) && (typingChatMessage.compare("/instantdeath")  == 0 )) {
+
+            	pInterface->getChatManager().addInfoMessage("I will take your water");
+            	 std::list<Uint32>::const_iterator iter;
+            	 for(iter = selectedList.begin(); iter != selectedList.end() ;++iter) {
+            		 ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
+            		 pObject->handleDamage( lroundf((pObject->getHealth()*1.2)), NULL, pObject->getOwner());
+            	 }
+
+
             } else {
                 if(pNetworkManager != NULL) {
                     pNetworkManager->sendChatMessage(typingChatMessage);
@@ -2424,74 +2489,31 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
         case SDLK_z: {
             std::list<Uint32>::iterator iter ;
 
-            if (bElect && ++electIter == selectedList.end()) bElect = false;
-
-            if (!bElect) {iter = selectedList.begin(); electIter = selectedList.begin();}
-            else iter = electIter;
-
-            ObjectBase *obj ;
+            ObjectBase *obj, *obj2;
 
             // Prepare to Elect new (next) group member as Leader
-            for( ; iter != selectedList.end() &&  electIter != selectedList.end(); ++iter , ++electIter) {
+            for( iter = selectedList.begin() ; iter != selectedList.end(); ++iter ) {
                 obj = objectManager.getObject(*iter);
-                if(obj->isAUnit() && !dynamic_cast<UnitBase*>(obj)->isLeader()) {
-                			bElect = true;
+                obj2 = obj;
+                err_print("Game::SDLK_z obj:%d(leader:%s) \n",obj->getObjectID(),( ((UnitBase*)(obj))->isLeader() )  ? "y" : "n");
+                if (obj->isAUnit() &&  ( ((UnitBase*)(obj))->isLeader() ) ) {
+                			iter++;
+                			obj2 = objectManager.getObject(*iter);
+                			if (iter == selectedList.end()) {
+                				iter = selectedList.begin();
+                			}
+
+                			setGroupLeader(obj2);
+                			((UnitBase*)obj)->setLeader(false);
+                			((UnitBase*)obj2)->setLeader(true);
+                			  err_print("Game::SDLK_z obj2:%d(leader:%s) \n",obj2->getObjectID(),( ((UnitBase*)(obj2))->isLeader() )  ? "y" : "n");
 							break;
                 }
             }
 
-            std::list<Uint32>::iterator itlist;
-            std::list<std::pair<Uint32,Coord>>::iterator itcoord,recalc;
-            std::list<Uint32> *list = &currentGame->getSelectedList();
-            std::list<std::pair<Uint32,Coord>> *listc = &currentGame->getSelectedListCoord();
 
+            currentGameMap->recalutateCoordinates(obj2,false);
 
-            for(itlist = list->begin() , itcoord = listc->begin() ; itlist != list->end(), itcoord != listc->end() ; ++itlist, ++itcoord) {
-            	ObjectBase *obj2 = objectManager.getObject(*itlist);
-            	if(obj2->isAUnit()) {
-
-						if (obj2 != obj) {
-							// Reset all the other to non-leader
-							dynamic_cast<UnitBase*>(obj2)->setLeader(false);
-						}
-						else {
-							// Set new leader, put it in front of list and listCoord
-							dynamic_cast<UnitBase*>(obj2)->setLeader(true);
-							if (itlist != list->begin())
-								list->splice(list->begin(),*list,itlist,list->end());
-
-							if (itcoord != listc->begin())		{
-								listc->splice(listc->begin(),*listc,itcoord,listc->end());
-								// Recalculate relative formation coordinates based on new group leader
-								for(recalc = selectedListCoord.begin() ; recalc != selectedListCoord.end(); ++recalc) {
-									ObjectBase *obj3 = objectManager.getObject(recalc->first);
-									Coord *coord3 = &recalc->second;
-									if(obj3->isAUnit()) {
-										if (obj3 != obj2) {
-											*coord3 = obj3->getLocation() - obj2->getLocation() ;
-										} else {
-											*coord3 = obj2->getLocation() -  obj3->getLocation();
-										}
-									}
-								}
-							}
-
-
-						}
-            	}
-
-            }
-
-/*			std::list<std::pair<Uint32,Coord>>::iterator test;
- 	 	 	for(test = selectedListCoord.begin() ; test != selectedListCoord.end(); ++test) {
-				ObjectBase *obj3 = objectManager.getObject(test->first);
-				Coord coord = Coord((test->second).x,(test->second).y);
-				if(obj3->isAUnit()) {
-					fprintf(stderr,"%d(%d,%d) ",obj3->getObjectID(),coord.x,coord.y);
-
-				}
-			}
-			fprintf(stderr,"\n");*/
 
         } break;
 
@@ -2813,3 +2835,49 @@ bool Game::handleSelectedObjectsActionClick(int xPos, int yPos) {
         return false;
     }
 }
+
+
+
+ObjectBase* Game::findGroupLeader() {
+/*
+    std::set<Uint32>	searchAirUnits;
+    std::set<Uint32>    searchGroundAndUndergroundUnits;
+
+	for(int i = 1 ; i <= currentGameMap->getSizeX(); i++) {
+		for(int j = 1 ; j <= currentGameMap->getSizeY(); j++) {
+			if(currentGameMap->tileExists(i, j)) {
+			    Tile* pTile = currentGameMap->getTile(i,j);
+
+			    searchAirUnits.insert(pTile->getAirUnitList().begin(), pTile->getAirUnitList().end());
+			    searchGroundAndUndergroundUnits.insert(pTile->getInfantryList().begin(), pTile->getInfantryList().end());
+			    searchGroundAndUndergroundUnits.insert(pTile->getUndergroundUnitList().begin(), pTile->getUndergroundUnitList().end());
+			    searchGroundAndUndergroundUnits.insert(pTile->getNonInfantryGroundObjectList().begin(), pTile->getNonInfantryGroundObjectList().end());
+			}
+		}
+	}
+
+    std::set<Uint32>::const_iterator iter;
+    for(iter = searchGroundAndUndergroundUnits.begin(); iter != searchGroundAndUndergroundUnits.end() ;++iter) {
+        ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
+        if ( pObject->getOwner() == pLocalHouse && (pObject->isAGroundUnit() || pObject->isInfantry()) && ((UnitBase*)(pObject))->isLeader() ) {
+            return pObject;
+        }
+    }
+    for(iter = searchAirUnits.begin(); iter != searchAirUnits.end() ;++iter) {
+	   ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
+	   if (pObject->getOwner() == pLocalHouse && ((UnitBase*)(pObject))->isLeader()) {
+		   return pObject;
+	   }
+    }
+*/
+    std::list<Uint32>::iterator iter;
+    for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
+        ObjectBase *tempObject = objectManager.getObject(*iter);
+        if (tempObject->isAUnit() && (tempObject->getOwner() == pLocalHouse) && tempObject->isRespondable() && ((UnitBase*)(tempObject))->isLeader() ) {
+        	 return tempObject;
+        }
+    }
+
+
+}
+

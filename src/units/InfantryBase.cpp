@@ -300,6 +300,10 @@ void InfantryBase::checkPos() {
                             RepairYard* pRepairYard = dynamic_cast<RepairYard*>(pNewStructure);
                             pRepairYard->book();
                             pRepairYard->assignUnit(pNewUnit);
+                        } else if(pNewStructure->getItemID() == Structure_StarPort) {
+                        	StarPort* pStarPort = dynamic_cast<StarPort*>(pNewStructure);
+                        	//pStarPort->book();
+                        	pStarPort->assignUnit(pNewUnit);
                         }
                     }
 

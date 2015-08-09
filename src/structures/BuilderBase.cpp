@@ -373,7 +373,7 @@ bool BuilderBase::update() {
 
                 if(newUnit != NULL) {
                     Coord spot = currentGameMap->findDeploySpot(newUnit, location, destination, structureSize);
-                    newUnit->deploy(spot);
+                    newUnit->deploy(spot, true);
 
                     if(getOwner()->isAI()
                         && (newUnit->getItemID() != Unit_Carryall)

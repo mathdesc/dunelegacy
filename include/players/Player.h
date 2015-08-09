@@ -22,6 +22,7 @@
 #include <misc/InputStream.h>
 #include <misc/OutputStream.h>
 #include <misc/RobustList.h>
+#include <structures/StarPort.h>
 
 class GameInitSettings;
 class Random;
@@ -30,7 +31,7 @@ class House;
 class ObjectBase;
 class StructureBase;
 class BuilderBase;
-class StarPort;
+//class StarPort;
 class ConstructionYard;
 class Palace;
 class TurretBase;

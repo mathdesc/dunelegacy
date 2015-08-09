@@ -30,6 +30,8 @@ public:
 	void init();
 	virtual ~Carryall();
 
+	void flyAround();
+	void doMove2Pos(int xPos, int yPos, bool bForced);
 	void checkPos();
 
     /**
@@ -38,7 +40,8 @@ public:
 	*/
 	bool update();
 
-    virtual float getMaxSpeed() const;
+    virtual float getMaxSpeed() ;
+    virtual void setSpeeds();
 
 	virtual void deploy(const Coord& newLocation);
 
@@ -69,6 +72,15 @@ public:
 
 	inline bool isBooked() const { return (booked || hasCargo()); }
 
+	inline Coord getDeployPos() const { return deployPos; }
+
+	inline Coord getFallbackPos() const { return fallBackPos; }
+	inline void setFallbackPos(Coord coord) { fallBackPos = coord; }
+
+	bool canPass(int xPos, int yPos) const;
+
+	float   currentMaxSpeed;    ///< The current maximum allowed speed
+
 protected:
 	void findConstYard();
     void releaseTarget();
@@ -79,19 +91,22 @@ protected:
     // unit state/properties
     std::list<Uint32>   pickedUpUnitList;   ///< What units does this carryall carry?
 
+
     bool    booked;             ///< Is this carryall currently booked?
     bool    idle;               ///< Is this carryall currently idle?
 	bool    firstRun;           ///< Is this carryall new?
 	bool    owned;              ///< Is this carryall owned or is it just here to drop something off
+	Uint32	tryDeploy = 0;		///< The current deployment tries
 
 	bool	aDropOfferer;       ///< This carryall just drops some units and vanishes afterwards
 	bool    droppedOffCargo;    ///< Is the cargo already dropped off?
 
-	float   currentMaxSpeed;    ///< The current maximum allowed speed
+	Coord 	fallBackPos;	///< The fallback spot in case of retreat
 
 	Uint8   curFlyPoint;        ///< The current flyPoint
 	Coord	flyPoints[8];       ///< Array of flight points
 	Coord	constYardPoint;     ///< The position of the construction yard to fly around
+	Coord	deployPos = Coord::Invalid();			///< The last deployed unit position
 };
 
 #endif // CARRYALL_H

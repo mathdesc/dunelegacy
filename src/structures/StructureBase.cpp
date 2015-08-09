@@ -68,6 +68,8 @@ void StructureBase::init() {
 	lastVisibleFrame = curAnimFrame = 2;
 	animationCounter = 0;
 
+	unitproducer = false;
+
 	structureList.push_back(this);
 }
 
@@ -460,7 +462,7 @@ void StructureBase::destroy() {
                 if(currentGame->randomGen.rand(1,100) <= getInfSpawnProp()) {
                     UnitBase* pNewUnit = owner->createUnit(Unit_Soldier);
                     pNewUnit->setHealth(pNewUnit->getMaxHealth()/2);
-                    pNewUnit->deploy(location + Coord(i,j));
+                    pNewUnit->deploy(location + Coord(i,j),false);
                     if(getOwner()->isAI()) {
                         pNewUnit->doSetAttackMode(HUNT);
                     }

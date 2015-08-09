@@ -46,6 +46,7 @@ void HeavyFactory::init() {
 	numImagesY = 1;
 	firstAnimFrame = 2;
 	lastAnimFrame = 3;
+	unitproducer = true;
 }
 
 HeavyFactory::~HeavyFactory() {

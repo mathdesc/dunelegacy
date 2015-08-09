@@ -58,10 +58,13 @@ public:
 	bool canAttack(const ObjectBase* object) const;
 
 	float extractSpice(float extractionSpeed);
+	virtual float getMaxSpeed() ;
 
 	inline float getAmountOfSpice() const { return spice; }
 	inline bool isReturning() const { return returningToRefinery; }
 	bool isHarvesting() const;
+
+	float   currentMaxSpeed;    ///< The current maximum allowed speed
 
 private:
 

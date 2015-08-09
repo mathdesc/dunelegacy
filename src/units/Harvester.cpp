@@ -16,7 +16,7 @@
  */
 
 #include <units/Harvester.h>
-
+#include <units/Carryall.h>
 #include <globals.h>
 
 #include <FileClasses/GFXManager.h>
@@ -54,6 +54,7 @@ Harvester::Harvester(House* newOwner) : TrackedUnit(newOwner)
     harvestingMode = false;
 	returningToRefinery = false;
 	spiceCheckCounter = 0;
+	currentMaxSpeed = 2.6f;
 
     attackMode = GUARD;
 }
@@ -66,6 +67,7 @@ Harvester::Harvester(InputStream& stream) : TrackedUnit(stream)
 	returningToRefinery = stream.readBool();
     spice = stream.readFloat();
     spiceCheckCounter = stream.readUint32();
+    currentMaxSpeed = stream.readFloat();
 }
 
 void Harvester::init()
@@ -94,6 +96,7 @@ void Harvester::save(OutputStream& stream) const
 	stream.writeBool(returningToRefinery);
     stream.writeFloat(spice);
     stream.writeUint32(spiceCheckCounter);
+    stream.writeFloat(currentMaxSpeed);
 }
 
 void Harvester::blitToScreen()
@@ -169,7 +172,7 @@ void Harvester::checkPos()
 				}
 			} else if (!structureList.empty()) {
 				int	leastNumBookings = 1000000; //huge amount so refinery couldn't possibly compete with any refinery num bookings
-				float	closestLeastBookedRefineryDistance = 1000000.0f;
+				float	closestLeastBookedRefineryDistance = std::numeric_limits<float>::infinity();
 				Refinery	*bestRefinery = NULL;
 
                 RobustList<StructureBase*>::const_iterator iter;
@@ -480,16 +483,69 @@ float Harvester::extractSpice(float extractionSpeed)
 	return (oldSpice - spice);
 }
 
+float Harvester::getMaxSpeed()  {
+
+    float dist = distanceFrom(location.x*TILESIZE + TILESIZE/2, location.y*TILESIZE + TILESIZE/2,
+                                destination.x*TILESIZE + TILESIZE/2, destination.y*TILESIZE + TILESIZE/2);
+
+    if((target) && dist < 256.0f) {
+		currentMaxSpeed = (((2.0f - currentGame->objectData.data[itemID][originalHouseID].maxspeed)/256.0f) * (256.0f - dist)) + currentGame->objectData.data[itemID][originalHouseID].maxspeed;
+
+    } else {
+        currentMaxSpeed = currentGame->objectData.data[itemID][originalHouseID].maxspeed;
+
+    }
+
+	if(isBadlyDamaged()) {
+		currentMaxSpeed *= HEAVILYDAMAGEDSPEEDMULTIPLIER;
+	}
+
+    float percentFull = spice/HARVESTERMAXSPICE;
+    currentMaxSpeed = currentMaxSpeed * (1 - MAXIMUMHARVESTERSLOWDOWN*percentFull);
+
+
+	float maxrelativespeed = currentMaxSpeed;
+	bool inList = false;
+
+	if (currentGame->getSelectedList().size() > 1 ) {
+		std::list<Uint32> *list = &currentGame->getSelectedList();
+		std::list<Uint32>::iterator test;
+		for(test = list->begin() ; test != list->end(); ++test) {
+			ObjectBase *obj = currentGame->getObjectManager().getObject(*test);
+			UnitBase *unit = dynamic_cast<UnitBase*>(obj);
+			if(obj->isAUnit() && unit->getRegulatedSpeed() != 0) {
+				if (unit->getItemID() == Unit_Carryall)
+					maxrelativespeed = std::min(maxrelativespeed,((Carryall*) unit)->currentMaxSpeed);
+				else if (unit->getItemID() == Unit_Harvester)
+					maxrelativespeed = std::min(maxrelativespeed,((Harvester*) unit)->currentMaxSpeed);
+				else
+					maxrelativespeed = std::min(maxrelativespeed, currentGame->objectData.data[itemID][originalHouseID].maxspeed);
+				if (this  == unit) {
+					unit->setRegulatedSpeed(maxrelativespeed);
+					inList = true;
+				}
+			}
+		}
+	}
+
+	if (inList) {
+		return maxrelativespeed;
+	}
+	else if (regulatedSpeed != 0 && currentGame->getSelectedList().size() > 1 ) {
+		return regulatedSpeed;
+	}
+	else {
+		return currentMaxSpeed;
+	}
+
+
+}
+
+
 void Harvester::setSpeeds()
 {
 	float speed = getMaxSpeed();
 
-	if(isBadlyDamaged()) {
-        speed *= HEAVILYDAMAGEDSPEEDMULTIPLIER;
-	}
-
-    float percentFull = spice/HARVESTERMAXSPICE;
-	speed = speed * (1 - MAXIMUMHARVESTERSLOWDOWN*percentFull);
 
 	switch(drawnAngle){
         case LEFT:      xSpeed = -speed;                    ySpeed = 0;         break;

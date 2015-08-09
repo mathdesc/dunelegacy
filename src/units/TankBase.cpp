@@ -149,6 +149,7 @@ void TankBase::engageTarget() {
     }
 
     if(closeTarget) {
+
         Coord targetLocation = closeTarget.getObjPointer()->getClosestPoint(location);
         float closeTargetDistance = blockDistance(location, targetLocation);
 

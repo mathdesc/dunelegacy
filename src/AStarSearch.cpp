@@ -50,6 +50,7 @@ AStarSearch::AStarSearch(Map* pMap, UnitBase* pUnit, Coord start, Coord destinat
         int numNodesChecked = 0;
         while(openList.empty() == false) {
             Coord currentCoord = extractMin();
+        	getMapData(currentCoord).bReached=false;
 
             if (getMapData(currentCoord).h < smallestHeuristic) {
 				smallestHeuristic = getMapData(currentCoord).h;
@@ -57,6 +58,7 @@ AStarSearch::AStarSearch(Map* pMap, UnitBase* pUnit, Coord start, Coord destinat
 
 				if(currentCoord == destination) {
                     // destination found
+                	getMapData(currentCoord).bReached=true;
                     break;
 				}
 			}
@@ -138,6 +140,7 @@ AStarSearch::AStarSearch(Map* pMap, UnitBase* pUnit, Coord start, Coord destinat
 
                     if (++depthCheckCount[k] >= depthCheckMax) {
                         // we have searched a whole square around destination, it can't be reached
+                    	getMapData(currentCoord).bReached=false;
                         break;
                     }
 				}

@@ -250,9 +250,19 @@ ObjectInterface* ObjectBase::getInterfaceContainer() {
 }
 
 void ObjectBase::removeFromSelectionLists() {
-    currentGame->getSelectedList().remove(getObjectID());
 
-    currentGame->getSelectedListCoord().remove(std::pair<Uint32,Coord>(getObjectID(),getLocation()));
+	// FIXME : inssure remove coordList when its a player controlled unit
+	currentGame->getSelectedList().remove(getObjectID());
+
+	if (isAUnit() && owner ==  pLocalHouse && currentGame->getSelectedListCoord().size() >0) {
+		if ((currentGame->getGroupLeader()) != NULL)
+			err_print("ObjectBase::removeFromSelectionLists groupLeader(%s)#%d\n", (currentGame->getGroupLeader()) == NULL ? "y" : "n",currentGame->getGroupLeader()->getObjectID());
+		else {
+			err_print("ObjectBase::removeFromSelectionLists nogroupLeader\n");
+		}
+		std::remove_if(currentGame->getSelectedListCoord().begin(), currentGame->getSelectedListCoord().end(), [=](std::pair<Uint32,Coord> & item) { return item.first == getObjectID() ;} );
+		currentGame->getSelectedListCoord().pop_back();
+	}
 
     currentGame->selectionChanged();
     currentGame->getSelectedByOtherPlayerList().remove(getObjectID());
@@ -261,6 +271,17 @@ void ObjectBase::removeFromSelectionLists() {
 
     for(int i=0; i < NUMSELECTEDLISTS; i++) {
         pLocalPlayer->getGroupList(i).remove(getObjectID());
+    }
+
+
+    // GroupLeader has been destroyed
+    if (isAUnit() && owner ==  pLocalHouse && (currentGame->getGroupLeader()) != NULL) {
+    	if ((currentGame->getGroupLeader())->getObjectID() == getObjectID() && currentGame->getSelectedList().size() >= 1) {
+			ObjectBase * newLead = currentGame->getObjectManager().getObject(currentGame->getSelectedList().front());
+			err_print("ObjectBase::removeFromSelectionLists new lead is %d \n",newLead->getObjectID());
+			currentGame->setGroupLeader(newLead);
+			currentGameMap->recalutateCoordinates(newLead,true);
+    	}
     }
 }
 
@@ -476,9 +497,12 @@ const ObjectBase* ObjectBase::findTarget() const {
 	int	xPos = location.x;
 	int	yPos = location.y;
 	int tTID;
-	bool prevent_wall, no_caryall;
+	bool prevent_wall, no_caryall, base_logic;
 
 	float closestDistance = INFINITY;
+	float avg_Distance = 0.0f;
+	double agg_Distance = 0;
+	int count = 0;
 
 //searches for a target in an area like as shown below
 //                     *****
@@ -531,13 +555,28 @@ const ObjectBase* ObjectBase::findTarget() const {
 		while((yCheck < currentGameMap->getSizeY()) && ((yCheck - yPos) <=  lookDist[abs(xCheck - xPos)])) {
 			if(currentGameMap->getTile(xCheck,yCheck)->hasAnObject()) {
 				tempTarget = currentGameMap->getTile(xCheck,yCheck)->getObject();
-				tTID = tempTarget->getItemID();
-				prevent_wall = (((tTID != Structure_Wall) || (closestTarget == NULL)) && canAttack(tempTarget));
-				no_caryall = (tTID != Unit_Carryall);
+				//if (this->isSelected()) err_print("ObjectBase::findTarget %d\n",tempTarget->getObjectID());
 
-				if( prevent_wall && no_caryall) {
+				tTID = tempTarget->getItemID();
+				base_logic =  ((closestTarget == NULL) && canAttack(tempTarget));
+				prevent_wall = ((tTID != Structure_Wall) && base_logic );
+				no_caryall = ((tTID != Unit_Carryall) && base_logic);
+				// FIXME : Launcher become very daring becomes of these logics & its high guard-radius
+
+
+				if( (prevent_wall && no_caryall) ) {
 					float targetDistance = blockDistance(location, tempTarget->getLocation());
-					if(targetDistance < closestDistance) {
+					agg_Distance += targetDistance ;
+					avg_Distance = (float)agg_Distance / count;
+
+
+					if ( (tempTarget->getTarget() == this && targetDistance <= avg_Distance)) {
+							closestTarget = tempTarget;
+							closestDistance = targetDistance;
+							if (this->isSelected()) err_print("ObjectBase::findTarget retaliate on %d\n",closestTarget->getObjectID());
+					}
+
+					else if (targetDistance < closestDistance) {
 						closestTarget = tempTarget;
 						closestDistance = targetDistance;
 					}
@@ -549,6 +588,13 @@ const ObjectBase* ObjectBase::findTarget() const {
 
 		xCheck++;
 	}
+
+	if (closestTarget !=NULL) {
+		if (this->isSelected()) err_print("ObjectBase::findTarget finally is %d\n",closestTarget->getObjectID());
+	} else {
+		if (this->isSelected()) err_print("ObjectBase::findTarget finally NOONE\n");
+	}
+
 	return closestTarget;
 }
 

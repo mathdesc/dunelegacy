@@ -34,6 +34,8 @@
 #include <units/InfantryBase.h>
 #include <units/AirUnit.h>
 
+#include <misc/draw_util.h>
+
 Tile::Tile() {
 	type = Terrain_Sand;
 
@@ -460,6 +462,86 @@ void Tile::blitAirUnits(int xPos, int yPos) {
 	}
 }
 
+
+void Tile::drawRallyPoint(ObjectBase* obj, Uint32 color, Coord size) {
+
+ if (obj->getDestination().isValid() ) {
+	SDL_Surface* rally;
+
+	   switch(currentZoomlevel) {
+			case 0:     rally = pGFXManager->getUIGraphic(UI_CursorMove_Zoomlevel0); break;
+			case 1:     rally = pGFXManager->getUIGraphic(UI_CursorMove_Zoomlevel1); break;
+			case 2:
+			default:    rally = pGFXManager->getUIGraphic(UI_CursorMove_Zoomlevel2); break;
+		}
+
+	int x,y, origx,origy;
+
+	if (obj->getDestination().isValid()) {
+		x  = screenborder->world2screenX((obj->getDestination().x*TILESIZE));
+		y  = screenborder->world2screenY((obj->getDestination().y*TILESIZE));
+	} else {
+		x  = screenborder->world2screenX((obj->getX()*TILESIZE));
+		y  = screenborder->world2screenY((obj->getY()*TILESIZE));
+	}
+
+	origx = screenborder->world2screenX( (obj->getX()*TILESIZE) + (size.x*TILESIZE/2) );
+	origy = screenborder->world2screenY( (obj->getY()*TILESIZE) + (size.y*TILESIZE/2) );
+
+	SDL_Rect dest;
+	dest.x = x;
+	dest.y = y;
+	dest.w = rally->w;
+	dest.h = rally->h;
+
+	//dbg_relax_print("Dest  %d,%d,%d,%d %d,%d\n", dest.x, dest.y, dest.w, dest.h, origx, origy);
+
+	//now draw the selection box thing, with parts at all corners of structure
+	if(!SDL_MUSTLOCK(screen) || (SDL_LockSurface(screen) == 0)) {
+
+		   // top left bit
+		   for(int i=0;i<=currentZoomlevel;i++) {
+			   drawHLineNoLock(screen,dest.x+i, dest.y+i, dest.x+(currentZoomlevel+1)*2, color);
+			   drawVLineNoLock(screen,dest.x+i, dest.y+i, dest.y+(currentZoomlevel+1)*2, color);
+		   }
+
+		   // top right bit
+		   for(int i=0;i<=currentZoomlevel;i++) {
+			   drawHLineNoLock(screen,dest.x + dest.w-1 - i, dest.y+i, dest.x + dest.w-1 - (currentZoomlevel+1)*2, color);
+			   drawVLineNoLock(screen,dest.x + dest.w-1 - i, dest.y+i, dest.y+(currentZoomlevel+1)*2, color);
+		   }
+
+		   // bottom left bit
+		   for(int i=0;i<=currentZoomlevel;i++) {
+			   drawHLineNoLock(screen,dest.x+i, dest.y + dest.h-1 - i, dest.x+(currentZoomlevel+1)*2, color);
+			   drawVLineNoLock(screen,dest.x+i, dest.y + dest.h-1 - i, dest.y + dest.h-1 - (currentZoomlevel+1)*2, color);
+		   }
+
+		   // bottom right bit
+		   for(int i=0;i<=currentZoomlevel;i++) {
+			   drawHLineNoLock(screen,dest.x + dest.w-1 - i, dest.y + dest.h-1 - i, dest.x + dest.w-1 - (currentZoomlevel+1)*2, color);
+			   drawVLineNoLock(screen,dest.x + dest.w-1 - i, dest.y + dest.h-1 - i, dest.y + dest.h-1 - (currentZoomlevel+1)*2, color);
+		   }
+	}
+
+
+
+   for (int i=-2; i<3; i++) {
+
+		drawLineNoLock(screen, origx+i, origy, dest.x + (rally->w / 2), dest.y + (rally->h / 2), color);
+
+   }
+   SDL_BlitSurface(rally,NULL,screen,&dest);
+
+
+	if(SDL_MUSTLOCK(screen)) {
+		SDL_UnlockSurface(screen);
+	}
+ }
+
+}
+
+
 void Tile::blitSelectionRects(int xPos, int yPos) {
     // draw underground selection rectangles
     if(hasAnUndergroundUnit() && !isFogged(pLocalHouse->getHouseID())) {
@@ -519,6 +601,16 @@ void Tile::blitSelectionRects(int xPos, int yPos) {
                 if(current->isSelectedByOtherPlayer()) {
                     current->drawOtherPlayerSelectionBox();
                 }
+
+
+                // Draw rally point for structures
+			   if (current != NULL &&  current->isSelected() && current->getOwner() == pLocalHouse && current->isAStructure()) {
+				   StructureBase* pStruct = static_cast<StructureBase*>(current);
+				   if (pStruct->isUnitProducer())
+					   drawRallyPoint(current,houseColor[pLocalHouse->getHouseID()],pStruct->getStructureSize());
+			   }
+
+
             }
 		}
 	}
@@ -553,13 +645,14 @@ void Tile::clearTerrain() {
 }
 
 
-void Tile::selectAllPlayersUnits(int houseID, ObjectBase** lastCheckedObject, ObjectBase** lastSelectedObject, ObjectBase** groupLeader) {
+void Tile::selectAllPlayersUnits(int houseID, ObjectBase** lastCheckedObject, ObjectBase** lastSelectedObject, ObjectBase* groupLeader) {
 	ConcatIterator<Uint32> iterator;
+
+	std::list<Uint32>::const_iterator iter;
 	iterator.addList(assignedInfantryList);
 	iterator.addList(assignedNonInfantryGroundObjectList);
 	iterator.addList(assignedUndergroundUnitList);
 	iterator.addList(assignedAirUnitList);
-
 
 
 	while(!iterator.isIterationFinished()) {
@@ -571,8 +664,9 @@ void Tile::selectAllPlayersUnits(int houseID, ObjectBase** lastCheckedObject, Ob
 			&& ((*lastCheckedObject)->isRespondable()))	{
 
 
-			if (*groupLeader == NULL) {
-				*groupLeader = (*lastCheckedObject);
+			if (groupLeader == NULL) {
+				groupLeader = *lastCheckedObject;
+				currentGame->setGroupLeader (*lastCheckedObject);
 				dynamic_cast<UnitBase*>(*lastCheckedObject)->setLeader(true);
 				err_print("Tile::selectAllPlayersUnits obj:%d Become group leader\n",(*lastCheckedObject)->getObjectID());
 			}
@@ -582,24 +676,21 @@ void Tile::selectAllPlayersUnits(int houseID, ObjectBase** lastCheckedObject, Ob
 			currentGame->getSelectedList().push_back((*lastCheckedObject)->getObjectID());
 
 
-			currentGame->getSelectedListCoord().push_back(std::make_pair<Uint32,Coord> ( (*lastCheckedObject)->getObjectID(), (*lastCheckedObject)->getLocation() - (*groupLeader)->getLocation() ) );
-			err_print("Tile::selectAllPlayersUnits (o:%d) Obj:%d %d,%d \n",(*groupLeader)->getObjectID(), (*lastCheckedObject)->getObjectID(),((*lastCheckedObject)->getLocation() - (*groupLeader)->getLocation()).x , ((*lastCheckedObject)->getLocation() - (*groupLeader)->getLocation()).y);
+			currentGame->getSelectedListCoord().push_back(std::make_pair<Uint32,Coord> ( (*lastCheckedObject)->getObjectID(), (*lastCheckedObject)->getLocation() - (groupLeader)->getLocation() ) );
+			err_print("Tile::selectAllPlayersUnits (o:%d) Obj:%d %d,%d \n",(groupLeader)->getObjectID(), (*lastCheckedObject)->getObjectID(),((*lastCheckedObject)->getLocation() - (groupLeader)->getLocation()).x , ((*lastCheckedObject)->getLocation() - (groupLeader)->getLocation()).y);
 
 
 			currentGame->selectionChanged();
 			*lastSelectedObject = *lastCheckedObject;
-
-
 		}
 
 		++iterator;
 
 	}
-	currentGame->setElected(false);
 }
 
 
-void Tile::selectAllPlayersUnitsOfType(int houseID, ObjectBase* lastSinglySelectedObject, ObjectBase** lastCheckedObject, ObjectBase** lastSelectedObject, ObjectBase** groupLeader) {
+void Tile::selectAllPlayersUnitsOfType(int houseID, ObjectBase* lastSinglySelectedObject, ObjectBase** lastCheckedObject, ObjectBase** lastSelectedObject, ObjectBase* groupLeader) {
 	ConcatIterator<Uint32> iterator;
 	iterator.addList(assignedInfantryList);
 	iterator.addList(assignedNonInfantryGroundObjectList);
@@ -617,7 +708,8 @@ void Tile::selectAllPlayersUnitsOfType(int houseID, ObjectBase* lastSinglySelect
 			&& ((*lastCheckedObject)->getItemID() == itemid)
 			&& ( unit->isSalving() == sunit->isSalving() ) ) {
 
-			if (*groupLeader == (*lastCheckedObject)) {
+			if (groupLeader == (*lastCheckedObject)) {
+				currentGame->setGroupLeader (*lastCheckedObject);
 				dynamic_cast<UnitBase*>(*lastCheckedObject)->setLeader(true);
 				err_print("Tile::selectAllPlayersUnits obj:%d Become group leader\n",(*lastCheckedObject)->getObjectID());
 			}
@@ -633,8 +725,7 @@ void Tile::selectAllPlayersUnitsOfType(int houseID, ObjectBase* lastSinglySelect
 		}
 		++iterator;
 	}
-	currentGame->setElected(false);
-	dbg_print("Tile::selectAllPlayersUnitsOfType size <%d,%d>\n",currentGame->getSelectedList().size(),currentGame->getSelectedListCoord().size());
+	//dbg_print("Tile::selectAllPlayersUnitsOfType size <%d,%d>\n",currentGame->getSelectedList().size(),currentGame->getSelectedListCoord().size());
 }
 
 
@@ -930,7 +1021,7 @@ void Tile::triggerSpecialBloom(House* pTrigger) {
                 UnitBase* pNewUnit = pTrigger->createUnit(Unit_Trike);
                 if(pNewUnit != NULL) {
                     Coord spot = currentGameMap->findDeploySpot(pNewUnit, location);
-                    pNewUnit->deploy(spot);
+                    pNewUnit->deploy(spot,false);
                 }
             } break;
 
@@ -963,7 +1054,7 @@ void Tile::triggerSpecialBloom(House* pTrigger) {
                 UnitBase* pNewUnit = pEnemyHouse->createUnit(Unit_Trike);
                 if(pNewUnit != NULL) {
                     Coord spot = currentGameMap->findDeploySpot(pNewUnit, location);
-                    pNewUnit->deploy(spot);
+                    pNewUnit->deploy(spot,false);
                 }
 
             } break;
@@ -999,7 +1090,7 @@ void Tile::triggerSpecialBloom(House* pTrigger) {
                     UnitBase* pNewUnit = pEnemyHouse->createUnit(Unit_Soldier);
                     if(pNewUnit != NULL) {
                         Coord spot = currentGameMap->findDeploySpot(pNewUnit, location);
-                        pNewUnit->deploy(spot);
+                        pNewUnit->deploy(spot,false);
                     }
                 }
             } break;

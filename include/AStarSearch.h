@@ -53,6 +53,75 @@ public:
         return path;
     };
 
+    // Find a path reached to destination, otherwise return empty path list
+    std::list<Coord> getFoundReachedPath() {
+        std::list<Coord> path;
+
+        if(bestCoord.isInvalid()) {
+            return path;
+        }
+
+        Coord currentCoord = bestCoord;
+        while(true) {
+            Coord nextCoord = getMapData(currentCoord).parentCoord;
+
+            if(nextCoord.isInvalid()) {
+                break;
+            }
+
+            path.push_front(currentCoord);
+            currentCoord = nextCoord;
+        }
+
+        if (!getMapData(path.back()).bReached)
+        	path.clear();
+
+       return path;
+
+    };
+
+    // Find the last point in a path to destination that is reacheable, otherwise return empty path list
+    std::list<Coord> getFoundReacheablePath() {
+        std::list<Coord> path;
+        std::list<Coord> reversepath;
+
+        if(bestCoord.isInvalid()) {
+            return path;
+        }
+
+        Coord currentCoord = bestCoord;
+        while(true) {
+            Coord nextCoord = getMapData(currentCoord).parentCoord;
+
+            if(nextCoord.isInvalid()) {
+                break;
+            }
+
+            path.push_front(currentCoord);
+            currentCoord = nextCoord;
+        }
+        reversepath = path;
+
+
+        // if final point could not be reached, reach the previous if any otherwise return empty path list
+        if (!getMapData(path.back()).bReached) {
+        	path.pop_back();
+        	if(path.size() > 0) {
+        		getMapData(path.back()).bReached = true;
+        		//fprintf(stderr,"path list size %d\n",path.size() );
+        	}
+        	else {
+        		//fprintf(stderr,"path list empty \n");
+        		return path;
+        	}
+        }
+
+
+
+       return path;
+
+    };
+
 private:
     struct TileData {
         Coord   parentCoord;
@@ -62,6 +131,7 @@ private:
         float   f;
         bool    bInOpenList;
         bool    bClosed;
+        bool	bReached;
     };
 
 

@@ -30,6 +30,8 @@
 #include <players/HumanPlayer.h>
 
 #include <units/Frigate.h>
+#include <units/GroundUnit.h>
+#include <units/Carryall.h>
 
 // Starport is counting in 30s from 10 to 0
 #define STARPORT_ARRIVETIME			(MILLI2CYCLES(30*1000))
@@ -56,6 +58,7 @@ StarPort::StarPort(InputStream& stream) : BuilderBase(stream) {
     } else {
         deploying = false;
     }
+
 }
 void StarPort::init() {
 	itemID = Structure_StarPort;
@@ -70,15 +73,19 @@ void StarPort::init() {
 	numImagesY = 1;
 	firstAnimFrame = 2;
 	lastAnimFrame = 3;
+	unitproducer = true;
 }
 
 StarPort::~StarPort() {
+	/*if (deploying)
+		arrivedUnit.getUnitPointer()->destroy();*/
 }
 
 void StarPort::save(OutputStream& stream) const {
 	BuilderBase::save(stream);
 	stream.writeSint32(arrivalTimer);
 	stream.writeBool(deploying);
+
 }
 
 void StarPort::doBuildRandom() {
@@ -236,6 +243,96 @@ void StarPort::updateBuildList() {
     }
 }
 
+bool StarPort::deployOrderedUnit(Carryall* pCarryall) {
+
+    UnitBase* pUnit = arrivedUnit.getUnitPointer();
+	bool unitDeployed = false;
+
+    if (!arrivedUnit && (arrivedUnit.getObjPointer() == NULL)) {
+    	pCarryall->setTarget(NULL);
+    	//pCarryall->setDestination(location);
+    	return unitDeployed ;
+    }
+    Voice_enum voice = NUM_VOICE;
+
+	if (pUnit->isAFlyingUnit()) {
+		voice = UnitLaunched;
+	} else if (pUnit->isInfantry()) {
+		voice = UnitDeployed;
+	} else if (pUnit->isAUnit() && pUnit->getItemID() != Unit_Harvester) {
+		voice = VehiculeDeployed;
+	} else if (pUnit->isAUnit() && pUnit->getItemID() == Unit_Harvester) {
+		voice = HarvesterDeployed;
+	}
+
+    dbg_print(" StarPort::deployOrderedUnit(carry:%s) \n", (pCarryall != NULL) ? "yes" : "no");
+	if (pCarryall != NULL) {
+			// Check if the that carryall was attended by the arrived unit
+			if (pUnit != NULL && ((GroundUnit*)(pUnit))->getCarrier()->getObjectID() == pCarryall->getObjectID()) {
+				pCarryall->giveCargo(pUnit);
+				pCarryall->setTarget(NULL);
+				pUnit->setTarget(NULL);
+				if (destination.isValid()) {
+						pCarryall->setDestination(pUnit->getDestination());
+						dbg_print(" StarPort::deployOrderedUnit carryall destination(%d,%d) \n", pCarryall->getDestination().x,pCarryall->getDestination().y);
+
+				}
+				else {
+					pCarryall->setDestination(location);
+
+					dbg_print(" StarPort::deployOrderedUnit@Home carryall destination(%d,%d) \n", pCarryall->getDestination().x,pCarryall->getDestination().y);
+				}
+
+
+				arrivedUnit.pointTo(NONE);
+				unitDeployed = true;
+
+				if(pUnit->getOwner() == pLocalHouse && voice < NUM_VOICE) {
+						soundPlayer->playVoiceAt(voice,pUnit->getOwner()->getHouseID(),pCarryall->getDestination());
+				}
+			}
+
+	} else {
+		if (pUnit != NULL) {
+			Coord spot = pUnit->isAFlyingUnit() ? location + Coord(1,1) : currentGameMap->findDeploySpot(pUnit, location, destination, structureSize);
+			pUnit->deploy(spot,true);
+			pUnit->setTarget(NULL);
+			arrivedUnit.pointTo(NONE);
+			unitDeployed = true;
+		}
+	}
+
+    if (unitDeployed)
+    	updateStructureProductionQueue();
+
+    return unitDeployed;
+
+}
+
+void StarPort::updateStructureProductionQueue() {
+
+    std::list<BuildItem>::iterator iter2;
+    for(iter2 = buildList.begin(); iter2 != buildList.end(); ++iter2) {
+        if(iter2->itemID == currentProductionQueue.front().itemID) {
+            iter2->num--;
+            break;
+        }
+    }
+
+    currentProductionQueue.pop_front();
+
+    if(currentProductionQueue.empty() == true) {
+        arrivalTimer = STARPORT_NO_ARRIVAL_AWAITED;
+        deploying = false;
+        // Remove box from starport
+        firstAnimFrame = 2;
+        lastAnimFrame = 3;
+    } else {
+        deployTimer = MILLI2CYCLES(2000);
+    }
+}
+
+
 void StarPort::updateStructureSpecificStuff() {
     updateBuildList();
 
@@ -244,6 +341,7 @@ void StarPort::updateStructureSpecificStuff() {
 
 			Frigate*		frigate;
 			Coord		pos;
+			countdown = 10;
 
 			//make a frigate with all the cargo
 			frigate = (Frigate*)owner->createUnit(Unit_Frigate);
@@ -271,10 +369,34 @@ void StarPort::updateStructureSpecificStuff() {
 				currentGame->addToNewsTicker(_("@DUNE.ENG|80#Frigate has arrived"));
 			}
 
+		} else {
+            if(getOwner() == pLocalHouse) {
+				if ( ((arrivalTimer*10)/(MILLI2CYCLES(30*1000))) + 1 != countdown) {
+					countdown = ((arrivalTimer*10)/(MILLI2CYCLES(30*1000))) + 1;
+					if (countdown == 5 ) {
+						soundPlayer->playVoiceAt(Five,getOwner()->getHouseID(),location);
+					}
+					if (countdown == 4 ) {
+						soundPlayer->playVoiceAt(Four,getOwner()->getHouseID(),location);
+					}
+					if (countdown == 3 ) {
+						soundPlayer->playVoiceAt(Three,getOwner()->getHouseID(),location);
+					}
+					if (countdown == 2 ) {
+						soundPlayer->playVoiceAt(Two,getOwner()->getHouseID(),location);
+					}
+					if (countdown == 1 ) {
+						soundPlayer->playVoiceAt(One,getOwner()->getHouseID(),location);
+					}
+				}
+            }
 		}
 	} else if(deploying == true) {
+		bool unitDeployed = false;
+
         deployTimer--;
         if(deployTimer == 0) {
+
 
             if(currentProductionQueue.empty() == false) {
                 Uint32 newUnitItemID = currentProductionQueue.front().itemID;
@@ -292,48 +414,115 @@ void StarPort::updateStructureSpecificStuff() {
                 }
 
                 for(int i = 0; i < num2Place; i++) {
-                    UnitBase* newUnit = getOwner()->createUnit(newUnitItemID);
-                    if (newUnit != NULL) {
-                        Coord spot = newUnit->isAFlyingUnit() ? location + Coord(1,1) : currentGameMap->findDeploySpot(newUnit, location, destination, structureSize);
-                        newUnit->deploy(spot);
 
-                        if (getOwner()->isAI()
-                            && (newUnit->getItemID() != Unit_Carryall)
-                            && (newUnit->getItemID() != Unit_Harvester)
-                            && (newUnit->getItemID() != Unit_MCV)) {
-                            newUnit->doSetAttackMode(AREAGUARD);
-                        }
+                	if (arrivedUnit.getObjPointer()  == NULL) {
+						UnitBase* newUnit = getOwner()->createUnit(newUnitItemID);
 
-                        if (destination.isValid()) {
-                            newUnit->setGuardPoint(destination);
-                            newUnit->setDestination(destination);
-                            newUnit->setAngle(lround(8.0f/256.0f*destinationAngle(newUnit->getLocation(), newUnit->getDestination())));
-                        }
 
-                        // inform owner of its new unit
-                        newUnit->getOwner()->informWasBuilt(newUnitItemID);
-                    }
+						if (newUnit != NULL) {
+							arrivedUnit = newUnit;
+							deploySpot = newUnit->isAFlyingUnit() ? location + Coord(1,1) : currentGameMap->findDeploySpot(newUnit, location, destination, structureSize);
+
+							// Deploy itself
+							if (!getOwner()->hasCarryalls() || newUnit->isAFlyingUnit() || newUnit->getItemID() == Unit_MCV ) {
+								newUnit->deploy(deploySpot,true);
+								arrivedUnit.pointTo(NONE);
+								unitDeployed = true;
+							}
+							// Assisted deployment
+							else if ( newUnit->isAGroundUnit() && getOwner()->hasCarryalls()) {
+
+
+								GroundUnit* gUnit = static_cast<GroundUnit*>(newUnit);
+
+								// It's not going to be pickup
+								if (!gUnit->isAwaitingPickup()) {
+								// find carryall
+								Carryall* pCarryall = NULL;
+								float distance = std::numeric_limits<float>::infinity();
+								   RobustList<UnitBase*>::const_iterator iter;
+								   for(iter = unitList.begin(); iter != unitList.end(); ++iter) {
+									   UnitBase* unit = *iter;
+									   if ((unit->getOwner() == owner) && (unit->getItemID() == Unit_Carryall) && !((Carryall*)unit)->isBooked()) {
+
+					                    	if (distance >  std::min(distance,blockDistance(this->location, unit->getLocation())) ) {
+					                    		distance = std::min(distance,blockDistance(this->location, unit->getLocation()));
+					                    		pCarryall = (Carryall*)unit;
+					                    	}
+									   }
+								   }
+
+
+								   // tell carryall to come here, tell unit to book that carryall
+								   if(pCarryall != NULL) {
+									   pCarryall->setTarget(this);
+									  // pCarryall->setDestination(location+Coord(-1,1));
+									   pCarryall->clearPath();
+									   gUnit->bookCarrier(pCarryall);
+									   gUnit->setTarget(NULL);
+									   // Rally point is set
+									   if (destination.isValid()) {
+										   gUnit->setGuardPoint(destination);
+										   gUnit->setDestination(destination);
+										   dbg_print(" StarPort::updateStructureSpecificStuff UnitAwaitingDeploy destination(%d,%d) rallypoint(%d,%d)\n", gUnit->getDestination().x,gUnit->getDestination().y,destination.x,destination.y);
+										   gUnit->setAngle(lround(8.0f/256.0f*destinationAngle(gUnit->getLocation(), gUnit->getDestination())));
+									   } else {
+										   // Rally point is not set deploy locally
+										   gUnit->setGuardPoint(location);
+										   gUnit->setDestination(location);
+										   gUnit->setAngle(lround(8.0f/256.0f*destinationAngle(gUnit->getLocation(), gUnit->getDestination())));
+									   }
+
+								   } else {
+									   // No Carrier available, Deploy itself
+									   gUnit->deploy(deploySpot,true);
+									   arrivedUnit.pointTo(NONE);
+									   unitDeployed = true;
+								   }
+								}/* else if(gUnit->hasBookedCarrier()) {
+									// Waiting for pickup and a carrier has been Booked
+									// deploy in the surroundings, to speed up deployment
+									gUnit->deploy(location);
+									//(gUnit->getCarrier())->setDestination(location);
+									arrivedUnit.pointTo(NONE);
+									if(getOwner() == pLocalHouse && voice != NULL) {
+											soundPlayer->playVoiceAt(voice,getOwner()->getHouseID(),location);
+									}
+									unitDeployed = false;
+								}*/
+							} else {
+								// Unit is not able to be carried
+								// Or we simply don't have any carryall , self deploy
+								newUnit->deploy(deploySpot,true);
+								arrivedUnit.pointTo(NONE);
+								unitDeployed = true;
+							}
+
+							if (getOwner()->isAI()
+								&& (newUnit->getItemID() != Unit_Carryall)
+								&& (newUnit->getItemID() != Unit_Harvester)
+								&& (newUnit->getItemID() != Unit_MCV)) {
+								newUnit->doSetAttackMode(AREAGUARD);
+							}
+
+							if (unitDeployed && destination.isValid()) {
+								newUnit->setGuardPoint(destination);
+								newUnit->setDestination(destination);
+								dbg_print(" StarPort::updateStructureSpecificStuff Unit destination(%d,%d) \n", newUnit->getDestination().x,newUnit->getDestination().y);
+								newUnit->setAngle(lround(8.0f/256.0f*destinationAngle(newUnit->getLocation(), newUnit->getDestination())));
+							}
+
+							// inform owner of its new unit
+							newUnit->getOwner()->informWasBuilt(newUnitItemID);
+
+						}
+
+                	}
                 }
 
-                std::list<BuildItem>::iterator iter2;
-                for(iter2 = buildList.begin(); iter2 != buildList.end(); ++iter2) {
-                    if(iter2->itemID == currentProductionQueue.front().itemID) {
-                        iter2->num--;
-                        break;
-                    }
-                }
+                if (unitDeployed)
+                	updateStructureProductionQueue();
 
-                currentProductionQueue.pop_front();
-
-                if(currentProductionQueue.empty() == true) {
-                    arrivalTimer = STARPORT_NO_ARRIVAL_AWAITED;
-                    deploying = false;
-                    // Remove box from starport
-                    firstAnimFrame = 2;
-                    lastAnimFrame = 3;
-                } else {
-                    deployTimer = MILLI2CYCLES(2000);
-                }
             }
         }
 	}

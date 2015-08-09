@@ -253,19 +253,6 @@ void Launcher::salveAttack(Coord Pos, Coord Target) {
 	}
 }
 
-/**
-    Is this object in a range we can attack.
-    \param  object  the object to check
-*/
-bool Launcher::isInWeaponRange(const ObjectBase* object) const {
-	   if(object == NULL) {
-	        return false;
-	    }
-
-	    Coord targetLocation = target.getObjPointer()->getClosestPoint(location);
-
-	    return (blockDistance(location, targetLocation) <= getWeaponRange());
-}
 
 bool Launcher::canAttack(const ObjectBase* object) const {
 	return ((object != NULL)

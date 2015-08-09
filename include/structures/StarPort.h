@@ -19,6 +19,9 @@
 #define STARPORT_H
 
 #include <structures/BuilderBase.h>
+#include <ObjectPointer.h>
+
+class Carryall;
 
 class StarPort : public BuilderBase
 {
@@ -68,6 +71,10 @@ public:
 
 	void updateBuildList();
 
+	bool deployOrderedUnit(Carryall* pCarryall  = NULL);
+
+
+
 	/**
         Begin with the deploying of the delivered units.
 	*/
@@ -85,15 +92,21 @@ public:
 	inline bool okToOrder() const { return (arrivalTimer < 0); }
 	inline int getArrivalTimer() const { return arrivalTimer; }
 
+	inline void assignUnit(ObjectPointer newUnit) { arrivedUnit = newUnit; /*deploying = true;*/ }
+
+	Coord deploySpot;
+	int countdown = 10;
 protected:
     /**
         Used for updating things that are specific to that particular structure. Is called from
         StructureBase::update() before the check if this structure is still alive.
     */
 	virtual void updateStructureSpecificStuff();
+	void updateStructureProductionQueue();
 
 private:
 	Sint32  arrivalTimer;       ///< When will the frigate arrive?
+	ObjectPointer   arrivedUnit;       ///< The unit currently in the refinery
 	bool    deploying;          ///< Currently deploying units
 };
 

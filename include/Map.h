@@ -38,8 +38,13 @@ public:
 	void damage(Uint32 damagerID, House* damagerOwner, const Coord& realPos, Uint32 bulletID, float damage, int damageRadius, bool air);
 	Coord getMapPos(int angle, const Coord& source) const;
 	void removeObjectFromMap(Uint32 objectID);
+    /**
+        Recalculate relative coordinates list based on the leading unit
+        \param  objLeader    The unit that leads
+    */
+	void recalutateCoordinates(const ObjectBase* objLeader, bool forceRecalc);
 	void spiceRemoved(const Coord& coord);
-	void selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, int realY, bool objectARGMode);
+	void selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, int realY, Uint32 objectARGMode);
 
 	void viewMap(int playerTeam, const Coord& location, int maxViewRange);
 	void viewMap(int playerTeam, int x, int y, int maxViewRange) {
@@ -53,6 +58,7 @@ public:
 	Coord findClosestEdgePoint(const Coord& origin, const Coord& buildingSize) const;
 	Coord findDeploySpot(UnitBase* pUnit, const Coord origin, const Coord gatherPoint = Coord::Invalid(), const Coord buildingSize = Coord(0,0)) const;//building size is num squares
 	void createSpiceField(Coord location, int radius, bool centerIsThickSpice = false);
+	ObjectBase* findGroupLeader();
 
     inline Sint32 getSizeX() const {
         return sizeX;
@@ -98,12 +104,13 @@ public:
 		return getTile(location.x, location.y);
 	}
 
+
 private:
 	Sint32	sizeX;                          ///< number of tiles this map is wide (read only)
 	Sint32  sizeY;                          ///< number of tiles this map is high (read only)
 	Tile*   tiles;                          ///< the 2d-array containing all the tiles of the map
 	ObjectBase* lastSinglySelectedObject;   ///< The last selected object. If selected again all units of the same type are selected
-	ObjectBase* groupLeader;   				///< The first selected object is the group leader for formation movement
+
 };
 
 

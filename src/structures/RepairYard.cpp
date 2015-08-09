@@ -84,31 +84,41 @@ ObjectInterface* RepairYard::getInterfaceContainer() {
 	}
 }
 
-void RepairYard::deployRepairUnit(Carryall* pCarryall) {
-	unBook();
-	repairing = false;
-	firstAnimFrame = 2;
-	lastAnimFrame = 5;
+bool RepairYard::deployRepairUnit(Carryall* pCarryall) {
+
 
     UnitBase* pRepairUnit = repairUnit.getUnitPointer();
-    dbg_print("RepairYard::deployRepairUnit(carry:%s) \n", (pCarryall != NULL) ? "yes" : "no");
-	if(pCarryall != NULL) {
-	    pCarryall->giveCargo(pRepairUnit);
-	    pCarryall->setTarget(NULL);
-	    pCarryall->setDestination(pRepairUnit->getGuardPoint());
-	} else {
-        Coord deployPos = currentGameMap->findDeploySpot(pRepairUnit, location, destination, structureSize);
-        pRepairUnit->deploy(deployPos);
-        pRepairUnit->setTarget(NULL);
-    //    pRepairUnit->setDestination(pRepairUnit->getLocation());
-        pRepairUnit->setDestination(pRepairUnit->getGuardPoint());
-	}
+    dbg_print("RepairYard::deployRepairUnit (carry:%s)  \n", (pCarryall != NULL) ? "yes" : "no");
+    bool deployed = false;
 
-	repairUnit.pointTo(NONE);
+    if (repairUnit && (repairUnit.getObjPointer() != NULL)) {
+    	unBook();
+    	repairing = false;
+    	firstAnimFrame = 2;
+    	lastAnimFrame = 5;
 
-	if(getOwner() == pLocalHouse) {
-		soundPlayer->playVoice(VehicleRepaired,getOwner()->getHouseID());
-	}
+
+		if(pCarryall != NULL) {
+			pCarryall->giveCargo(pRepairUnit);
+			pCarryall->setTarget(NULL);
+			pCarryall->setDestination(pRepairUnit->getGuardPoint());
+		} else {
+			Coord deployPos = currentGameMap->findDeploySpot(pRepairUnit, location, destination, structureSize);
+			pRepairUnit->deploy(deployPos, false);
+			pRepairUnit->setTarget(NULL);
+		//    pRepairUnit->setDestination(pRepairUnit->getLocation());
+			pRepairUnit->setDestination(pRepairUnit->getGuardPoint());
+		}
+
+		repairUnit.pointTo(NONE);
+		deployed = true;
+
+		if(getOwner() == pLocalHouse) {
+			soundPlayer->playVoice(VehicleRepaired,getOwner()->getHouseID());
+		}
+    }
+
+    return deployed;
 }
 
 void RepairYard::updateStructureSpecificStuff() {
@@ -135,22 +145,27 @@ void RepairYard::updateStructureSpecificStuff() {
 			}
 		} else if(((GroundUnit*)pRepairUnit)->isAwaitingPickup() == false) {
 
-		    // find carryall
+		    // find nearest carryall
 		    Carryall* pCarryall = NULL;
+		    float distance = std::numeric_limits<float>::infinity();
             if((pRepairUnit->getGuardPoint().isValid()) && getOwner()->hasCarryalls())	{
                 RobustList<UnitBase*>::const_iterator iter;
                 for(iter = unitList.begin(); iter != unitList.end(); ++iter) {
                     UnitBase* unit = *iter;
                     if ((unit->getOwner() == owner) && (unit->getItemID() == Unit_Carryall)) {
-                    	/* mathdesc : this is a design bug, carryall are created not respondable ! */
-                        if (/*((Carryall*)unit)->isRespondable() &&*/ !((Carryall*)unit)->isBooked()) {
-                            pCarryall = (Carryall*)unit;
+
+                        if ( !((Carryall*)unit)->isBooked()) {
+                        	if (distance >  std::min(distance,blockDistance(this->location, unit->getLocation())) ) {
+                        		distance = std::min(distance,blockDistance(this->location, unit->getLocation()));
+                        		pCarryall = (Carryall*)unit;
+                        	}
                         }
                     }
                 }
             }
 
-            if(pCarryall != NULL) {
+
+            if(pCarryall != NULL ) {
                 pCarryall->setTarget(this);
                 pCarryall->clearPath();
                 ((GroundUnit*)pRepairUnit)->bookCarrier(pCarryall);
@@ -160,7 +175,7 @@ void RepairYard::updateStructureSpecificStuff() {
                 deployRepairUnit();
             }
 		} else if(((GroundUnit*)pRepairUnit)->hasBookedCarrier() == false) {
-            deployRepairUnit();
+           deployRepairUnit();
 		}
 	}
 }
