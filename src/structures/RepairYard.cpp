@@ -100,14 +100,15 @@ bool RepairYard::deployRepairUnit(Carryall* pCarryall) {
 
 		if(pCarryall != NULL) {
 			pCarryall->giveCargo(pRepairUnit);
-			pCarryall->setTarget(NULL);
+			pCarryall->setFellow(NULL);
 			pCarryall->setDestination(pRepairUnit->getGuardPoint());
 			pCarryall->setDeployPos(pRepairUnit->getGuardPoint());
 			pCarryall->setFallbackPos(currentGameMap->findDeploySpot(pRepairUnit, location, pRepairUnit->getGuardPoint(), structureSize));
+			  dbg_print("RepairYard::deployRepairUnit dest:%d,%d \n", pCarryall->getDestination().x,pCarryall->getDestination().y);
 		} else {
 			Coord deployPos = currentGameMap->findDeploySpot(pRepairUnit, location, pRepairUnit->getGuardPoint(), structureSize);
 			pRepairUnit->deploy(deployPos, false);
-			pRepairUnit->setTarget(NULL);
+			pRepairUnit->setFellow(NULL);
 		//    pRepairUnit->setDestination(pRepairUnit->getLocation());
 			pRepairUnit->setDestination(pRepairUnit->getGuardPoint());
 		}
@@ -179,10 +180,10 @@ void RepairYard::updateStructureSpecificStuff() {
 
 
             if(pCarryall != NULL ) {
-                pCarryall->setTarget(this);
+                pCarryall->setFellow(this);
                 pCarryall->clearPath();
                 ((GroundUnit*)pRepairUnit)->bookCarrier(pCarryall);
-                pRepairUnit->setTarget(NULL);
+                pRepairUnit->setFellow(NULL);
                 pRepairUnit->setDestination(pRepairUnit->getGuardPoint());
             } else {
                 deployRepairUnit();

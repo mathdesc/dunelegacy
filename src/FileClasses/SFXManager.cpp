@@ -219,6 +219,7 @@ void SFXManager::loadEnglishVoice() {
 
         // "Our base is under attack"
 		lngVoice[BaseIsUnderAttack*NUM_HOUSES+VoiceNum] = getChunkFromFile(HouseString + "ATTACK.VOC");
+		lngVoice[WarningBaseIsUnderAttack*NUM_HOUSES+VoiceNum] = concat2Chunks(WarningChunk,lngVoice[BaseIsUnderAttack*NUM_HOUSES+VoiceNum]);
 
         // "Saboteur approaching" and "Missile approaching"
 		// "Enemy approaching from " (direction)
@@ -230,12 +231,15 @@ void SFXManager::loadEnglishVoice() {
         Mix_Chunk* East = getChunkFromFile(HouseString + "EAST.VOC");
         Mix_Chunk* West = getChunkFromFile(HouseString + "WEST.VOC");
         Mix_Chunk* South = getChunkFromFile(HouseString + "SOUTH.VOC");
+        Mix_Chunk* FremenChunk = getChunkFromFile(HouseString + "FREMEN.VOC");
+        lngVoice[FremenApproaching*NUM_HOUSES+VoiceNum] = concat2Chunks(FremenChunk, ApproachingChunk);
         lngVoice[SaboteurApproaching*NUM_HOUSES+VoiceNum] = concat2Chunks(SabotChunk, ApproachingChunk);
         lngVoice[MissileApproaching*NUM_HOUSES+VoiceNum] = concat2Chunks(MissileChunk, ApproachingChunk);
         lngVoice[EnemyApproachingNorth*NUM_HOUSES+VoiceNum] = concat4Chunks(WarningChunk, Enemy, ApproachingChunk,North);
         lngVoice[EnemyApproachingEast*NUM_HOUSES+VoiceNum] = concat4Chunks(WarningChunk, Enemy, ApproachingChunk,East);
         lngVoice[EnemyApproachingWest*NUM_HOUSES+VoiceNum] = concat4Chunks(WarningChunk, Enemy, ApproachingChunk,West);
         lngVoice[EnemyApproachingSouth*NUM_HOUSES+VoiceNum] = concat4Chunks(WarningChunk, Enemy, ApproachingChunk,South);
+        Mix_FreeChunk(FremenChunk);
         Mix_FreeChunk(SabotChunk);
         Mix_FreeChunk(MissileChunk);
         Mix_FreeChunk(ApproachingChunk);

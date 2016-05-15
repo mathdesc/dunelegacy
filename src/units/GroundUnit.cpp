@@ -26,6 +26,7 @@
 
 #include <structures/RepairYard.h>
 #include <units/Carryall.h>
+#include <players/HumanPlayer.h>
 
 GroundUnit::GroundUnit(House* newOwner) : UnitBase(newOwner) {
 
@@ -85,21 +86,21 @@ void GroundUnit::checkPos() {
 	}
 
 	if(goingToRepairYard) {
-	    if(target.getObjPointer() == NULL) {
+	    if(oldTarget.getObjPointer() == NULL) {
             goingToRepairYard = false;
             awaitingPickup = false;
             bookedCarrier = NONE;
 
             clearPath();
 	    } else {
-            Coord closestPoint = target.getObjPointer()->getClosestPoint(location);
+            Coord closestPoint = oldTarget.getObjPointer()->getClosestPoint(location);
             if (!moving && !justStoppedMoving && (blockDistance(location, closestPoint) <= 1.5f)
-                && ((RepairYard*)target.getObjPointer())->isFree())
+                && ((RepairYard*)oldTarget.getObjPointer())->isFree())
             {
                 if (getHealth()*100.0f/getMaxHealth() < 100.0f) {
                     setGettingRepaired();
                 } else {
-                    setTarget(NULL);
+                    setFellow(NULL);
                     setDestination(guardPoint);
                 }
             }
@@ -108,7 +109,7 @@ void GroundUnit::checkPos() {
 }
 
 void GroundUnit::playConfirmSound() {
-	soundPlayer->playSound((Sound_enum) getRandomOf(2,Acknowledged,Affirmative));
+	soundPlayer->playSound((Sound_enum) getRandomOf(3,Acknowledged,Affirmative,YesSir));
 }
 
 void GroundUnit::playSelectSound() {
@@ -138,7 +139,7 @@ bool GroundUnit::requestCarryall() {
 
 	    if (bestunit != NULL) {
 			carryall = (Carryall*)bestunit;
-			carryall->setTarget(this);
+			carryall->setFellow(this);
 			carryall->clearPath();
 			bookCarrier(carryall);
 
@@ -187,6 +188,11 @@ void GroundUnit::navigate() {
     }
 }
 
+void GroundUnit::handleRepairClick() {
+	currentGame->getCommandManager().addCommand(Command(pLocalPlayer->getPlayerID(), CMD_UNIT_REPAIR,objectID));
+}
+
+
 void GroundUnit::doRepair() {
 	if(getHealth() < getMaxHealth()) {
 		//find a repair yard to return to
@@ -213,9 +219,9 @@ void GroundUnit::doRepair() {
 
         if(bestRepairYard) {
             if(requestCarryall()) {
-                doMove2Object(oldTarget.getObjPointer(), bestRepairYard);
+                doMove2Object(bestRepairYard,target.getObjPointer());
             } else if(owner->isAI()) {
-                doMove2Object(oldTarget.getObjPointer(), bestRepairYard);
+                doMove2Object(bestRepairYard,target.getObjPointer());
             }
         }
 	}

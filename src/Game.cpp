@@ -2195,6 +2195,15 @@ void Game::handleChatInput(SDL_KeyboardEvent& keyboardEvent) {
 						}
 					}
 				}
+            } else if((bCheatsEnabled == true) && ((md5string == "0xCEF1D26CE4B145DE985503CA35232ED8") || typingChatMessage.compare("/takecredsAI")  == 0 )) {
+				if (gameType != GAMETYPE_CUSTOM_MULTIPLAYER) {
+					pInterface->getChatManager().addInfoMessage("You take large credits from AIs");
+					for(int i=0;i<NUM_HOUSES;i++) {
+						if (house[i] != NULL && house[i]->isAI() == true && house[i]->isAlive() == true ) {
+							house[i]->takeCredits(10000.0f);
+						}
+					}
+				}
             } else if((bCheatsEnabled == true) &&  (typingChatMessage.compare("/fog")  == 0 )) {
 				if (gameType != GAMETYPE_CUSTOM_MULTIPLAYER) {
 					if(gameInitSettings.getGameOptions().fogOfWar == true) {
@@ -2439,26 +2448,40 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
         } break;
 
         case SDLK_s: {
-            //set object to Salve attack
-            if(currentCursorMode != CursorMode_SalveAttack) {
-                std::list<Uint32>::iterator iter;
-                for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
+        	  if(SDL_GetModState() & KMOD_SHIFT) {
+				//set object to Salve attack
+				if(currentCursorMode != CursorMode_SalveAttack) {
+					std::list<Uint32>::iterator iter;
+					for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
 
-                    ObjectBase* tempObject = objectManager.getObject(*iter);
-                    if(tempObject->isAUnit() && (tempObject->getOwner() == pLocalHouse)
-                        && tempObject->isRespondable() && tempObject->canSalveAttack()) {
+						ObjectBase* tempObject = objectManager.getObject(*iter);
+						if(tempObject->isAUnit() && (tempObject->getOwner() == pLocalHouse)
+							&& tempObject->isRespondable() && tempObject->canSalveAttack()) {
 
-                        currentCursorMode = CursorMode_SalveAttack;
-                        break;
-                    } else if((tempObject->getItemID() == Structure_Palace)
-                                && ((tempObject->getOwner()->getHouseID() == HOUSE_HARKONNEN) || (tempObject->getOwner()->getHouseID() == HOUSE_SARDAUKAR))) {
-                        if(((Palace*) tempObject)->isSpecialWeaponReady()) {
-                            currentCursorMode = CursorMode_Attack;
-                            break;
-                        }
-                    }
-                }
-            }
+							currentCursorMode = CursorMode_SalveAttack;
+							break;
+						} else if((tempObject->getItemID() == Structure_Palace)
+									&& ((tempObject->getOwner()->getHouseID() == HOUSE_HARKONNEN) || (tempObject->getOwner()->getHouseID() == HOUSE_SARDAUKAR))) {
+							if(((Palace*) tempObject)->isSpecialWeaponReady()) {
+								currentCursorMode = CursorMode_Attack;
+								break;
+							}
+						}
+					}
+				}
+        	  } else {
+					std::list<Uint32>::iterator iter;
+					for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
+
+						ObjectBase* tempObject = objectManager.getObject(*iter);
+						if(tempObject->isAUnit() && (tempObject->getOwner() == pLocalHouse)
+							&& tempObject->isRespondable()) {
+
+							((UnitBase*) tempObject)->doCancel();
+
+						}
+					}
+        	  }
         } break;
 
         case SDLK_c: {
@@ -2477,7 +2500,6 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
                 }
             }
         } break;
-
 
         case SDLK_t: {
             bShowTime = !bShowTime;
@@ -2593,37 +2615,70 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
                     ((StructureBase*)tempObject)->handleRepairClick();
                 } else if(tempObject->getItemID() == Unit_Harvester) {
                     ((Harvester*)tempObject)->handleReturnClick();
+                } else if(tempObject->isAGroundUnit() && ! tempObject->isInfantry()) {
+                	((GroundUnit*)tempObject)->handleRepairClick();
                 }
             }
         } break;
+
+        case SDLK_x: {
+                 //scatter selected units around a bit
+             	ObjectBase* obj2 = NULL;
+                if (selectedList.size() > 4) {
+             	   std::list<Uint32>::iterator iter;
+             	   std::list<std::pair<Uint32,Coord>>::iterator iter2;
+
+                    for(iter = selectedList.begin(); iter != selectedList.end(); iter++) {
+                         ObjectBase* obj = objectManager.getObject(*iter);
+
+                         if(obj->isAUnit() && (obj->getOwner() == pLocalHouse)  && obj->isRespondable() ) {
+                        	  if (((UnitBase*)obj)->isLeader()) continue;
+                         	  iter2 = std::find_if(currentGame->getSelectedListCoord().begin(), currentGame->getSelectedListCoord().end(),
+                         			  	  	  	   [=](std::pair<Uint32,Coord> & item) { return item.first == obj->getObjectID() ;} );
+                         	  if (iter2 != std::end(selectedListCoord)) {
+                         		  Coord randcoord((rand()%8)-4,(rand()%8)-4);
+                         		  iter2->second+randcoord;
+                         		  Coord newdest (((UnitBase*)obj)->getLocation().x + randcoord.x,((UnitBase*)obj)->getLocation().y + randcoord.y);
+                         		  ((UnitBase*)obj)->handleFormationActionClick(newdest.x,newdest.y);
+                         			err_print("Game::handleKeyInput scatter %d [%d,%d]\n", newdest.x,newdest.y);
+                         			obj2=obj;
+                         	  }
+
+                         }
+                    }
+                    if (obj2)
+                 	   ((UnitBase*)obj2)->playConfirmSound();
+
+                 } else soundPlayer->playSound(InvalidAction);
+
+		 } break;
 
         case SDLK_z: {
             std::list<Uint32>::iterator iter ;
 
             ObjectBase *obj, *obj2;
+            obj = obj2 = NULL;
+
+            // Find leader in obj
+            obj=  getGroupLeader();
 
             // Prepare to Elect new (next) group member as Leader
             for( iter = selectedList.begin() ; iter != selectedList.end(); ++iter ) {
-                obj = objectManager.getObject(*iter);
-                obj2 = obj;
-                err_print("Game::SDLK_z obj:%d(leader:%s) \n",obj->getObjectID(),( ((UnitBase*)(obj))->isLeader() )  ? "y" : "n");
-                if (obj->isAUnit() &&  ( ((UnitBase*)(obj))->isLeader() ) ) {
-                			iter++;
-                			obj2 = objectManager.getObject(*iter);
-                			if (iter == selectedList.end()) {
-                				iter = selectedList.begin();
-                			}
+                obj2 = objectManager.getObject(*iter);
+				// A leader cannot be a follower
+				if (((UnitBase*)obj2)->isFollowing()) continue;
+				if (obj2 == obj) continue;
+				// Ok switch can be done
+				setGroupLeader(obj2);
+				if (obj!=NULL) ((UnitBase*)obj)->setLeader(false);
+				((UnitBase*)obj2)->setLeader(true);
+				  err_print("Game::SDLK_z obj2:%d(leader:%s) \n",obj2->getObjectID(),( ((UnitBase*)(obj2))->isLeader() )  ? "y" : "n");
+				break;
 
-                			setGroupLeader(obj2);
-                			((UnitBase*)obj)->setLeader(false);
-                			((UnitBase*)obj2)->setLeader(true);
-                			  err_print("Game::SDLK_z obj2:%d(leader:%s) \n",obj2->getObjectID(),( ((UnitBase*)(obj2))->isLeader() )  ? "y" : "n");
-							break;
-                }
             }
 
-
-            currentGameMap->recalutateCoordinates(obj2,false);
+            if ( obj2 != obj)
+            	currentGameMap->recalutateCoordinates(obj2,false);
 
 
         } break;
@@ -2665,7 +2720,7 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
             }
         } break;
 
-        case SDLK_SPACE: {
+        case SDLK_PAUSE: {
             if(gameType != GAMETYPE_CUSTOM_MULTIPLAYER) {
                 if(bPause) {
                     resumeGame();
@@ -2916,7 +2971,7 @@ bool Game::handleSelectedObjectsActionClick(int xPos, int yPos) {
 								y= iter2->second.y ;
 							}
 
-							dbg_print("Game::handleSelectedObjectsActionClick [%f,%f] Obj:<%d,%d> x=%d+%d y=%d+%d\n",pUnit->getxSpeed(),pUnit->getySpeed() ,pUnit->getObjectID(),iter2->first,xPos , x, yPos ,y);
+							err_print("Game::handleSelectedObjectsActionClick [%f,%f] Obj:<%d,%d> x=%d+%d y=%d+%d\n",pUnit->getxSpeed(),pUnit->getySpeed() ,pUnit->getObjectID(),iter2->first,xPos , x, yPos ,y);
 							pUnit->handleFormationActionClick(xPos + x , yPos + y);
 						}
 				 }
@@ -2967,7 +3022,7 @@ ObjectBase* Game::findGroupLeader() {
         	 return tempObject;
         }
     }
-
+    return NULL;
 
 }
 

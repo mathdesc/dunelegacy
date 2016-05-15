@@ -133,6 +133,7 @@ ObjectBase::ObjectBase(InputStream& stream) {
 
 	forced = stream.readBool();
 	target.load(stream);
+	oldTarget.load(stream);
 	targetFriendly = stream.readBool();
 	attackMode = (ATTACKMODE) stream.readUint32();
 
@@ -193,6 +194,7 @@ void ObjectBase::save(OutputStream& stream) const {
 
 	stream.writeBool(forced);
     target.save(stream);
+    oldTarget.save(stream);
 	stream.writeBool(targetFriendly);
     stream.writeUint32(attackMode);
 
@@ -233,9 +235,17 @@ void ObjectBase::handleDamage(int damage, Uint32 damagerID, House* damagerOwner)
             setHealth(newHealth);
         }
     }
-
+    /* TODO  For structure follower (guards) ask to ask damager */
     if(getOwner() == pLocalHouse && damagerOwner != pLocalHouse) {
         musicPlayer->changeMusic(MUSIC_ATTACK);
+    }
+
+    if(getOwner() == pLocalHouse && getOwner() != damagerOwner && isAStructure()) {
+      //  currentGame->addToNewsTicker(_("@DUNE.ENG|81#Your Base is under attack"));
+    	if (getHealth() < getMaxHealth() / 2 )
+    		soundPlayer->playVoice(WarningBaseIsUnderAttack, pLocalHouse->getHouseID());
+    	else
+    		soundPlayer->playVoice(BaseIsUnderAttack, pLocalHouse->getHouseID());
     }
 
     getOwner()->noteDamageLocation(this, damage, damagerID);
@@ -251,7 +261,7 @@ ObjectInterface* ObjectBase::getInterfaceContainer() {
 
 void ObjectBase::removeFromSelectionLists() {
 
-	// FIXME : inssure remove coordList when its a player controlled unit
+	// FIXME : insure remove coordList when its a player controlled unit
 	currentGame->getSelectedList().remove(getObjectID());
 
 	if (isAUnit() && owner ==  pLocalHouse && currentGame->getSelectedListCoord().size() >0) {
@@ -328,6 +338,15 @@ void ObjectBase::setVisible(int team, bool status) {
 		visible[team] = status;
 	}
 }
+
+void ObjectBase::setFellow(const ObjectBase* newFellow) {
+
+	if (newFellow == NULL)
+		oldTarget.pointTo(NONE);
+	else
+		oldTarget.pointTo(const_cast<ObjectBase*>(newFellow));
+}
+
 
 void ObjectBase::setTarget(const ObjectBase* newTarget) {
 	target.pointTo(const_cast<ObjectBase*>(newTarget));
@@ -668,6 +687,8 @@ int ObjectBase::getWeaponReloadTime() const {
 int ObjectBase::getInfSpawnProp() const {
     return currentGame->objectData.data[itemID][originalHouseID].infspawnprop;
 }
+
+
 
 ObjectBase* ObjectBase::createObject(int itemID, House* Owner, Uint32 objectID) {
 

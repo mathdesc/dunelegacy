@@ -169,7 +169,7 @@ void TankBase::engageTarget() {
             attack();
             target = temp;
         }
-    } else if (bFollow && oldTarget.getObjPointer() != NULL ) {
+    } else if (isFollowing() ) {
 
     	drawnTurretAngle =  lround(8.0f/256.0f*destinationAngle(location, oldTarget.getObjPointer()->getClosestPoint(location)))%8;
     }
@@ -177,7 +177,7 @@ void TankBase::engageTarget() {
 
 void TankBase::targeting() {
     if(findTargetTimer == 0) {
-        if(attackMode != STOP && !closeTarget && !moving && !justStoppedMoving) {
+        if(attackMode != STOP && !closeTarget && (!moving && !justStoppedMoving || bFollow)) {
             // find a temporary target
             closeTarget = findTarget();
         }
@@ -207,6 +207,11 @@ void TankBase::turn() {
 			}
 		}
 	}
+}
+
+void TankBase::turnTurret() {
+	float	angleLeft = 0.0f;
+    float   angleRight = 0.0f;
 
 	if(targetAngle != INVALID) {
 		if(turretAngle > targetAngle) {

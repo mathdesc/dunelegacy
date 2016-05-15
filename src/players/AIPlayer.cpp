@@ -132,13 +132,10 @@ void AIPlayer::onDamage(const ObjectBase* pObject, int damage, Uint32 damagerID)
 		else {
 			//scramble some free units to defend
 			err_print("Player %s want to retaliate on %d!\n", AIPlayer::getPlayername().c_str(),pDamager->getObjectID());
-			doRepair(const_cast<ObjectBase*>(pObject));
+			if (pObject->getHealthColor() == COLOR_YELLOW || pObject->getHealthColor() == COLOR_RED)
+				doRepair(const_cast<ObjectBase*>(pObject));
 			scrambleUnitsAndDefend(pDamager,  responseAllocation );
 
-			if(pDamager->isInfantry()) {
-				const UnitBase* pUnit = dynamic_cast<const UnitBase*>(pObject);
-				doAttackObject(pUnit, pDamager, false);
-			}
 		}
 	} else if(pObject->isAUnit() && pObject->canAttack(pDamager)) {
         const UnitBase* pUnit = dynamic_cast<const UnitBase*>(pObject);
@@ -1014,7 +1011,7 @@ void AIPlayer::checkAllUnits() {
             } break;
 
             case Unit_Harvester: {
-                const Harvester* pHarvester = dynamic_cast<const Harvester*>(pUnit);
+                Harvester* pHarvester = (Harvester*)pUnit;
                 if(getHouse()->getNumItems(Unit_Harvester) < 3 && pHarvester->getAmountOfSpice() >= HARVESTERMAXSPICE/2 && getHouse()->getStoredCredits() < getHouse()->getCapacity() ) {
                     doReturn(pHarvester);
                 }
@@ -1024,6 +1021,7 @@ void AIPlayer::checkAllUnits() {
                 if (pHarvester->getAttackMode() == STOP && 1.1*getHouse()->getStoredCredits() < getHouse()->getCapacity() /*&& pHarvester->getAmountOfSpice() < HARVESTERMAXSPICE -1*/) {
                 	err_print("AIPlayer::checkAllUnits Player %s put Harvester back to business %d!\n", AIPlayer::getPlayername().c_str(),pHarvester->getObjectID());
         			doSetAttackMode(pUnit,AREAGUARD);
+        			pHarvester->setFellow(NULL); // To force the rearch of the best refinery
 					doReturn(pHarvester);
                 }
 				if (pHarvester->getAttackMode() != STOP && getHouse()->getStoredCredits() >= getHouse()->getCapacity() && pHarvester->getAmountOfSpice() > HARVESTERMAXSPICE -1) {

@@ -212,7 +212,8 @@ void Map::damage(Uint32 damagerID, House* damagerOwner, const Coord& realPos, Ui
                                 }
                             }
                         } else if(bulletID == Bullet_Sonic) {
-                            pUnit->handleDamage(lroundf(damage), damagerID, damagerOwner);
+                        	if ((pUnit->getItemID() != Unit_SonicTank  || pUnit->getOwner()->getTeam() != pLocalHouse->getTeam()))
+                        		pUnit->handleDamage(lroundf(damage), damagerID, damagerOwner);
                         } else {
                             int scaledDamage = lroundf(damage) / (distance/16 + 1);
                             pUnit->handleDamage(scaledDamage, damagerID, damagerOwner);
@@ -553,11 +554,11 @@ void Map::recalutateCoordinates(const ObjectBase* objLeader, bool forcedRecal = 
 			else {
 				// Set new leader, put it in front of list and listCoord
 				((UnitBase*)(obj2))->setLeader(true);
-				// if leading unit is not it front of list, put it
+				// if leading unit is not in front of list, put it
 				if (itlist != list->begin())
 					list->splice(list->begin(),*list,itlist,list->end());
 
-				// if leading unit is not it front of coordlist, put it
+				// if leading unit is not in front of coordlist, put it
 				if (itcoord != listc->begin())		{
 					listc->splice(listc->begin(),*listc,itcoord,listc->end());
 					forcedRecal=true;
@@ -618,6 +619,7 @@ void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, 
 		currentGame->setGroupLeader(NULL);
 	}
 
+	/* selectAllPlayersUnitsOfType */
 	if((x1 == x2) && (y1 == y2) && tileExists(x1, y1)) {
 
         if(getTile(x1,y1)->isExplored(houseID) || debug) {
@@ -627,10 +629,11 @@ void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, 
         } else {
 		    lastCheckedObject = NULL;
 		}
-      //  groupLeader = NULL;
+
 		if((lastCheckedObject != NULL) && (lastCheckedObject->getOwner()->getHouseID() == houseID)) {
 			if((lastCheckedObject == lastSinglySelectedObject) && ( !lastCheckedObject->isAStructure())) {
-				currentGame->setGroupLeader(lastSinglySelectedObject);
+					currentGame->setGroupLeader(lastSinglySelectedObject);
+
                 for(int i = screenborder->getTopLeftTile().x; i <= screenborder->getBottomRightTile().x; i++) {
                     for(int j = screenborder->getTopLeftTile().y; j <= screenborder->getBottomRightTile().y; j++) {
                         if(tileExists(i,j) && getTile(i,j)->hasAnObject()) {
@@ -698,8 +701,10 @@ void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, 
 			lastSinglySelectedObject = NULL;
 		}
 
-	} else {
-		//currentGame->setGroupLeader(NULL);
+	}
+	/* selectAllPlayersUnits */
+	else {
+
 		err_print("Map::selectObjects : selectAllPlayersUnits \n");
 		bool alsoAir = false;
 
@@ -718,6 +723,7 @@ void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, 
             }
         }
 
+
 		std::list<Uint32> *list = &currentGame->getSelectedList();
 		std::list<Uint32>::iterator iter = list->begin();
 		// Do we only have air units in the selection ?
@@ -732,11 +738,12 @@ void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, 
 			iter++;
 		}
 
-		// We are told not to select Air units and selection does not only have air born unit
+		// We are told not to select Air units and selection does not only have air born unit : only keep ground unit
 		if (!alsoAir && !onlyAir) {
-			err_print("Tile::selectAllPlayersUnits alsoAir:%s onlyAir:%s \n", alsoAir ? "y" :"n", onlyAir ? "y" : "n" );
+			err_print("Tile::selectAllPlayersUnits alsoAir:%s onlyAir:%s grouplead:%d \n", alsoAir ? "y" :"n", onlyAir ? "y" : "n",  currentGame->getGroupLeader() == NULL ? 0 : currentGame->getGroupLeader()->getObjectID() );
 			if (currentGame->getSelectedList().size() > 1 ) {
 				iter = list->begin();
+
 				while (iter != list->end()) {
 					ObjectBase *obj = currentGame->getObjectManager().getObject(*iter);
 					UnitBase *unit = dynamic_cast<UnitBase*>(obj);
@@ -749,38 +756,68 @@ void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, 
 						currentGame->getSelectedListCoord().pop_back();
 						//err_print("Tile::selectAllPlayersUnits removing %d -- Coord (%d,%d) \n", unit->getObjectID(),  ((unit)->getLocation() - ((currentGame->getGroupLeader()))->getLocation()).x, ((unit)->getLocation() - ((currentGame->getGroupLeader()))->getLocation()).y);
 
-						if  ( currentGame->getSelectedList().size() > 1 ) {
-							if (iter == list->end()) {
-								std::list<Uint32>::iterator iter2 = list->begin();
-								obj = currentGame->getObjectManager().getObject(*iter2);
-							} else {
-								obj = currentGame->getObjectManager().getObject(*iter);
+						if  (currentGame->getSelectedList().size() > 1 ) {
+							std::list<Uint32>::iterator iter2 = list->begin();
+							// current obj is a fly follower & can't be leading
+							// try to assign a non follower ground leader
+							if ( obj->isAUnit() &&    ( unit->isAFlyingUnit() || (obj->isAGroundUnit() && ((UnitBase*)(obj))->isFollowing()) ) ) {
+
+								while (iter2 != list->end() ) {
+									obj = currentGame->getObjectManager().getObject(*iter2);
+									if (obj->isAUnit() &&    ! unit->isAFlyingUnit() && (obj->isAGroundUnit() && !((UnitBase*)(obj))->isFollowing()) )
+										break;
+									iter2++;
+								}
 							}
-							((UnitBase*)(obj))->setLeader(true);
-							 currentGame->setGroupLeader(obj);
-							err_print("Tile::selectAllPlayersUnits default FLY group leader %d \n", (currentGame->getGroupLeader())->getObjectID());
+
+							if (obj->isAGroundUnit() && !((UnitBase*)(obj))->isFollowing()) {
+								((UnitBase*)(obj))->setLeader(true);
+							 	 currentGame->setGroupLeader(obj);
+							 	 err_print("Tile::selectAllPlayersUnits promoted group leader %d \n", (currentGame->getGroupLeader())->getObjectID());
+							} /*else {
+								// All are follower or not independent ground unit
+								currentGame->setGroupLeader(NULL);
+							}*/
+
 						} else {
 							 currentGame->setGroupLeader(NULL);
 						}
 						currentGame->selectionChanged();
 
-					} else {
+					} else  {
 						((UnitBase*)(obj))->setLeader(false);
 						iter++;
-						if (iter == list->end()) {
+						if  ( currentGame->getGroupLeader() == NULL && currentGame->getSelectedList().size() > 1 ) {
 							std::list<Uint32>::iterator iter2 = list->begin();
-							obj = currentGame->getObjectManager().getObject(*iter2);
-						} else {
-							obj = currentGame->getObjectManager().getObject(*iter);
-						}
-						((UnitBase*)(obj))->setLeader(true);
-						 currentGame->setGroupLeader(obj);
+							// current obj is a follower & can't be leading
+							// try to assign a non follower ground leader
+							if ( obj->isAUnit() &&   (obj->isAGroundUnit() && ((UnitBase*)(obj))->isFollowing()) ) {
 
-						//err_print("Tile::selectAllPlayersUnits default group leader %d \n", (currentGame->getGroupLeader())->getObjectID());
+								while (iter2 != list->end() ) {
+									obj = currentGame->getObjectManager().getObject(*iter2);
+									if (obj->isAUnit() &&  obj->isAGroundUnit() && ! ((UnitBase*)(obj))->isFollowing() )
+										break;
+									iter2++;
+								}
+							}
+
+							if (obj->isAGroundUnit() && !((UnitBase*)(obj))->isFollowing()) {
+								((UnitBase*)(obj))->setLeader(true);
+								 currentGame->setGroupLeader(obj);
+								 err_print("Tile::selectAllPlayersUnits XXX promoted group leader %d \n", (currentGame->getGroupLeader())->getObjectID());
+							} else {
+								// All are follower ground unit
+								//currentGame->setGroupLeader(NULL);
+							}
+						} else if (currentGame->getSelectedList().size() == 1) {
+							currentGame->setGroupLeader(NULL);
+						}
+
 					}
 
 
-				}
+				} /* iter != list->end() */
+
 				 if ( currentGame->getGroupLeader() != NULL)
 					 currentGameMap->recalutateCoordinates(currentGame->getGroupLeader(),true);
 			}
@@ -831,7 +868,7 @@ void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, 
 
 }
 
-
+// TODO : get this algo smarter (not going where its crowed with enemy)
 bool Map::findSpice(Coord& destination, const Coord& origin) const {
 	bool found = false;
 

@@ -41,7 +41,9 @@ typedef enum {
 	RadarDeactivated,
 	BloomLocated,
 	WarningWormSign,
-	BaseIsUnderAttack,  ///< unused
+	WarningBaseIsUnderAttack,
+	BaseIsUnderAttack,
+	FremenApproaching,
     SaboteurApproaching,
     MissileApproaching,
     EnemyApproachingNorth,

@@ -250,7 +250,7 @@ bool StarPort::deployOrderedUnit(Carryall* pCarryall) {
 	bool unitDeployed = false;
 
     if (!arrivedUnit && (arrivedUnit.getObjPointer() == NULL)) {
-    	pCarryall->setTarget(NULL);
+    	pCarryall->setFellow(NULL);
     	//pCarryall->setDestination(location);
     	return unitDeployed ;
     }
@@ -271,8 +271,8 @@ bool StarPort::deployOrderedUnit(Carryall* pCarryall) {
 			// Check if the that carryall was attended by the arrived unit
 			if (pUnit != NULL && ((GroundUnit*)(pUnit))->getCarrier()->getObjectID() == pCarryall->getObjectID()) {
 				pCarryall->giveCargo(pUnit);
-				pCarryall->setTarget(NULL);
-				pUnit->setTarget(NULL);
+				pCarryall->setFellow(NULL);
+				pUnit->setTarget(NULL); //FIXME : follow ?
 				if (destination.isValid()) {
 						pCarryall->setDestination(pUnit->getDestination());
 						pCarryall->setDeployPos(pUnit->getDestination());
@@ -301,7 +301,7 @@ bool StarPort::deployOrderedUnit(Carryall* pCarryall) {
 		if (pUnit != NULL) {
 			Coord spot = pUnit->isAFlyingUnit() ? location + Coord(1,1) : currentGameMap->findDeploySpot(pUnit, location, destination, structureSize);
 			pUnit->deploy(spot,true);
-			pUnit->setTarget(NULL);
+			pUnit->setTarget(NULL); //FIXME : follow ?
 			arrivedUnit.pointTo(NONE);
 			unitDeployed = true;
 		}
@@ -352,7 +352,7 @@ void StarPort::updateStructureSpecificStuff() {
 			frigate = (Frigate*)owner->createUnit(Unit_Frigate);
 			pos = currentGameMap->findClosestEdgePoint(getLocation() + Coord(1,1), Coord(1,1));
 			frigate->deploy(pos);
-			frigate->setTarget(this);
+			frigate->setFellow(this);
 			Coord closestPoint = getClosestPoint(frigate->getLocation());
 			frigate->setDestination(closestPoint);
 
@@ -461,7 +461,7 @@ void StarPort::updateStructureSpecificStuff() {
 
 								   // tell carryall to come here, tell unit to book that carryall
 								   if(pCarryall != NULL) {
-									   pCarryall->setTarget(this);
+									   pCarryall->setFellow(this);
 									  // pCarryall->setDestination(location+Coord(-1,1));
 									   pCarryall->clearPath();
 									   gUnit->bookCarrier(pCarryall);

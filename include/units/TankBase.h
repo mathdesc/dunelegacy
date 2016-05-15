@@ -37,6 +37,9 @@ public:
 	void setTurretAngle(int newAngle);
 
 	virtual int getCurrentAttackAngle() const;
+	inline ObjectPointer getCloseTarget() const { return closeTarget.getObjPointer(); }
+
+	void turnTurret();
 
 protected:
 	void engageTarget();
@@ -48,6 +51,7 @@ protected:
 	virtual void idleAction();
 
 	void turn();
+
 	void turnTurretLeft();
 	void turnTurretRight();
 

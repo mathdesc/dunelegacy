@@ -156,7 +156,7 @@ void InGameMenu::onChildWindowClose(Window* pChildWindow) {
                 // save window
                 currentGame->saveGame(FileName);
 
-                currentGame->resumeGame();
+//              currentGame->resumeGame();
             }
         }
 	} else {

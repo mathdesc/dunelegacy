@@ -152,7 +152,7 @@ float Carryall::getMaxSpeed()  {
     float dist = distanceFrom(location.x*TILESIZE + TILESIZE/2, location.y*TILESIZE + TILESIZE/2,
                                 destination.x*TILESIZE + TILESIZE/2, destination.y*TILESIZE + TILESIZE/2);
 
-    if((target || hasCargo()) && dist < 256.0f) {
+    if((oldTarget || hasCargo()) && dist < 256.0f) {
 		currentMaxSpeed = (((2.0f - currentGame->objectData.data[itemID][originalHouseID].maxspeed)/256.0f) * (256.0f - dist)) + currentGame->objectData.data[itemID][originalHouseID].maxspeed;
         currentMaxSpeed /= (float)tryDeploy+1 ;
 
@@ -321,7 +321,7 @@ void Carryall::checkPos()
                     }
                 }
             } else {
-                setTarget(NULL);
+                setFellow(NULL);
                 setDestination(guardPoint);
                 idle = true;
             }
@@ -371,10 +371,11 @@ void Carryall::deployUnit(Uint32 unitID)
 
 	    if (currentGameMap->getTile(location)->hasANonInfantryGroundObject()) {
 			ObjectBase* object = currentGameMap->getTile(location)->getNonInfantryGroundObject();
+			ObjectBase* newobject = object;
 			if (object->getOwner() == getOwner()) {
 				if (object->getItemID() == Structure_RepairYard) {
 					if (((RepairYard*)object)->isFree()) {
-						pUnit->setTarget(object);
+						pUnit->setFellow(object);
 						pUnit->setGettingRepaired();
 						pUnit = NULL;
 
@@ -387,11 +388,21 @@ void Carryall::deployUnit(Uint32 unitID)
 					}
 				} else if ((object->getItemID() == Structure_Refinery) && (pUnit->getItemID() == Unit_Harvester)) {
 					if (((Refinery*)object)->isFree()) {
-						((Harvester*)pUnit)->setTarget(object);
+						((Harvester*)pUnit)->setFellow(object);
 						((Harvester*)pUnit)->setReturned();
 
 						pUnit = NULL;
 						goingToRepairYard = false;
+					} else {
+						dbg_print(" Carryall::deployUnit _Awaiting on refinery, find a free one for %d\n",((Harvester*)pUnit)->getObjectID());
+						newobject=((Harvester*)pUnit)->findRefinery();
+						if (newobject != NULL) {
+							((Harvester*)pUnit)->setFellow(newobject);
+							setFellow(newobject);
+							deployPos = newobject->getClosestCenterPoint(newobject->getLocation());
+							setDestination(newobject->getLocation());
+						}
+
 					}
 				}
 			}
@@ -403,6 +414,10 @@ void Carryall::deployUnit(Uint32 unitID)
 				dbg_print(" Carryall::deployUnit _deployPos was invalid, new deployPos\n");
 				if (fallBackPos.isInvalid()) {
 					fallBackPos = currentGameMap->findDeploySpot(pUnit, location, pUnit->getDestination().isValid() ? pUnit->getDestination() : Coord::Invalid());
+					if (fallBackPos.isInvalid()) {
+						dbg_print(" Carryall::deployUnit _deployPos was invalid, can't get a deployPos ! release fellow\n");
+						releaseFellow();
+					}
 				}
 				deployPos = fallBackPos;
 			}
@@ -419,7 +434,7 @@ void Carryall::deployUnit(Uint32 unitID)
 				sound = false;
 			}
 
-			dbg_print(" Carryall::deployUnit UnitDeploying to destination(%d,%d-%d,%d) [#%d] \n", pUnit->getDestination().x,pUnit->getDestination().y,deployPos.x,deployPos.y,tryDeploy);
+			dbg_print(" Carryall::deployUnit UnitDeploying to destination(%d,%d %d,%d) [#%d] \n", pUnit->getDestination().x,pUnit->getDestination().y,deployPos.x,deployPos.y,tryDeploy);
 
 			if ((abs(location.x - deployPos.x) <= 1 && abs(location.y - deployPos.y) <= 1) && pUnit->canPass(deployPos.x,deployPos.y)) {
 				pUnit->deploy(deployPos, sound);
@@ -494,9 +509,12 @@ void Carryall::destroy()
 	AirUnit::destroy();
 }
 
-void Carryall::releaseTarget() {
-    setTarget(NULL);
-    dbg_print(" Carryall::releaseTarget   \n");
+
+
+void Carryall::releaseFellow() {
+
+    dbg_print(" Carryall::releaseFellow  %d \n", oldTarget.getObjectID());
+    setFellow(NULL);
     if(!hasCargo()) {
         booked = false;
         idle = true;
@@ -504,42 +522,47 @@ void Carryall::releaseTarget() {
     }
 }
 
-void Carryall::engageTarget()
-{
-    if(target && (target.getObjPointer() == NULL)) {
+void Carryall::engageTarget() {
+	engageFollow();
+
+}
+
+
+void Carryall::engageFollow() {
+    if(oldTarget && (oldTarget.getObjPointer() == NULL)) {
         // the target does not exist anymore
     	dbg_print(" Carryall::engageTarget target doesnt exist any more  \n");
-        releaseTarget();
+    	releaseFellow();
         return;
     }
 
     // TODO : change the logic to be able to pickup & keep cargo of forced carryall
-    if(target && (target.getObjPointer()->isActive() == false)) {
+    if(oldTarget && (oldTarget.getObjPointer()->isActive() == false)) {
         // the target changed its state to inactive
     	dbg_print(" Carryall::engageTarget target is not active any more  \n");
-        releaseTarget();
+    	releaseFellow();
         return;
     }
 
     // TODO : change the logic to be able to pickup & keep cargo of forced carryall
-    if(target && target.getObjPointer()->isAGroundUnit() && !((GroundUnit*)target.getObjPointer())->isAwaitingPickup() /* && !wasForced() */) {
+    if(oldTarget && oldTarget.getObjPointer()->isAGroundUnit() && !((GroundUnit*)oldTarget.getObjPointer())->isAwaitingPickup() /* && !wasForced() */) {
         // the target changed its state to not awaiting pickup anymore
-    	dbg_print(" Carryall::engageTarget target is not more awaiting pickup or carryall is not forced to pick it up (!awaiting:%s,!forced:%s)  \n",!((GroundUnit*)target.getObjPointer())->isAwaitingPickup() ? "y" : "n", !wasForced() ? "y" : "n");
-        releaseTarget();
+    	dbg_print(" Carryall::engageTarget target is not more awaiting pickup or carryall is not forced to pick it up (!awaiting:%s,!forced:%s)  \n",!((GroundUnit*)oldTarget.getObjPointer())->isAwaitingPickup() ? "y" : "n", !wasForced() ? "y" : "n");
+    	releaseFellow();
         return;
     }
 
-    if(target && (target.getObjPointer()->getOwner()->getTeam() != owner->getTeam())) {
+    if(oldTarget && (oldTarget.getObjPointer()->getOwner()->getTeam() != owner->getTeam())) {
         // the target changed its owner (e.g. was deviated)
-        releaseTarget();
+    	releaseFellow();
         return;
     }
 
     Coord targetLocation;
-    if (target.getObjPointer()->getItemID() == Structure_Refinery) {
-        targetLocation = target.getObjPointer()->getLocation() + Coord(2,0);
+    if (oldTarget.getObjPointer()->getItemID() == Structure_Refinery) {
+        targetLocation = oldTarget.getObjPointer()->getLocation() + Coord(2,0);
     } else {
-        targetLocation = target.getObjPointer()->getClosestPoint(location);
+        targetLocation = oldTarget.getObjPointer()->getClosestPoint(location);
     }
 
     Coord realLocation = Coord(lround(realX), lround(realY));
@@ -553,20 +576,27 @@ void Carryall::engageTarget()
     targetDistance = distanceFrom(realLocation, realDestination);
 
     if (targetDistance <= TILESIZE/8) {
-        if (target.getObjPointer()->isAUnit()) {
-            targetAngle = ((GroundUnit*)target.getObjPointer())->getAngle();
+        if (oldTarget.getObjPointer()->isAUnit()) {
+            targetAngle = ((GroundUnit*)oldTarget.getObjPointer())->getAngle();
         }
 
         if(hasCargo()) {
-            if(target.getObjPointer()->isAStructure()) {
-            	if (((StructureBase*)(target.getObjPointer()))->getItemID() == Structure_RepairYard && ((RepairYard*)(target.getObjPointer()))->isFree()) {
+            if(oldTarget.getObjPointer()->isAStructure()) {
+            	if (((StructureBase*)(oldTarget.getObjPointer()))->getItemID() == Structure_RepairYard && ((RepairYard*)(oldTarget.getObjPointer()))->isFree()) {
 					while(pickedUpUnitList.begin() != pickedUpUnitList.end()) {
 						deployUnit(*(pickedUpUnitList.begin()) );
 					}
-					setTarget(NULL);
+					setFellow(NULL);
 					setDestination(guardPoint);
 
-            	} else {
+            	} else if (((StructureBase*)(oldTarget.getObjPointer()))->getItemID() == Structure_Refinery && ((RepairYard*)(oldTarget.getObjPointer()))->isFree()) {
+					while(pickedUpUnitList.begin() != pickedUpUnitList.end()) {
+						deployUnit(*(pickedUpUnitList.begin()) );
+					}
+					setFellow(NULL);
+					setDestination(guardPoint);
+
+            	}  else {
             		flyAround();
             	}
 
@@ -607,7 +637,7 @@ void Carryall::pickupTarget()
     currentMaxSpeed = 0.0f;
     setSpeeds();
 
-    ObjectBase* pTarget = target.getObjPointer();
+    ObjectBase* pTarget = oldTarget.getObjPointer();
 
 	if(pTarget->isAGroundUnit()) {
         GroundUnit* pGroundUnitTarget = dynamic_cast<GroundUnit*>(pTarget);
@@ -618,20 +648,20 @@ void Carryall::pickupTarget()
             return;
         }
 
-		if (  pTarget->hasATarget()
+		if (  pTarget->hasAFellow()
 			|| ( pGroundUnitTarget->getGuardPoint() != pTarget->getLocation())
 			|| pGroundUnitTarget->isBadlyDamaged())
 		{
 
 
-			if(pGroundUnitTarget->isBadlyDamaged() /*|| (pTarget->hasATarget() == false && pTarget->getItemID() != Unit_Harvester)*/)	{
+			if(pGroundUnitTarget->isBadlyDamaged() /*|| (pTarget->hasAFellow() == false && pTarget->getItemID() != Unit_Harvester)*/)	{
 				dbg_print(" Carryall::pickupTarget %d(%d) do repair  \n", pTarget->getObjectID(),pTarget->getItemID());
 				pGroundUnitTarget->doRepair();
 			}
 
-			ObjectBase* newTarget = pGroundUnitTarget->hasATarget() ? pGroundUnitTarget->getTarget() : NULL;
+			ObjectBase* newTarget = pGroundUnitTarget->hasAFellow() ? pGroundUnitTarget->getoldTarget() : NULL;
 
-			pickedUpUnitList.push_back(target.getObjectID());
+			pickedUpUnitList.push_back(pTarget->getObjectID());
 			pGroundUnitTarget->setPickedUp(this);
 
 			drawnFrame = 1;
@@ -642,11 +672,11 @@ void Carryall::pickupTarget()
             if(newTarget && ((newTarget->getItemID() == Structure_Refinery)
                               || (newTarget->getItemID() == Structure_RepairYard)))
             {
-                setTarget(newTarget);
+                setFellow(newTarget);
                 if(newTarget->getItemID() == Structure_Refinery) {
-                    setDestination(target.getObjPointer()->getLocation() + Coord(2,0));
+                    setDestination(oldTarget.getObjPointer()->getLocation() + Coord(2,0));
                 } else {
-                    setDestination(target.getObjPointer()->getClosestPoint(location));
+                    setDestination(oldTarget.getObjPointer()->getClosestPoint(location));
                 }
             } else if (pGroundUnitTarget->getDestination().isValid()) {
             	dbg_print( " Carryall::pickupTarget %d(%d) go get it !  \n", pGroundUnitTarget->getObjectID(),pGroundUnitTarget->getItemID());
@@ -658,14 +688,15 @@ void Carryall::pickupTarget()
 		} else {
 			dbg_print( " Carryall::pickupTarget %d(%d) that is going to be pickup \n", pGroundUnitTarget->getObjectID(),pGroundUnitTarget->getItemID());
 			pGroundUnitTarget->setAwaitingPickup(false);
-			//releaseTarget();
+			//releaseFellow();
 		}
 	} else {
         // get unit from structure
-        ObjectBase* pObject = target.getObjPointer();
+        ObjectBase* pObject = oldTarget.getObjPointer();
         bool deployed = false;
         if(pObject->getItemID() == Structure_Refinery) {
             // get harvester
+        	dbg_print("Carryall::pickupTarget %d deployHavesterUnit\n", this->getObjectID());
         	deployed = ((Refinery*) pObject)->deployHarvester(this);
         } else if(pObject->getItemID() == Structure_RepairYard) {
             // get repaired unit
@@ -678,34 +709,45 @@ void Carryall::pickupTarget()
         }
 
         if (!deployed) {
-        	releaseTarget();
+        	releaseFellow();
         }
         clearPath();
 	}
 }
 
-void Carryall::setTarget(const ObjectBase* newTarget) {
-	if(target.getObjPointer() != NULL
-		&& targetFriendly
-		&& target.getObjPointer()->isAGroundUnit()
-		&& (((GroundUnit*)target.getObjPointer())->getCarrier() == this))
-	{
-		((GroundUnit*)target.getObjPointer())->bookCarrier(NULL);
+
+void Carryall::setFellow(const ObjectBase* newTarget) {
+
+
+	if(oldTarget.getObjPointer() != NULL && oldTarget.getObjPointer()->isAGroundUnit() && (((GroundUnit*)oldTarget.getObjPointer())->getCarrier() == this)) {
+		((GroundUnit*)oldTarget.getObjPointer())->bookCarrier(NULL);
 	}
+
+	UnitBase::setFellow(newTarget);
+
+	if(oldTarget && oldTarget.getObjPointer()->isAGroundUnit()) {
+		((GroundUnit*)oldTarget.getObjPointer())->setAwaitingPickup(true);
+	}
+
+	booked = oldTarget;
+}
+
+
+void Carryall::setTarget(const ObjectBase* newTarget) {
+
 
 	UnitBase::setTarget(newTarget);
 
-	if(target && targetFriendly && target.getObjPointer()->isAGroundUnit()) {
-		((GroundUnit*)target.getObjPointer())->setAwaitingPickup(true);
-	}
-
-	booked = target;
 }
 
 void Carryall::targeting() {
-	if(target) {
+	if(oldTarget) {
 		engageTarget();
 	}
+
+	/*if (target) {
+		engageTarget();
+	}*/
 }
 
 bool Carryall::canPass(int xPos, int yPos) const

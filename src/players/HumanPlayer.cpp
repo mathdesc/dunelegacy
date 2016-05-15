@@ -250,6 +250,7 @@ void HumanPlayer::checkAllUnits() {
         	 if (pHarvester->getAttackMode() == STOP && 1.1*getHouse()->getStoredCredits() < getHouse()->getCapacity() && pHarvester->isIdle() /*&& pHarvester->getAmountOfSpice() < HARVESTERMAXSPICE -1*/) {
 				err_print("HumanPlayer::checkAllUnits Player %s put Harvester back to business %d!\n", getPlayername().c_str(),pHarvester->getObjectID());
 				doSetAttackMode(pUnit,AREAGUARD);
+				pHarvester->setFellow(NULL); // To force the rearch of the best refinery
 				doReturn(pHarvester);
 				continue;
         	 }
@@ -261,7 +262,6 @@ void HumanPlayer::checkAllUnits() {
 
 
         }
-
     }
 }
 

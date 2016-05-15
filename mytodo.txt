@@ -60,18 +60,22 @@ Atreides Palace : Allied with the fremen. Palace should produce respondable frem
 	- like sonic tanks except it will no cost any power
 	- doesn't appear on the radar & are hidden whist not moving, they should turn into a feared ambush force as well as a good source of intel.
 
-Harkonnen Palace : Allied with Corino. Harkonnen already benefit what is considered the most imba superweapon in the game. But in this extension, I might 
-be willing to grant it the capability to bury mines when a missile hits the ground without any structures or enemy. And probably set the
-same reload time as the other house.
+Harkonnen Palace : Allied with Corino. Harkonnen already benefit what is considered the most imba superweapon in the game. 
+But in this extension, I might be willing to grant it the capability to bury mines when a missile hits the ground 
+without any structures or enemy nearby. And probably set the same reload time as the other house.
 	- Mines will look like spice blooms
 	- setting double reloadtime seemed as a necessity to (try to ) rebalance game between the other faction. It should be
 	made obsolete by this extension redesign. This detered the gameplay, we'll recover the only offset that should exist
 	between faction superweapon : the time the house start building the superweapon. 
 
-Ordos Palace : Allied with the Tleilaxu. As for now Sabotor is a weak superweapon. In this extension, I want it to be capable of a discreetly sabotage vehicules (a sort of destructive nanoparticules)
-& units (a sort of poisonning) while still be able to commit suicide on buildings. I want to give him a better viewrange and become a source of intel.
-	- Sabotage vehicules & unit : use the degradebuilding & apply it to them, inssure sabotor will stay shrouded until spotted. Could be spot only by a radar (an extended radar view range)
-	- Explode vehicule : after planing explosive, saboter can use a remote (10 tiles) control to trig explosive (same as the desvastator's autodestruct area damage)
+Ordos Palace : Allied with the Tleilaxu. As for now Sabotor is a weak superweapon. 
+In this extension, I want it to be capable of a discreetly sabotage vehicules 
+(a sort of destructive nanoparticules) & units (a sort of poisonning) while still be able to commit suicide on buildings. 
+I want to give him a better viewrange and become a source of intel.
+	- Sabotage vehicules & unit : use the degradebuilding & apply it to them, 
+inssure sabotor will stay shrouded until spotted. Could be spot only by a radar (an extended radar view range)
+	- Explode vehicule : after planing explosive, saboter can use a remote (10 tiles) 
+control to trig explosive (same as the desvastator's autodestruct area damage)
 
 Fremen Palace : Allied with Shaï-Ulud. Palace should produce fremens that calls & rides worms. As worm prefers attack harvester and heavy unit, freemens would
 could spread havok around enemy harvestering ops and defend the worms from ornithoper attacks (indeed actually they are
@@ -86,7 +90,9 @@ Sardokar Palace : Allied with the Space Guild. Give sardokar the ability to call
 	- reintroduce the sardokar unit (replaced by regular troopers) 
 	- CHOAM price will drop for 2 minutes (cut off transport tax)
  
-Mercenary Palace : Allied with the desert smugglers. Ability to build village at 10 tiles distance form map border. This village will not be not visible on the radar and offer smugglers services.
+Mercenary Palace : Allied with the desert smugglers. Ability to build village at 10 tiles distance form map border. 
+This village will not be not visible on the radar and offer smugglers services.
+
 Services will be really cheap harvesters (half cost), ornis (half cost) and regular troopers (half cost)
 	- this village has about the same view range the radar has. 
 	- reuse CHOAM market principle on those unit, time to order timer should be made 2 minutes or so

@@ -80,6 +80,9 @@ void Launcher::drawSelectionBox()
 	int x = screenborder->world2screenX(realX) - selectionBox->w/2;
 	int y = screenborder->world2screenY(realY) - selectionBox->h/2;
 
+	if (bFollow)
+	    	selectionBox = mapSurfaceColorRange(selectionBox, COLOR_WHITE, COLOR_WINDTRAP_COLORCYCLE);
+
     SDL_Rect dest = {   x,
                         y,
                         selectionBox->w,
@@ -88,7 +91,7 @@ void Launcher::drawSelectionBox()
 	SDL_BlitSurface(selectionBox, NULL, screen, &dest);
 
 	for(int i=1;i<=currentZoomlevel+1;i++) {
-        drawRect(screen, dest.x+1, dest.y-1, dest.x+1 + ((int)((getHealth()/(float)getMaxHealth())*(selectionBox->w-3))),dest.y-2, getHealthColor());
+        drawRect(screen, dest.x+1, dest.y-1, dest.x+1 + ((int)((getHealth()/(float)getMaxHealth())*(selectionBox->w-3))),dest.y-2,  bFollow ? COLOR_WINDTRAP_COLORCYCLE : getHealthColor());
 
 	}
 
@@ -100,7 +103,7 @@ void Launcher::drawSelectionBox()
 
 	if((getOwner() == pLocalHouse || debug)  && (salvotimer > 0)   ) {
         for(int i=1;i<=currentZoomlevel+1;i++) {
-            drawRect(screen, dest.x+1, dest.y-3, dest.x+1 +  ((int)((((float)salvotimer)/max)*(selectionBox->w-3))), dest.y-4,COLOR_YELLOW);
+            drawRect(screen, dest.x+1, dest.y-3, dest.x+1 +  ((int)((((float)salvotimer)/max)*(selectionBox->w-3))), dest.y-4, bFollow ? COLOR_WINDTRAP_COLORCYCLE : COLOR_YELLOW);
         }
 	}
 
@@ -212,7 +215,7 @@ void Launcher::salveAttack(Coord Pos, Coord Target) {
 			} else {
 				dbg_relax_print("Launcher::salveAttack cannot be done !\n");
 				// Give a chance to navigate to the target if we are able to move
-		        if(checkSalveRealoaded(salving) && currentGame->randomGen.rand(0, 50) == 0) {
+		        if(checkSalveRealoaded(salving)) {
 		            navigate();
 
 		        }

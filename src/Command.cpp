@@ -213,6 +213,18 @@ void Command::executeCommand() const {
 			pUnit->doSetAttackMode((ATTACKMODE) parameter[1]);
 		} break;
 
+		case CMD_UNIT_CANCEL: {
+			if(parameter.size() != 1) {
+				throw std::invalid_argument("Command::executeCommand(): CMD_UNIT_CANCEL needs 1 Parameter!");
+			}
+			UnitBase* pUnit = dynamic_cast<UnitBase*>(currentGame->getObjectManager().getObject(parameter[0]));
+			if(pUnit == NULL) {
+                return;
+			}
+			pUnit->doCancel();
+		} break;
+
+
 		case CMD_DEVASTATOR_STARTDEVASTATE: {
 			if(parameter.size() != 1) {
 				throw std::invalid_argument("Command::executeCommand(): CMD_DEVASTATOR_STARTDEVASTATE needs 1 Parameter!");
@@ -244,6 +256,17 @@ void Command::executeCommand() const {
                 return;
 			}
 			pHarvester->doReturn();
+		} break;
+
+		case CMD_UNIT_REPAIR: {
+					if(parameter.size() != 1) {
+						throw std::invalid_argument("Command::executeCommand(): CMD_UNIT_REPAIR needs 1 Parameter!");
+					}
+					GroundUnit* pUnit = dynamic_cast<GroundUnit*>(currentGame->getObjectManager().getObject(parameter[0]));
+					if(pUnit == NULL) {
+		                return;
+					}
+					pUnit->doRepair();
 		} break;
 
 		case CMD_STRUCTURE_SETDEPLOYPOSITION: {

@@ -406,7 +406,7 @@ void House::noteDamageLocation(ObjectBase* pObject, int damage, Uint32 damagerID
     for(iter = players.begin(); iter != players.end(); ++iter) {
         (*iter)->onDamage(pObject, damage, damagerID);
     }
-    ///  TODO : Add a callback in a vector to recall the location
+    ///  TODO : Add a callback in a vector to recall the location and mark it red spot on the radar map
 }
 
 
@@ -550,9 +550,9 @@ void House::freeHarvester(int xPos, int yPos) {
 		else if (closestPos.y == currentGameMap->getSizeY()-1)
 			carryall->setAngle(UP);
 
-		harvester->setTarget(refinery);
+		harvester->setFellow(refinery);
 		harvester->setActive(false);
-		carryall->setTarget(refinery);
+		carryall->setFellow(refinery);
 	}
 }
 
@@ -805,7 +805,6 @@ Coord House::getStrongestUnitPosition() const {
     \return the credit value of the army
 */
 double House::getArmyValue() const {
-    Coord position = Coord::Invalid();
     double totalCost = 0;
     Uint32 itemID;
     RobustList<UnitBase*>::const_iterator iter;
@@ -823,6 +822,31 @@ double House::getArmyValue() const {
     return totalCost;
 }
 
+/**
+    This method returns the mobility of an army
+    \return the mobility value of the army
+*/
+double House::getArmyMobility() const {
+    double totalMob = 0;
+    double totalTurn = 0;
+    double unitMobVal = 0;
+    Uint32 itemID;
+    RobustList<UnitBase*>::const_iterator iter;
+    for(iter = unitList.begin(); iter != unitList.end(); ++iter) {
+        UnitBase* tempUnit = *iter;
+        itemID = tempUnit->getItemID();
+
+        bool eval_mask = (itemID != Unit_Harvester)  && (itemID != Unit_Carryall) && (itemID != Unit_Frigate) && (itemID != Unit_Saboteur) && (itemID != Unit_Sandworm) && (itemID != Unit_MCV) ;
+
+        if(tempUnit->getOwner() == this && eval_mask) {
+        	totalMob+= currentGame->objectData.data[tempUnit->getItemID()][houseID].maxspeed;
+        	totalTurn+= currentGame->objectData.data[tempUnit->getItemID()][houseID].turnspeed;
+        	unitMobVal+= currentGame->objectData.data[tempUnit->getItemID()][houseID].maxspeed * ((currentGame->objectData.data[tempUnit->getItemID()][houseID].turnspeed));
+        }
+    }
+
+    return unitMobVal / unitList.size();
+}
 
 ConstructionYard* House::findConstYard() {
     float	closestYardDistance = std::numeric_limits<float>::infinity();;
@@ -884,6 +908,7 @@ void House::decrementHarvesters() {
 
 
 Uint8 House::allocateSquadSize(ObjectBase* requester, Uint32 damagerID) {
+	// TODO : allocateSquadSize with a MentatAnalysis to get a decent & adequate Squad force given threat
 	if ( getNumUnits()/10 > 20)
 		return (Uint8) 20;
 	else

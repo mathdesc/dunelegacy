@@ -9,3 +9,6 @@ doc/
 Makefile
 config.log
 config.status
+Makefile.in
+aclocal.m4
+configure

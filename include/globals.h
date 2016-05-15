@@ -34,11 +34,14 @@
 #define DEBUG 0
 #endif
 
+#define dbg_relax_print_nb_second 3
+
+
 #define dbg_relax_print(...) \
-	do { if (DEBUG && (currentGame->getGameCycleCount() % (MILLI2CYCLES(1*1000)) == 0))  fprintf(stdout, __VA_ARGS__);} while (0)
+	do { if (DEBUG && (currentGame->getGameCycleCount() % (MILLI2CYCLES(dbg_relax_print_nb_second*1000)) == 0))  fprintf(stdout, __VA_ARGS__);} while (0)
 
 #define err_relax_print(...) \
-	do { if (DEBUG && (currentGame->getGameCycleCount() % (MILLI2CYCLES(1*1000)) == 0))  fprintf(stderr, __VA_ARGS__);} while (0)
+	do { if (DEBUG && (currentGame->getGameCycleCount() % (MILLI2CYCLES(dbg_relax_print_nb_second*1000)) == 0))  fprintf(stderr, __VA_ARGS__);} while (0)
 
 #define dbg_print(...) \
 	do { if (DEBUG)  fprintf(stdout, __VA_ARGS__);} while (0)

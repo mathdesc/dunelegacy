@@ -247,6 +247,15 @@ void Player::doSetAttackMode(const UnitBase* pUnit, ATTACKMODE attackMode) {
     }
 }
 
+void Player::doCancel(const UnitBase* pUnit) {
+    if(pUnit->getOwner() == getHouse()) {
+        const_cast<UnitBase*>(pUnit)->doCancel();
+    } else {
+        fprintf(stderr,"Player %s tries to cancel orders of a unit he doesn't own!\n", playername.c_str());
+        return;
+    }
+}
+
 void Player::doStartDevastate(const Devastator* pDevastator) {
     if(pDevastator->getOwner() == getHouse()) {
         const_cast<Devastator*>(pDevastator)->doStartDevastate();

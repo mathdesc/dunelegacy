@@ -148,6 +148,7 @@ inline  bool isUnit(int itemID) { return (itemID >= Unit_FirstID && itemID <= Un
 */
 inline  bool isStructure(int itemID) { return (itemID >= Structure_FirstID && itemID <= Structure_LastID); }
 
+// TODO : do something with it (i.e MentatAnalysis, smartformation)
 inline  bool isHeavy(int itemID) { return ( isUnit(itemID) && (itemID == Unit_Devastator || itemID == Unit_Harvester || itemID == Unit_MCV || itemID == Unit_SiegeTank )); }
 inline  bool isRange(int itemID) { return ( isUnit(itemID) && (itemID == Unit_Deviator || itemID == Unit_Launcher || itemID == Unit_SonicTank  )); }
 inline  bool isLight(int itemID) { return ( isUnit(itemID) && (itemID == Unit_Quad || itemID == Unit_Trike || itemID == Unit_RaiderTrike  )); }

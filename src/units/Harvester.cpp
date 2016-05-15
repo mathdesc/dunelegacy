@@ -149,6 +149,44 @@ void Harvester::blitToScreen()
     }
 }
 
+
+Refinery* Harvester::findRefinery() {
+
+	Refinery	*bestRefinery = NULL;
+
+	if (!structureList.empty()) {
+
+		int	leastNumBookings = 1000000; //huge amount so refinery couldn't possibly compete with any refinery num bookings
+		float	closestLeastBookedRefineryDistance = std::numeric_limits<float>::infinity();
+
+
+        RobustList<StructureBase*>::const_iterator iter;
+        for(iter = structureList.begin(); iter != structureList.end(); ++iter) {
+			StructureBase* tempStructure = *iter;
+
+			if((tempStructure->getItemID() == Structure_Refinery) && (tempStructure->getOwner() == owner)) {
+				Refinery* tempRefinery = static_cast<Refinery*>(tempStructure);
+				Coord closestPoint = tempRefinery->getClosestPoint(location);
+				float tempDistance = distanceFrom(location, closestPoint);
+				int tempNumBookings = tempRefinery->getNumBookings();
+
+				if (tempNumBookings < leastNumBookings)	{
+					leastNumBookings = tempNumBookings;
+					closestLeastBookedRefineryDistance = tempDistance;
+					bestRefinery = tempRefinery;
+				} else if (tempNumBookings == leastNumBookings) {
+					if (tempDistance < closestLeastBookedRefineryDistance) {
+						closestLeastBookedRefineryDistance = tempDistance;
+						bestRefinery = tempRefinery;
+					}
+				}
+			}
+		}
+	}
+
+	return bestRefinery;
+}
+
 void Harvester::checkPos()
 {
 	TrackedUnit::checkPos();
@@ -159,50 +197,23 @@ void Harvester::checkPos()
 
 	if(active)	{
 		if (returningToRefinery) {
-			if (target && (target.getObjPointer() != NULL) && (target.getObjPointer()->getItemID() == Structure_Refinery)) {
+			if (oldTarget && (oldTarget.getObjPointer() != NULL) && (oldTarget.getObjPointer()->getItemID() == Structure_Refinery)) {
 				//find a refinery to return to
-				Coord closestPoint = target.getObjPointer()->getClosestPoint(location);
+				Coord closestPoint = oldTarget.getObjPointer()->getClosestPoint(location);
 
 				if(!moving && !justStoppedMoving && blockDistance(location, closestPoint) <= 1.5f)	{
 					awaitingPickup = false;
-					if (((Refinery*)target.getObjPointer())->isFree())
+					if (((Refinery*)oldTarget.getObjPointer())->isFree())
 						setReturned();
 				} else if(!awaitingPickup && blockDistance(location, closestPoint) >= 5.0f) {
 					requestCarryall();
 				}
-			} else if (!structureList.empty()) {
-				int	leastNumBookings = 1000000; //huge amount so refinery couldn't possibly compete with any refinery num bookings
-				float	closestLeastBookedRefineryDistance = std::numeric_limits<float>::infinity();
-				Refinery	*bestRefinery = NULL;
-
-                RobustList<StructureBase*>::const_iterator iter;
-                for(iter = structureList.begin(); iter != structureList.end(); ++iter) {
-					StructureBase* tempStructure = *iter;
-
-					if((tempStructure->getItemID() == Structure_Refinery) && (tempStructure->getOwner() == owner)) {
-						Refinery* tempRefinery = static_cast<Refinery*>(tempStructure);
-						Coord closestPoint = tempRefinery->getClosestPoint(location);
-						float tempDistance = distanceFrom(location, closestPoint);
-						int tempNumBookings = tempRefinery->getNumBookings();
-
-						if (tempNumBookings < leastNumBookings)	{
-							leastNumBookings = tempNumBookings;
-							closestLeastBookedRefineryDistance = tempDistance;
-							bestRefinery = tempRefinery;
-						} else if (tempNumBookings == leastNumBookings) {
-							if (tempDistance < closestLeastBookedRefineryDistance) {
-								closestLeastBookedRefineryDistance = tempDistance;
-								bestRefinery = tempRefinery;
-							}
-						}
+			} else if (!structureList.empty() && attackMode != STOP) {
+					Refinery* bestRefinery= findRefinery();
+					if (bestRefinery != NULL) {
+						bestRefinery->startAnimate();
+						doMove2Object(findRefinery(), getTarget());
 					}
-				}
-
-				if (bestRefinery) {
-					doMove2Object(bestRefinery, NULL);
-
-					bestRefinery->startAnimate();
-				}
 			}
 		} else if (harvestingMode && !hasBookedCarrier() && (blockDistance(location, destination) > 10.0f)) {
 			requestCarryall();
@@ -279,6 +290,7 @@ void Harvester::destroy()
         }
 
         setTarget(NULL);
+        setFellow(NULL);
 
         Coord realPos(lround(realX), lround(realY));
         Uint32 explosionID = currentGame->randomGen.getRandOf(2,Explosion_Medium1, Explosion_Medium2);
@@ -345,9 +357,20 @@ void Harvester::handleDamage(int damage, Uint32 damagerID, House* damagerOwner)
     TrackedUnit::handleDamage(damage, damagerID, damagerOwner);
 
     ObjectBase* damager = currentGame->getObjectManager().getObject(damagerID);
+    if (!damager) return;
 
-    if(!target && !forced && damager && canAttack(damager) && (attackMode != STOP)) {
+
+    bool mask_retaliate =  target && target.getObjPointer()->isAUnit() && target.getObjPointer()->isActive() &&
+    						damager->getObjectID() != target.getObjPointer()->getObjectID() &&
+							blockDistance((target.getObjPointer())->getClosestPoint(location),damager->getClosestPoint(location)) >= 3.0f;
+
+    bool damager_nearer = isNearer(damager) ;
+    bool mask_retaliate3 = !forced && canAttack(damager) && (attackMode != STOP);
+    err_print("Harvester::handleDamage Harvester %d \n",getObjectID());
+
+    if((!target && mask_retaliate3) || (mask_retaliate && damager_nearer && mask_retaliate3 )) {
         setTarget(damager);
+        err_print("Harvester::handleDamage2 Harvester %d set a new target %d \n",getObjectID(),damager->getObjectID());
     }
 }
 
@@ -396,24 +419,31 @@ void Harvester::setDestination(int newX, int newY)
 	harvestingMode =  (attackMode != STOP) && (currentGameMap->tileExists(newX, newY) && currentGameMap->getTile(newX,newY)->hasSpice());
 }
 
-void Harvester::setTarget(const ObjectBase* newTarget)
-{
-	if(returningToRefinery && target && (target.getObjPointer()!= NULL)
-		&& (target.getObjPointer()->getItemID() == Structure_Refinery))
+void Harvester::setFellow(const ObjectBase* newTarget) {
+
+	if(returningToRefinery && oldTarget && (oldTarget.getObjPointer()!= NULL)
+		&& (oldTarget.getObjPointer()->getItemID() == Structure_Refinery))
 	{
-		((Refinery*)target.getObjPointer())->unBook();
+		((Refinery*)oldTarget.getObjPointer())->unBook();
 		returningToRefinery = false;
 	}
 
-	TrackedUnit::setTarget(newTarget);
+	TrackedUnit::setFellow(newTarget);
 
-	if(target && (target.getObjPointer() != NULL)
-		&& (target.getObjPointer()->getOwner() == getOwner())
-		&& (target.getObjPointer()->getItemID() == Structure_Refinery))
+	if(oldTarget && (oldTarget.getObjPointer() != NULL)
+		&& (oldTarget.getObjPointer()->getOwner() == getOwner())
+		&& (oldTarget.getObjPointer()->getItemID() == Structure_Refinery))
 	{
-		((Refinery*)target.getObjPointer())->book();
+		((Refinery*)oldTarget.getObjPointer())->book();
 		returningToRefinery = true;
 	}
+}
+
+
+void Harvester::setTarget(const ObjectBase* newTarget)
+{
+
+	TrackedUnit::setTarget(newTarget);
 
 }
 
@@ -425,7 +455,7 @@ void Harvester::setReturned()
 
 	currentGameMap->removeObjectFromMap(getObjectID());
 
-	((Refinery*)target.getObjPointer())->assignHarvester(this);
+	((Refinery*)oldTarget.getObjPointer())->assignHarvester(this);
 
 	returningToRefinery = false;
 	moving = false;

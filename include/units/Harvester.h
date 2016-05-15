@@ -19,6 +19,7 @@
 #define HARVESTER_H
 
 #include <units/TrackedUnit.h>
+#include <structures/Refinery.h>
 
 class Harvester : public TrackedUnit
 {
@@ -33,6 +34,7 @@ public:
 
 	void blitToScreen();
 
+	Refinery* findRefinery();
 	void checkPos();
 	virtual void deploy(const Coord& newLocation);
 	void destroy();
@@ -58,6 +60,7 @@ public:
 	void setDestination(int newX, int newY);
     inline void setDestination(const Coord& location) { setDestination(location.x, location.y); }
 
+    void setFellow(const ObjectBase* newTarget);
 	void setTarget(const ObjectBase* newTarget);
 
 	bool canAttack(const ObjectBase* object) const;

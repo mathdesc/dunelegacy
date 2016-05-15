@@ -1,4 +1,9 @@
 To compile with c++11 capable toolchain
 =========
  Run ./configure CPPFLAGS="-std=c++11" --enable-debug
- 
+
+
+Other repos :
+
+https://github.com/katlogic/dunelegacy/commits/master
+https://github.com/thebohemian/dunelegacy-richiesbranch/commits/master 

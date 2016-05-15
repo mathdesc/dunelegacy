@@ -95,6 +95,7 @@ public:
 
 	void setObjectID(int newObjectID);
 
+	virtual void setFellow(const ObjectBase* newFellow);
 	virtual void setTarget(const ObjectBase* newTarget);
 	void setVisible(int team, bool status);
 
@@ -136,6 +137,7 @@ public:
 	inline bool canSalveAttack() const { return canSalveAttackStuff; }
 	inline bool canCapture() const { return canCaptureStuff; }
 	inline bool hasATarget() const { return (target); }
+	inline bool hasAFellow() const { return (oldTarget); }
 	inline bool hasObjectID(Uint32 id) const { return (objectID == id); }
 	inline bool isActive() const { return active; }
 	inline bool isAFlyingUnit() const { return aFlyingUnit; }
@@ -170,6 +172,8 @@ public:
 	inline float getRealY() const { return realY; }
 	inline const Coord& getLocation() const { return location; }
 	inline const Coord& getDestination() const { return destination; }
+	inline ObjectBase* getoldTarget() { return oldTarget.getObjPointer(); }
+	inline const ObjectBase* getoldTarget() const { return oldTarget.getObjPointer(); }
 	inline ObjectBase* getTarget() { return target.getObjPointer(); }
 	inline const ObjectBase* getTarget() const { return target.getObjPointer(); }
 
@@ -232,6 +236,7 @@ protected:
     bool            forced;         ///< Is this unit/structure forced to do what it currently does or did the micro-AI decide to do that?
     bool            targetFriendly; ///< Is the current target a friendly unit/structure to follow/move to instead to attack?
 	ObjectPointer   target;         ///< The target to attack or move to
+	ObjectPointer	oldTarget;      ///< A copy pointer of the target to attack or move to
 	ATTACKMODE      attackMode;     ///< The attack mode of this unit/structure
 
     bool    visible[NUM_HOUSES];   ///< To which houses is this unit visible?

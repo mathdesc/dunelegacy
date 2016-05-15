@@ -138,6 +138,7 @@ public:
 	Coord getCenterOfMainBase() const;
 
 	Coord getStrongestUnitPosition() const;
+	double getArmyMobility() const ;
 	double getArmyValue() const ;
 	ConstructionYard* findConstYard();
 

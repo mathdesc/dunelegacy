@@ -219,6 +219,13 @@ protected:
 	void doSetAttackMode(const UnitBase* pUnit, ATTACKMODE attackMode);
 
 	/**
+		Change the unit status : cancel moving/fellowing orders.
+		\param  pUnit           the unit to change attack mode of
+	*/
+	void doCancel(const UnitBase* pUnit);
+
+
+	/**
 		Start the devastation sequence of a devastator
 		\param  pDevastator the devastator to devastate
 	*/

@@ -96,6 +96,12 @@ public:
 	virtual void handleSetAttackModeClick(ATTACKMODE newAttackMode);
 
 	/**
+		This method is called when an unit is ordered to cancel given order (stop moving/fellowing)
+	*/
+	virtual void handleCancel();
+
+
+	/**
 		This method is called when an unit should move to (xPos,yPos)
 		\param	xPos	the x position on the map
 		\param	yPos	the y position on the map
@@ -166,7 +172,10 @@ public:
 		\param	newAttackMode	the new attack mode
 	*/
 	void doSetAttackMode(ATTACKMODE newAttackMode);
-
+	/**
+		This method is called when an unit should cancel giving order (stop moving/following)
+	*/
+	void doCancel();
     virtual void handleDamage(int damage, Uint32 damagerID, House* damagerOwner);
 
 	virtual void doRepair() { };
@@ -184,14 +193,25 @@ public:
 	bool isInAttackRange(const ObjectBase* object) const;
 
     /**
+        Is this object in a range we can follow.
+    */
+	bool isInFollowingRange() const;
+    /**
         Is this object in a range we can attack.
         \param  object  the object to check
     */
 	bool isInWeaponRange(const ObjectBase* object) const;
 
+    /**
+        Is this object is nearer than current target
+        \param  object  the object to check
+    */
+	bool isNearer(const ObjectBase* object) const ;
+
 	void setAngle(int newAngle);
 
 	virtual void setTarget(const ObjectBase* newTarget);
+	virtual ObjectBase* getFellow();
 	virtual void setFellow(const ObjectBase* newFellow);
 
 	void setGettingRepaired();
@@ -204,7 +224,9 @@ public:
 
 	inline void setLocation(const Coord& location) { setLocation(location.x, location.y); }
 
-	inline void setLeader(bool lead) { isGroupLeader = lead; }
+	inline void setLeader(bool lead) { isGroupLeader = lead ; }
+
+	inline bool isFollowing() { return (bFollow && oldTarget && oldTarget.getObjPointer() !=NULL);}
 
     inline void setDestination(int newX, int newY) {
         if((destination.x != newX) || (destination.y != newY)) {
@@ -286,7 +308,7 @@ protected:
 
     virtual void bumpyMovementOnRock(float fromDistanceX, float fromDistanceY, float toDistanceX, float toDistanceY);
 
-    virtual void fellow();
+    virtual void party();
 	virtual void navigate();
 
     /**
@@ -320,9 +342,7 @@ protected:
 	Coord	attackPos;              ///< The position to attack
     bool	goingToRepairYard;      ///< Are we currently going to a repair yard?
 	bool    pickedUp;               ///< Were we picked up by a carryall?
-    bool    bFollow;                ///< Do we currently follow some other unit (specified by target)?
-    ObjectPointer	oldTarget;      ///< A copy pointer of the target to attack or move to
-
+    bool    bFollow;                ///< Do we currently follow some other unit (specified by oldTarget)?
 
     bool	isGroupLeader;			///< Is this unit a group leader of unit selection
     bool    moving;                 ///< Are we currently moving?

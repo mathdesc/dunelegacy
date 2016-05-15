@@ -768,10 +768,11 @@ void Tile::selectAllPlayersUnits(int houseID, ObjectBase** lastCheckedObject, Ob
 	iterator.addList(assignedNonInfantryGroundObjectList);
 	iterator.addList(assignedUndergroundUnitList);
 	iterator.addList(assignedAirUnitList);
-
+	UnitBase* unit;
 
 	while(!iterator.isIterationFinished()) {
 		*lastCheckedObject = currentGame->getObjectManager().getObject(*iterator);
+		unit = dynamic_cast<UnitBase*>(currentGame->getObjectManager().getObject(*iterator));
 
 		if (((*lastCheckedObject)->getOwner()->getHouseID() == houseID)
 			&& !(*lastCheckedObject)->isSelected()
@@ -779,21 +780,38 @@ void Tile::selectAllPlayersUnits(int houseID, ObjectBase** lastCheckedObject, Ob
 			&& ((*lastCheckedObject)->isRespondable()))	{
 
 
-			if (groupLeader == NULL) {
-				groupLeader = *lastCheckedObject;
+			if (groupLeader == NULL && !unit->isFollowing()) {
 				currentGame->setGroupLeader (*lastCheckedObject);
+				groupLeader = *lastCheckedObject;
 				dynamic_cast<UnitBase*>(*lastCheckedObject)->setLeader(true);
-				err_print("Tile::selectAllPlayersUnits obj:%d Become group leader\n",(*lastCheckedObject)->getObjectID());
+				err_print("Tile::selectAllPlayersUnits obj:%d Become group leader (f:%s %d)\n",
+						(*lastCheckedObject)->getObjectID(), unit->isFollowing() ? "yes" : "no",
+								unit->isFollowing() ? unit->getFellow()->getItemID() : 0);
+			} else if (groupLeader == (unit)  ) {
+				if (!unit->isFollowing()) {
+					currentGame->setGroupLeader (*lastCheckedObject);
+					dynamic_cast<UnitBase*>(*lastCheckedObject)->setLeader(true);
+					groupLeader = *lastCheckedObject;
+					err_print("Tile::selectAllPlayersUnits obj:%d is group leader\n",(*lastCheckedObject)->getObjectID());
+				}
+				else {
+					err_print("Tile::selectAllPlayersUnits obj:%d a group leader CAN'T BE FOLLOWING\n",(*lastCheckedObject)->getObjectID());
+					dynamic_cast<UnitBase*>(*lastCheckedObject)->setLeader(false);
+					currentGame->setGroupLeader(NULL);
+				}
 			}
-			else dynamic_cast<UnitBase*>(*lastCheckedObject)->setLeader(false);
+			else {
+				dynamic_cast<UnitBase*>(*lastCheckedObject)->setLeader(false);
+			}
+
 
 			(*lastCheckedObject)->setSelected(true);
 			currentGame->getSelectedList().push_back((*lastCheckedObject)->getObjectID());
 
-
-			currentGame->getSelectedListCoord().push_back(std::make_pair<Uint32,Coord> ( (*lastCheckedObject)->getObjectID(), (*lastCheckedObject)->getLocation() - (groupLeader)->getLocation() ) );
-			err_print("Tile::selectAllPlayersUnits (o:%d) Obj:%d %d,%d \n",(groupLeader)->getObjectID(), (*lastCheckedObject)->getObjectID(),((*lastCheckedObject)->getLocation() - (groupLeader)->getLocation()).x , ((*lastCheckedObject)->getLocation() - (groupLeader)->getLocation()).y);
-
+			if (groupLeader != NULL) {
+				currentGame->getSelectedListCoord().push_back(std::make_pair<Uint32,Coord> ( (*lastCheckedObject)->getObjectID(), (*lastCheckedObject)->getLocation() - (groupLeader)->getLocation() ) );
+				err_print("Tile::selectAllPlayersUnits (o:%d) Obj:%d %d,%d \n",(groupLeader)->getObjectID(), (*lastCheckedObject)->getObjectID(),((*lastCheckedObject)->getLocation() - (groupLeader)->getLocation()).x , ((*lastCheckedObject)->getLocation() - (groupLeader)->getLocation()).y);
+			}
 
 			currentGame->selectionChanged();
 			*lastSelectedObject = *lastCheckedObject;
@@ -823,12 +841,28 @@ void Tile::selectAllPlayersUnitsOfType(int houseID, ObjectBase* lastSinglySelect
 			&& ((*lastCheckedObject)->getItemID() == itemid)
 			&& ( unit->isSalving() == sunit->isSalving() ) ) {
 
-			if (groupLeader == (*lastCheckedObject)) {
+			if (groupLeader == NULL && !unit->isFollowing()) {
 				currentGame->setGroupLeader (*lastCheckedObject);
 				dynamic_cast<UnitBase*>(*lastCheckedObject)->setLeader(true);
-				err_print("Tile::selectAllPlayersUnits obj:%d Become group leader\n",(*lastCheckedObject)->getObjectID());
+				groupLeader = *lastCheckedObject;
+				err_print("Tile::selectAllPlayersUnitsOfType obj:%d promoted to group leader\n",(*lastCheckedObject)->getObjectID());
+			} else if (groupLeader == (unit)  ) {
+					if (!unit->isFollowing()) {
+						currentGame->setGroupLeader (*lastCheckedObject);
+						dynamic_cast<UnitBase*>(*lastCheckedObject)->setLeader(true);
+						groupLeader = *lastCheckedObject;
+						err_print("Tile::selectAllPlayersUnitsOfType obj:%d is group leader\n",(*lastCheckedObject)->getObjectID());
+					}
+					else {
+						err_print("Tile::selectAllPlayersUnitsOfType obj:%d a group leader CAN'T BE FOLLOWING\n",(*lastCheckedObject)->getObjectID());
+						dynamic_cast<UnitBase*>(*lastCheckedObject)->setLeader(false);
+						currentGame->setGroupLeader(NULL);
+						// FIXME : can be finishing iteration and not having a leader !
+					}
 			}
-			else dynamic_cast<UnitBase*>(*lastCheckedObject)->setLeader(false);
+			else {
+				dynamic_cast<UnitBase*>(*lastCheckedObject)->setLeader(false);
+			}
 
 
 			(*lastCheckedObject)->setSelected(true);
@@ -842,6 +876,7 @@ void Tile::selectAllPlayersUnitsOfType(int houseID, ObjectBase* lastSinglySelect
 	}
 	//dbg_print("Tile::selectAllPlayersUnitsOfType size <%d,%d>\n",currentGame->getSelectedList().size(),currentGame->getSelectedListCoord().size());
 }
+
 
 
 void Tile::unassignAirUnit(Uint32 objectID) {

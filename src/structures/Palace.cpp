@@ -241,6 +241,11 @@ bool Palace::callFremen() {
 					pFremen->setDestination(closestUnit->getLocation());
 				}
 			}
+
+		    if(pFremen->getOwner() != pLocalHouse || true) {
+				currentGame->addToNewsTicker(_("@DUNE.ENG|79#Fremen is approaching"));
+		        soundPlayer->playVoice(FremenApproaching, pLocalHouse->getHouseID());
+			}
 		}
 
 		return true;
@@ -261,6 +266,9 @@ bool Palace::spawnSaboteur() {
 
 	if(getOwner()->isAI()) {
 		saboteur->doSetAttackMode(HUNT);
+	}
+
+    if(getOwner() != pLocalHouse) {
 		currentGame->addToNewsTicker(_("@DUNE.ENG|79#Saboteur is approaching"));
         soundPlayer->playVoice(SaboteurApproaching, pLocalHouse->getHouseID());
 	}

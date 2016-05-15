@@ -53,6 +53,7 @@ public:
 
 	void save(OutputStream& stream) const;
 
+	void setFellow(const ObjectBase* newTarget);
 	void setTarget(const ObjectBase* newTarget);
 
 	bool hasCargo() const {
@@ -84,7 +85,8 @@ public:
 
 protected:
 	void findConstYard();
-    void releaseTarget();
+    void releaseFellow();
+    void engageFollow();
 	void engageTarget();
 	void pickupTarget();
 	void targeting();

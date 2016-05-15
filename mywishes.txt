@@ -9,16 +9,12 @@ Should be calculated on a bid/offer free market system
 
 
 #27 Ornitopther Maneuvers
-Ornitopthers used to circle and strafe during attack, it is indeed wise and quite usefull for them to stay still before being ordered to attack, but once ordered to engage something, they standing still makes them way too vulnerable to enemy fire due to the fact they will not move at all while shooting.
+Ornitopthers used to circle and strafe during attack, it is indeed wise and quite usefull for them to stay still before being ordered to attack, 
+but once ordered to engage something, they standing still makes them way too vulnerable to enemy fire due to the fact they will not move at 
+all while shooting.
 
 
 #28-2  Waypoints for units
-
-
-#28-7 "Scatter key" for infantry (similar to Red Alert 2´s "X" key)
-
-#28-11 Hotkey S for all selected units to stop in their tracks
-Easy to do : consider the setDestination to here where you are.
 
 
 #30-8-1 Airlifting unit to repair and "back to the arena"
@@ -32,8 +28,8 @@ Ability to order a liftoff. Would be imbalanced as it is since carryall are to f
 In fact deviator damage is buggy, revamp it
 
 #30-5 Rally point indicator (just something to point out where it is; it could be similar to the one on Dune Dynasty)
-And a retreat fonction, based on damage purcentage it can take before retreating 
-Also have and rally point indicator for production structures
+And a retreat fonction, based on damage purcentage it can take before retreating (need to do)
+Also have and rally point indicator for production structures (already done)
 
 #30-4- The ability to create more than one Wall tile when placing Wall tiles
 50% Transparent construction site picture backend by a stack of production
@@ -54,6 +50,9 @@ https://code.google.com/p/hqx/
 
 
 #36 Custom game on random map
-Currently, custom games (or multiplayer) can be played only on predesigned scenarios, though a random map generator already exists in the level editor. You can generate a map with the level editor, save it and then load it as scenario, but generating a temporary map directly in the custom game screen with a click would be much better
+Currently, custom games (or multiplayer) can be played only on predesigned scenarios, 
+though a random map generator already exists in the level editor. 
+You can generate a map with the level editor, save it and then load it as scenario, 
+but generating a temporary map directly in the custom game screen with a click would be much better
 
 

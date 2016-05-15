@@ -139,8 +139,8 @@ bool Refinery::deployHarvester(Carryall* pCarryall) {
 				pHarvester->doSetAttackMode(STOP);
 			deployed = true;
 		} else if(pCarryall != NULL) {
+			pCarryall->setFellow(NULL);
 			pCarryall->giveCargo(pHarvester);
-			pCarryall->setTarget(NULL);
 			pCarryall->setDestination(pHarvester->getGuardPoint());
 			pCarryall->setDeployPos(pHarvester->getGuardPoint());
 			pCarryall->setFallbackPos(currentGameMap->findDeploySpot(pHarvester, location, pHarvester->getGuardPoint(), structureSize));
@@ -217,10 +217,10 @@ void Refinery::updateStructureSpecificStuff() {
             }
 
             if(pCarryall != NULL) {
-                pCarryall->setTarget(this);
+                pCarryall->setFellow(this);
                 pCarryall->clearPath();
                 pHarvester->bookCarrier(pCarryall);
-                pHarvester->setTarget(NULL);
+                pHarvester->setFellow(NULL);
                 pHarvester->setDestination(pHarvester->getGuardPoint());
             } else {
                 deployHarvester();

@@ -44,6 +44,7 @@ public:
 	void setPickedUp(UnitBase* newCarrier);
 
 	virtual void doRepair();
+	void handleRepairClick();
 
 	inline void setAwaitingPickup(bool status) { awaitingPickup = status; }
 	inline bool isAwaitingPickup() const { return awaitingPickup; }
