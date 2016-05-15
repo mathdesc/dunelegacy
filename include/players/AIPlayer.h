@@ -51,12 +51,12 @@ public:
         return new AIPlayer(stream, associatedHouse);
 	}
 
+
 private:
 	AIPlayer(House* associatedHouse, std::string playername, Uint8 difficulty);
 	AIPlayer(InputStream& stream, House* associatedHouse);
 
-    void scrambleUnitsAndDefend(const ObjectBase* pIntruder);
-     void scrambleUnitsAndDefend(const ObjectBase* pIntruder, Uint8 number);
+     void scrambleUnitsAndDefend(const ObjectBase* pIntruder, Uint8 number = 3);
      void scrambleUnitsAndDefendFromWorm(const ObjectBase* pIntruder, Uint8 number);
 
 	Coord findPlaceLocation(Uint32 itemID);
@@ -65,6 +65,8 @@ private:
 
 	void checkAllUnits();
 	void build();
+	Coord mentatAnalysis_AttackVector(ObjectBase* target = NULL);
+	bool mentatAnalysis();
 	void attack();
 
 	bool isAllowedToArm() const;

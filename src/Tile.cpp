@@ -462,6 +462,121 @@ void Tile::blitAirUnits(int xPos, int yPos) {
 	}
 }
 
+void Tile::drawFindTarget(ObjectBase* obj, Uint32 color) {
+
+	// XXX
+
+
+
+
+	int x,y;
+
+	x  = screenborder->world2screenX((obj->getLocation().x*TILESIZE));
+	y  = screenborder->world2screenY((obj->getLocation().y*TILESIZE));
+
+
+	int zoomedTileSize = world2zoomedWorld(TILESIZE);
+	//int fogTile = pTile->getFogTile(pLocalHouse->getHouseID());
+	//int fogTile = Terrain_HiddenFull;
+	int fogTile = Terrain_HiddenIsland;
+
+
+	 SDL_Rect source = { fogTile*zoomedTileSize, 0,
+						zoomedTileSize, zoomedTileSize };
+	SDL_Rect drawLocation = {   x, y,
+								zoomedTileSize, zoomedTileSize };
+
+	SDL_Rect mini = {0, 0, 1, 1};
+
+
+	/*
+	SDL_Rect source2 ;
+
+	if (obj->isAUnit())
+		source2 = { obj->getDrawnAngle() * obj->getGraphic()[currentZoomlevel]->w/obj->getNumImagesX(), 0, world2zoomedWorld(TILESIZE), world2zoomedWorld(TILESIZE)};
+	else
+		source2 = { 0, 0, world2zoomedWorld(TILESIZE), world2zoomedWorld(TILESIZE)};
+	*/
+
+	SDL_Rect drawLoc = {drawLocation.x, drawLocation.y, 0, 0};
+
+
+
+
+
+	int objcolor;
+
+	switch ((obj->getOwner())->getHouseID())
+	{
+		case HOUSE_HARKONNEN:
+			objcolor = COLOR_HARKONNEN;
+			break;
+		case HOUSE_ATREIDES:
+			objcolor = COLOR_ATREIDES;
+			break;
+		case HOUSE_ORDOS:
+			objcolor = COLOR_ORDOS;
+			break;
+		case HOUSE_FREMEN:
+			objcolor = COLOR_FREMEN;
+			break;
+		case HOUSE_SARDAUKAR:
+			objcolor = COLOR_SARDAUKAR;
+			break;
+		case HOUSE_MERCENARY:
+			objcolor = COLOR_MERCENARY;
+			break;
+		default:
+			objcolor = 12;
+			break;
+	}
+
+
+	color = COLOR_LIGHTRED;
+	SDL_Surface** hiddenSurf = pGFXManager->getObjPic(ObjPic_Terrain_Hidden);
+
+	SDL_Surface* fogSurf = // obj->getGraphic()[currentZoomlevel] ;
+			pGFXManager->getTransparent150Surface();
+
+				//mapSurfaceColorRange(obj->getGraphic()[currentZoomlevel],objcolor, color);
+
+
+	//mapSurfaceColorRange(resolveItemPicture(obj->getItemID(),(HOUSETYPE)(obj->getOwner())->getHouseID()),objcolor , color);
+
+
+
+   // fogSurf = mapSurfaceColorRange(fogSurf, objcolor, color);
+  //  replaceColor(*hiddenSurf, objcolor, objcolor << 8);
+
+
+	if(!SDL_MUSTLOCK(screen) || (SDL_LockSurface(screen) == 0)) {
+		SDL_LockSurface(hiddenSurf[currentZoomlevel]);
+
+	for(int i=0;i<zoomedTileSize; i++) {
+		for(int j=0;j<zoomedTileSize; j++) {
+			if(getPixel(hiddenSurf[currentZoomlevel],source.x+i,source.y+j) == 12 ) {
+				drawLoc.x = drawLocation.x + i;
+				drawLoc.y = drawLocation.y + j;
+				//fogSurf = mapSurfaceColorRange(fogSurf, 12, color);
+				SDL_BlitSurface(fogSurf,&mini,screen,&drawLoc);
+			}
+		}
+	}
+
+			//SDL_BlitSurface(fogSurf,&source2,screen,&drawLoc);
+
+
+
+		SDL_UnlockSurface(hiddenSurf[currentZoomlevel]);
+	}
+
+
+	if(SDL_MUSTLOCK(screen)) {
+		SDL_UnlockSurface(screen);
+	}
+
+
+}
 
 void Tile::drawRallyPoint(ObjectBase* obj, Uint32 color, Coord size) {
 
@@ -754,14 +869,27 @@ void Tile::unassignObject(Uint32 objectID) {
 }
 
 
-void Tile::setType(int newType) {
+void Tile::setType(int newType, bool resetSpice) {
 	type = newType;
 	destroyedStructureTile = DestroyedStructure_None;
 
 	if (type == Terrain_Spice) {
-		spice = currentGame->randomGen.rand(RANDOMSPICEMIN, RANDOMSPICEMAX);
+		if (!resetSpice) {
+			float oldspice=spice;
+			spice += currentGame->randomGen.rand(RANDOMSPICEMIN, RANDOMSPICEMAX);
+			dbg_print("Tile::setType spice %0.1f %0.1f _\n",oldspice,spice);
+			if (spice > RANDOMSPICEMAX) {
+				type = Terrain_ThickSpice;
+			}
+		} else {
+			spice = currentGame->randomGen.rand(RANDOMSPICEMIN, RANDOMSPICEMAX);
+		}
 	} else if (type == Terrain_ThickSpice) {
-		spice = currentGame->randomGen.rand(RANDOMTHICKSPICEMIN, RANDOMTHICKSPICEMAX);
+		if (!resetSpice) {
+			spice += currentGame->randomGen.rand(RANDOMTHICKSPICEMIN, RANDOMTHICKSPICEMAX);
+		} else {
+			spice = currentGame->randomGen.rand(RANDOMTHICKSPICEMIN, RANDOMTHICKSPICEMAX);
+		}
 	} else if (type == Terrain_Dunes) {
 	} else {
 		spice = 0;
@@ -989,7 +1117,7 @@ void Tile::triggerSpiceBloom(House* pTrigger) {
         }
 
         setType(Terrain_Spice); // Set this tile to spice first
-        currentGameMap->createSpiceField(location, 5);
+        currentGameMap->createSpiceField(location, 5,false,true,true);
 
         Coord realLocation = location*TILESIZE + Coord(TILESIZE/2, TILESIZE/2);
 

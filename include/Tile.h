@@ -298,6 +298,7 @@ public:
 	void blitSelectionRects(int xPos, int yPos);
 
 
+	void drawFindTarget(ObjectBase* obj, Uint32 color);
     /**
         This method draws the rally point for structure
         \param structure the object object pointer to draw rally point from
@@ -349,7 +350,7 @@ public:
 	void unassignObject(Uint32 objectID);
 	void unassignInfantry(Uint32 objectID, int currentPosition);
 	void unassignUndergroundUnit(Uint32 objectID);
-	void setType(int newType);
+	void setType(int newType, bool resetSpice = true);
 	void squash();
 	int getInfantryTeam();
 	float harvestSpice();

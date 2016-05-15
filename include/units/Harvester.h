@@ -46,6 +46,11 @@ public:
     */
 	void doReturn();
 
+    /**
+        Order this harvester to re-deploy.
+    */
+	void doDeploy(Coord location);
+
 	void move();
 	void setAmountOfSpice(float newSpice);
 	void setReturned();
@@ -63,6 +68,7 @@ public:
 	inline float getAmountOfSpice() const { return spice; }
 	inline bool isReturning() const { return returningToRefinery; }
 	bool isHarvesting() const;
+	bool isIdle() const;
 
 	float   currentMaxSpeed;    ///< The current maximum allowed speed
 

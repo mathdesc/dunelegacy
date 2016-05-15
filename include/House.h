@@ -121,6 +121,11 @@ public:
 
     void informWasBuilt(Uint32 itemID);
 	void informHasKilled(Uint32 itemID);
+	void informRepairStops();
+	void informRepairBegins();
+
+	inline bool isRepairOnDuty() const { return (!repairOpsHalted); }
+
 
 	void lose(bool bSilent = false);
 	void win();
@@ -133,8 +138,12 @@ public:
 	Coord getCenterOfMainBase() const;
 
 	Coord getStrongestUnitPosition() const;
+	double getArmyValue() const ;
+	ConstructionYard* findConstYard();
 
 	const std::list<std::shared_ptr<Player> >& getPlayerList() const { return players; };
+
+	Uint8 allocateSquadSize(ObjectBase* requester, Uint32 damagerID);
 
 protected:
 	void decrementHarvesters();
@@ -163,6 +172,8 @@ protected:
     Choam   choam;          ///< the things that are deliverable at the starport
 
     int powerUsageTimer;    ///< every N ticks you have to pay for your power usage
+
+    bool repairOpsHalted;	///< on credit lack, repair operations stops
 
     // statistic
     int unitBuiltValue;

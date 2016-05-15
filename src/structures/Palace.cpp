@@ -68,7 +68,12 @@ void Palace::init() {
 	numImagesY = 1;
 	firstAnimFrame = 2;
 	lastAnimFrame = 3;
-	unitproducer = true;
+
+	canAttackStuff = true;
+
+	if (owner->getHouseID() == HOUSE_ORDOS)
+		unitproducer = true;
+	else unitproducer = false;
 }
 
 Palace::~Palace() {
@@ -173,7 +178,7 @@ void Palace::updateStructureSpecificStuff() {
                     // Harkonnen and Sardaukar
                     const StructureBase* closestStructure = findClosestTargetStructure();
                     if(closestStructure) {
-                        Coord temp = closestStructure->getClosestPoint(getLocation());
+                        Coord temp = closestStructure->getClosestPoint(closestStructure->getLocation());
                         doLaunchDeathhand(temp.x, temp.y);
                     }
                 } else {

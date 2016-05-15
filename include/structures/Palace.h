@@ -61,7 +61,7 @@ public:
 
 	inline void setSpecialWeaponReady() { specialWeaponTimer = 0; nuclearday=true;}
 	inline bool isSpecialWeaponReady() const { return (specialWeaponTimer == 0 || nuclearday); }
-	inline int getSpecialWeaponTimer() const { return nuclearday ? 0 : specialWeaponTimer; }
+	inline int getSpecialWeaponTimer() const { return specialWeaponTimer; }
 	inline int getMaxSpecialWeaponTimer() const {
 	    if(originalHouseID == HOUSE_HARKONNEN || originalHouseID == HOUSE_SARDAUKAR) {
 	        // 10 min

@@ -164,6 +164,8 @@ public:
     int getWeaponReloadTime() const;
     int getInfSpawnProp() const;
 
+    inline ATTACKMODE getAttackMode() const { return attackMode; } ;
+
 	inline float getRealX() const { return realX; }
 	inline float getRealY() const { return realY; }
 	inline const Coord& getLocation() const { return location; }
@@ -177,6 +179,11 @@ public:
 	inline const House* getOwner() const { return owner; }
 
 	inline void setOwner(House* no) { owner = no; }
+	inline SDL_Surface** getGraphic() { return graphic; }
+	inline int getGraphicID() { return graphicID; }
+	inline Sint8 getDrawnAngle() { return drawnAngle; }
+	inline int getNumImagesX() { return numImagesX; }
+
 
 	static ObjectBase* createObject(int itemID,House* Owner, Uint32 objectID = NONE);
 	static ObjectBase* loadObject(InputStream& stream, int itemID, Uint32 objectID);

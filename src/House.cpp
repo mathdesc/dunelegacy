@@ -115,7 +115,7 @@ void House::init() {
 	for(int i=0;i<Num_ItemID;i++) {
         numItem[i] = 0;
 	}
-
+	repairOpsHalted = false;
 	capacity = 0;
 	powerRequirement = 0;
 }
@@ -406,6 +406,7 @@ void House::noteDamageLocation(ObjectBase* pObject, int damage, Uint32 damagerID
     for(iter = players.begin(); iter != players.end(); ++iter) {
         (*iter)->onDamage(pObject, damage, damagerID);
     }
+    ///  TODO : Add a callback in a vector to recall the location
 }
 
 
@@ -438,7 +439,25 @@ void House::informHasKilled(Uint32 itemID) {
     }
 }
 
+/**
+    This method informs this house that repair operations has stopped due to lack of credits
+*/
+void House::informRepairStops() {
+		repairOpsHalted = true;
+		if (pLocalHouse->getHouseID() == houseID) {
+		 currentGame->addUrgentMessageToNewsTicker("Repair stops due to lack of credits !");
+		}
+}
 
+/**
+    This method informs this house that repair operations has begin
+*/
+void House::informRepairBegins() {
+		repairOpsHalted = false;
+		if (pLocalHouse->getHouseID() == houseID) {
+		 currentGame->addUrgentMessageToNewsTicker("Repair begins");
+		}
+}
 
 
 void House::win() {
@@ -781,8 +800,51 @@ Coord House::getStrongestUnitPosition() const {
     return position;
 }
 
+/**
+    This method returns the value of an army
+    \return the credit value of the army
+*/
+double House::getArmyValue() const {
+    Coord position = Coord::Invalid();
+    double totalCost = 0;
+    Uint32 itemID;
+    RobustList<UnitBase*>::const_iterator iter;
+    for(iter = unitList.begin(); iter != unitList.end(); ++iter) {
+        UnitBase* tempUnit = *iter;
+        itemID = tempUnit->getItemID();
+
+        bool eval_mask = (itemID != Unit_Harvester)  && (itemID != Unit_Carryall) && (itemID != Unit_Frigate) && (itemID != Unit_Saboteur) && (itemID != Unit_Sandworm) && (itemID != Unit_MCV) ;
+
+        if(tempUnit->getOwner() == this && eval_mask) {
+             totalCost+= currentGame->objectData.data[tempUnit->getItemID()][houseID].price;
+        }
+    }
+
+    return totalCost;
+}
 
 
+ConstructionYard* House::findConstYard() {
+    float	closestYardDistance = std::numeric_limits<float>::infinity();;
+    ConstructionYard* bestYard = NULL;
+
+    RobustList<StructureBase*>::const_iterator iter;
+    for(iter = structureList.begin(); iter != structureList.end(); ++iter) {
+        StructureBase* tempStructure = *iter;
+
+        if((tempStructure->getItemID() == Structure_ConstructionYard) && (tempStructure->getOwner()->getHouseID() == houseID)) {
+            ConstructionYard* tempYard = ((ConstructionYard*) tempStructure);
+            Coord closestPoint = tempYard->getClosestPoint(tempYard->getLocation());
+            float tempDistance = distanceFrom(getCenterOfMainBase(), closestPoint);
+
+            if(tempDistance < closestYardDistance) {
+                closestYardDistance = tempDistance;
+                bestYard = tempYard;
+            }
+        }
+    }
+   return  bestYard;
+}
 
 void House::decrementHarvesters() {
     numItem[Unit_Harvester]--;
@@ -819,3 +881,14 @@ void House::decrementHarvesters() {
         }
     }
 }
+
+
+Uint8 House::allocateSquadSize(ObjectBase* requester, Uint32 damagerID) {
+	if ( getNumUnits()/10 > 20)
+		return (Uint8) 20;
+	else
+		return (Uint8) getNumUnits()/10;
+}
+
+
+

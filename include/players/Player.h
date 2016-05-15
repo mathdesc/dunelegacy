@@ -61,7 +61,7 @@ public:
     */
     virtual void onDamage(const ObjectBase* pObject, int damage, Uint32 damagerID) { };
 
-    const House* getHouse() const { return pHouse; };
+    House* getHouse() const { return pHouse; };
     Uint8 getPlayerID() const { return playerID; };
 
     std::string getPlayername() const { return playername; };
@@ -228,6 +228,12 @@ protected:
 		\param  pHarvester the harvester to return
 	*/
 	void doReturn(const Harvester* pHarvester);
+
+	/**
+		Orders pHarvester to deploy to a spice field
+		\param  pHarvester the harvester to deploy
+	*/
+	void doDeploy(const Harvester* pHarvester, Coord location);
 
 	/**
 		The infantry unit pInfantry shall capture pTargetStructure

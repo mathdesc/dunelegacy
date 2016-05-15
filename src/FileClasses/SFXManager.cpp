@@ -187,6 +187,12 @@ void SFXManager::loadEnglishVoice() {
 		Mix_Chunk* RadarDeactivatedChunk = getChunkFromFile(HouseString + "OFF.VOC");
 		lngVoice[RadarActivated*NUM_HOUSES+VoiceNum] = concat2Chunks(RadarChunk, RadarActivatedChunk);
 		lngVoice[RadarDeactivated*NUM_HOUSES+VoiceNum] = concat2Chunks(RadarChunk, RadarDeactivatedChunk);
+
+		// "repaired deactivated"
+		Mix_Chunk* Repaired2 = getChunkFromFile(HouseString + "REPAIR.VOC");
+		lngVoice[RepairActivated*NUM_HOUSES+VoiceNum] = concat2Chunks(Repaired2, RadarActivatedChunk);
+		lngVoice[RepairDeactivated*NUM_HOUSES+VoiceNum] = concat2Chunks(Repaired2, RadarDeactivatedChunk);
+		Mix_FreeChunk(Repaired2);
 		Mix_FreeChunk(RadarChunk);
 		Mix_FreeChunk(RadarActivatedChunk);
 		Mix_FreeChunk(RadarDeactivatedChunk);

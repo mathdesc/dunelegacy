@@ -906,24 +906,53 @@ void Map::viewMap(int playerTeam, const Coord& location, int maxViewRange) {
     \param  location            the location in tile coordinates
     \param  radius              the radius in tiles (0 = only one tile is filled)
     \param  centerIsThickSpice  if set the center is filled with thick spice
+    \param  nobloom				if set inssure no Spicebloom could be created
+    \return totalSpiceAllocated the number of spice allocated
 */
-void Map::createSpiceField(Coord location, int radius, bool centerIsThickSpice) {
+float Map::createSpiceField(Coord location, int radius, bool centerIsThickSpice, bool noBloom, bool noSpiceTrim) {
     Coord offset;
+    float totalSpiceAllocated = 0;
     for(offset.x = -radius; offset.x <= radius; offset.x++) {
         for(offset.y = -radius; offset.y <= radius; offset.y++) {
             if(currentGameMap->tileExists(location + offset)) {
                 Tile* pTile = currentGameMap->getTile(location + offset);
 
-                if(pTile->isSand() && (distanceFrom(location, location + offset) <= radius)) {
-                    if(centerIsThickSpice && (offset.x == 0) && (offset.y == 0)) {
-                        pTile->setType(Terrain_ThickSpice);
+                if((pTile->isSand() || pTile->isSpice() || pTile->isThickSpice() ) && (distanceFrom(location, location + offset) <= radius)) {
+                    if(centerIsThickSpice && (distanceFrom(location, location + offset) <= radius/5)) {
+                    	 if (currentGame->randomGen.rand(1,10) <= 8) {
+                    		 pTile->setType(Terrain_ThickSpice,false);
+                    		 currentGameMap->spiceRemoved(pTile->location+offset);
+                    		 if (!noBloom && currentGame->randomGen.rand(1,30) <= 1)
+                    			 pTile->setType(Terrain_SpiceBloom);
+                    	 }
+                    	 else  pTile->setType(Terrain_Spice,false);
                     } else {
-                        pTile->setType(Terrain_Spice);
+                    	 // distribute spice a bit naturally
+                    	 if ((distanceFrom(location, location + offset) > radius-2) ) {
+                    		 // trim a bit spice on radius asif already harvested
+                    		 if ( (currentGameMap->tileExists(location - offset) && currentGameMap->getTile(location - offset)->getType() == Terrain_Spice) ||
+								  (currentGameMap->tileExists(location + offset) && currentGameMap->getTile(location + offset)->getType() == Terrain_Spice) )
+							 {
+                    			 if (!noSpiceTrim && currentGame->randomGen.rand(1,20) <= 5) {
+                    				 pTile->setType(Terrain_Sand);
+                    			 }
+                    		 } else if (currentGame->randomGen.rand(1,20) <= 18) {
+                    			 pTile->setType(Terrain_Spice,false);
+                    		 } else {
+                        		 if (!noBloom && currentGame->randomGen.rand(1,20) <= 1)
+                        			 pTile->setType(Terrain_SpiceBloom);
+                    		 }
+                    	 } else {
+                    		 pTile->setType(Terrain_Spice,false);
+                    	 }
                     }
                 }
+                totalSpiceAllocated += pTile->getSpiceRemaining();
+
             }
         }
     }
+    return totalSpiceAllocated;
 }
 
 

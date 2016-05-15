@@ -364,6 +364,23 @@ void Harvester::doReturn()
         setGuardPoint(Coord::Invalid());
 	}
 }
+void Harvester::doDeploy(Coord location)
+{
+	if(currentGameMap->tileExists(location)) {
+		UnitBase::deploy(location);
+
+			if( currentGameMap->findSpice(destination, guardPoint)) {
+				harvestingMode = true;
+				guardPoint = destination;
+				attackMode = GUARD;
+			} else {
+				harvestingMode = false;
+			}
+
+	}
+
+}
+
 
 void Harvester::setAmountOfSpice(float newSpice)
 {
@@ -457,6 +474,11 @@ void Harvester::move()
 		}
 	}
 }
+
+bool Harvester::isIdle() const {
+	return !isHarvesting() && !returningToRefinery && !moving && respondable && !target && attackMode !=STOP;
+}
+
 
 bool Harvester::isHarvesting() const {
     return harvestingMode && (blockDistance(location, destination) <= DIAGONALCOST) && currentGameMap->tileExists(location) && currentGameMap->getTile(location)->hasSpice();

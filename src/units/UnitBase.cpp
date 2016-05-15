@@ -1385,12 +1385,13 @@ void UnitBase::setTarget(const ObjectBase* newTarget) {
 void UnitBase::targeting() {
     if(findTargetTimer == 0) {
 
-    	if (this->isSelected()) err_relax_print("UnitBase::targeting AreaGuardRange:%d salving:%s notarget:%s(%d) noattackpos:%s notmoving:%s notjuststopped:%s notforced:%s guardpoint:[%d,%d]\n", getAreaGuardRange(), salving ? "yes" : "no",!target ? "y" : "n", target.getObjectID(),
-    			!attackPos ? "y" : "n", !moving ? "y" : "n", !justStoppedMoving ? "y" : "n", !forced ? "y" : "n", guardPoint.x ,guardPoint.y);
+    	if (this->isSelected()) err_relax_print("UnitBase::targeting AreaGuardRange:%d salving:%s notarget:%s(%d) noattackpos:%s notmoving:%s notjuststopped:%s notforced:%s guardpoint:[%d,%d] isidle:%s attackmode=%s\n", getAreaGuardRange(), salving ? "yes" : "no",!target ? "y" : "n", target.getObjectID(),
+    			!attackPos ? "y" : "n", !moving ? "y" : "n", !justStoppedMoving ? "y" : "n", !forced ? "y" : "n", guardPoint.x ,guardPoint.y, ((Harvester*)this)->isIdle() ? "y" : "n", getAttackModeNameByMode(attackMode).c_str());
 
         if(attackMode != STOP) {
-            if(!target && !attackPos && !moving && !justStoppedMoving && !forced) {
+            if(!target && ( (!attackPos || attackPos.isInvalid() || !isSalving()) ) && !moving && !justStoppedMoving && !forced) {
                 // we have no target, we have stopped moving and we weren't forced to do anything else
+            	attackPos.invalidate();
 
                 const ObjectBase* pNewTarget = findTarget();
 

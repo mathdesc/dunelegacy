@@ -57,7 +57,7 @@ public:
 	int getPosAngle(const Coord& source, const Coord& pos) const;
 	Coord findClosestEdgePoint(const Coord& origin, const Coord& buildingSize) const;
 	Coord findDeploySpot(UnitBase* pUnit, const Coord origin, const Coord gatherPoint = Coord::Invalid(), const Coord buildingSize = Coord(0,0)) const;//building size is num squares
-	void createSpiceField(Coord location, int radius, bool centerIsThickSpice = false);
+	float createSpiceField(Coord location, int radius, bool centerIsThickSpice = false, bool nobloom = false, bool noSpiceTrim = false);
 	ObjectBase* findGroupLeader();
 
     inline Sint32 getSizeX() const {

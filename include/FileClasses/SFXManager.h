@@ -54,6 +54,8 @@ typedef enum {
     Three,
     Two,
     One,
+    RepairDeactivated,
+    RepairActivated,
 	NUM_VOICE
 } Voice_enum;
 

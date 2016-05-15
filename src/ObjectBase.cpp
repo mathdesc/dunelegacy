@@ -437,6 +437,10 @@ const UnitBase* ObjectBase::findClosestTargetUnit() const {
 			Coord closestPoint = tempUnit->getClosestPoint(getLocation());
 			float unitDistance = blockDistance(getLocation(), closestPoint);
 
+			if(tempUnit->getItemID() == Unit_Sandworm) {
+				unitDistance += 400.0f; //so that worms are targeted last
+			}
+
 			if(unitDistance < closestDistance) {
                 closestDistance = unitDistance;
 				closestUnit = tempUnit;
@@ -489,6 +493,7 @@ const ObjectBase* ObjectBase::findClosestTarget() const {
 	return closestObject;
 }
 
+
 const ObjectBase* ObjectBase::findTarget() const {
  	ObjectBase	*tempTarget,
 				*closestTarget = NULL;
@@ -526,17 +531,16 @@ const ObjectBase* ObjectBase::findTarget() const {
 
         case HUNT: {
             // check whole map
-            return findClosestTarget();
+            const ObjectBase* closestUnit = findClosestTargetUnit();
+            if (closestUnit == NULL)
+            	 return findClosestTarget();
+            else return closestUnit;
         } break;
 
         case STOP:
         default: {
             return NULL;
         } break;
-    }
-
-    if(getItemID() == Unit_Sandworm) {
-        checkRange = getViewRange()*2;
     }
 
 	int xCheck = xPos - checkRange;
@@ -553,46 +557,67 @@ const ObjectBase* ObjectBase::findTarget() const {
 		}
 
 		while((yCheck < currentGameMap->getSizeY()) && ((yCheck - yPos) <=  lookDist[abs(xCheck - xPos)])) {
+
+
 			if(currentGameMap->getTile(xCheck,yCheck)->hasAnObject()) {
 				tempTarget = currentGameMap->getTile(xCheck,yCheck)->getObject();
-				//if (this->isSelected()) err_print("ObjectBase::findTarget %d\n",tempTarget->getObjectID());
-
-				tTID = tempTarget->getItemID();
-				base_logic =  ((closestTarget == NULL) && canAttack(tempTarget));
-				prevent_wall = ((tTID != Structure_Wall) && base_logic );
-				no_caryall = ((tTID != Unit_Carryall) && base_logic);
-				// FIXME : Launcher become very daring becomes of these logics & its high guard-radius
-
-
-				if( (prevent_wall && no_caryall) ) {
+				  if (canAttack(tempTarget)) {
 					float targetDistance = blockDistance(location, tempTarget->getLocation());
-					agg_Distance += targetDistance ;
-					avg_Distance = (float)agg_Distance / count;
+					tTID = tempTarget->getItemID();
+
+					prevent_wall = ( (tTID != Structure_Wall) );
+					no_caryall = ( (tTID != Unit_Carryall) );
+
+					if (tTID == Structure_Wall || tTID == Unit_Carryall )
+						targetDistance *= 10;
 
 
-					if ( (tempTarget->getTarget() == this && targetDistance <= avg_Distance)) {
+					if( isAUnit() ) {
+						agg_Distance += targetDistance ;
+						avg_Distance = (float)agg_Distance / count;
+
+						// Retaliate on personnel attacker first
+						if ( (tempTarget->getTarget() == this && targetDistance <= avg_Distance)) {
+								closestTarget = tempTarget;
+								closestDistance = targetDistance;
+							//	if (this->isSelected()) err_print("ObjectBase::findTarget retaliate on %d\n",closestTarget->getObjectID());
+								// This vengence is in plain sight, target is found, period
+								if (targetDistance <= getViewRange())
+									return closestTarget;
+
+						}
+
+						if (targetDistance < closestDistance) {
 							closestTarget = tempTarget;
 							closestDistance = targetDistance;
-							if (this->isSelected()) err_print("ObjectBase::findTarget retaliate on %d\n",closestTarget->getObjectID());
+						}
+					} else {
+
+						float targetDistance = blockDistance(location, tempTarget->getLocation());
+						if (targetDistance < closestDistance) {
+
+							closestTarget = tempTarget;
+							closestDistance = targetDistance;
+						}
 					}
 
-					else if (targetDistance < closestDistance) {
-						closestTarget = tempTarget;
-						closestDistance = targetDistance;
-					}
-				}
+				} /* canAttack(tempTarget) */
+
 			}
-
 			yCheck++;
 		}
-
 		xCheck++;
 	}
 
+
+	if (closestTarget == this) {
+//		if (this->isSelected()) err_print("ObjectBase::findTarget bogus is self ! %d\n",closestTarget->getObjectID());
+	}
+
 	if (closestTarget !=NULL) {
-		if (this->isSelected()) err_print("ObjectBase::findTarget finally is %d\n",closestTarget->getObjectID());
+//		if (this->isSelected()) err_print("ObjectBase::findTarget finally is %d\n",closestTarget->getObjectID());
 	} else {
-		if (this->isSelected()) err_print("ObjectBase::findTarget finally NOONE\n");
+//		if (this->isSelected()) err_print("ObjectBase::findTarget finally NOONE\n");
 	}
 
 	return closestTarget;

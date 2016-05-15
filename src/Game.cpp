@@ -82,6 +82,7 @@ Game::Game() {
     currentCursorMode = CursorMode_Normal;
 
 	chatMode = false;
+	drawFindTarget = false;
 	scrollDownMode = false;
 	scrollLeftMode = false;
 	scrollRightMode = false;
@@ -529,6 +530,109 @@ void Game::drawScreen()
 		}
 	}
 
+
+/////////////draw findTarget positions
+
+
+
+	if (drawFindTarget) {
+	  std::list<Uint32>::iterator iter;
+		for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
+			ObjectBase *obj = objectManager.getObject(*iter);
+
+			if (obj->isSelected()) {
+				int xPos = obj->getLocation().x;
+				int yPos = obj->getLocation().y;
+				int checkRange;
+
+				switch(obj->getAttackMode()) {
+					case GUARD: {
+						checkRange = obj->getWeaponRange();
+					} break;
+
+					case AREAGUARD: {
+						checkRange = obj->getAreaGuardRange();
+					} break;
+
+					case AMBUSH: {
+						checkRange = obj->getViewRange();
+					} break;
+
+					case HUNT: {
+						// check whole map
+					   checkRange = obj->getAreaGuardRange() * 10;
+					} break;
+
+					case STOP:
+					default: {
+						checkRange = -1;
+					} break;
+				}
+
+
+				ObjectBase* tempTarget, *closestTarget = NULL;
+				float closestDistance = INFINITY;
+
+				int xCheck = xPos - checkRange;
+
+					if(xCheck < 0) {
+						xCheck = 0;
+					}
+
+					while((xCheck < currentGameMap->getSizeX()) && ((xCheck - xPos) <= checkRange)) {
+						int yCheck = (yPos - lookDist[abs(xCheck - xPos)]);
+
+						if(yCheck < 0) {
+							yCheck = 0;
+						}
+
+						while((yCheck < currentGameMap->getSizeY()) && ((yCheck - yPos) <=  lookDist[abs(xCheck - xPos)])) {
+
+
+							if(currentGameMap->getTile(xCheck,yCheck)->hasAnObject()) {
+								tempTarget = currentGameMap->getTile(xCheck,yCheck)->getObject();
+								  if (obj->canAttack(tempTarget)) {
+									float targetDistance = blockDistance(obj->getLocation(), tempTarget->getLocation());
+									int tTID = tempTarget->getItemID();
+
+
+									if (tTID == Structure_Wall || tTID == Unit_Carryall )
+										targetDistance *= 10;
+
+									if( obj->isAUnit() ) {
+
+										if (targetDistance < closestDistance) {
+											closestTarget = tempTarget;
+											closestDistance = targetDistance;
+										}
+									} else {
+
+										float targetDistance = blockDistance(obj->getLocation(), tempTarget->getLocation());
+										if (targetDistance < closestDistance) {
+
+											closestTarget = tempTarget;
+											closestDistance = targetDistance;
+										}
+									}
+
+									(currentGameMap->getTile(xCheck,yCheck))->drawFindTarget(tempTarget,COLOR_RED);
+								} /* canAttack(tempTarget) */
+
+							}
+							yCheck++;
+						}
+						xCheck++;
+					}
+
+
+
+				} /*obj->isSelected()*/
+
+
+		} /* iter == selectedList.end() */
+	}
+
+
 /////////////draw placement position
 
 	int mouse_x, mouse_y;
@@ -694,11 +798,11 @@ void Game::drawScreen()
 	}
 
 	if(bShowTime) {
-		char	temp[50];
+		/*char	temp[50];
 		int     seconds = getGameTime() / 1000;
-		snprintf(temp,50," %.2d:%.2d:%.2d", seconds / 3600, (seconds % 3600)/60, (seconds % 60) );
+		snprintf(temp,50," %.2d:%.2d:%.2d", seconds / 3600, (seconds % 3600)/60, (seconds % 60) );*/
 
-		SDL_Surface* timeSurface = pFontManager->createSurfaceWithText(temp, COLOR_WHITE, FONT_STD12);
+		SDL_Surface* timeSurface = pFontManager->createSurfaceWithText(currentGame->getGameTimeString().c_str(), COLOR_WHITE, FONT_STD12);
         SDL_Rect drawLocation = { 0, screen->h - timeSurface->h, timeSurface->w, timeSurface->h };
 		SDL_BlitSurface(timeSurface, NULL, screen, &drawLocation);
 		SDL_FreeSurface(timeSurface);
@@ -2170,7 +2274,14 @@ void Game::handleChatInput(SDL_KeyboardEvent& keyboardEvent) {
             		 pObject->handleDamage( lroundf((pObject->getHealth()*1.2)), NULL, pObject->getOwner());
             	 }
 
+            } else if((bCheatsEnabled == true) && (typingChatMessage.compare("/spice")  == 0 )) {
 
+            	 float totalspice = 0.0f;
+            	 for (int i=0; i <3 ; i++) {
+            		 Coord location(currentGame->randomGen.rand(1, currentGameMap->getSizeX()-1),currentGame->randomGen.rand(1, currentGameMap->getSizeY()-1));
+            		 totalspice += currentGameMap->createSpiceField(location, currentGame->randomGen.rand(5,15), true, false);
+            	 }
+            	 pInterface->getChatManager().addInfoMessage("More melange "+std::to_string((int)totalspice));
             } else {
                 if(pNetworkManager != NULL) {
                     pNetworkManager->sendChatMessage(typingChatMessage);
@@ -2543,6 +2654,14 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
         case SDLK_TAB: {
             if(SDL_GetModState() & KMOD_ALT) {
                 SDL_WM_IconifyWindow();
+            } else {
+            	if (drawFindTarget) {
+            		pInterface->getChatManager().addInfoMessage(_("Draw Find target disable !"));
+            		drawFindTarget = false;
+            	} else {
+            		pInterface->getChatManager().addInfoMessage(_("Draw Find target enable !"));
+            		drawFindTarget = true;
+            	}
             }
         } break;
 
@@ -2839,37 +2958,7 @@ bool Game::handleSelectedObjectsActionClick(int xPos, int yPos) {
 
 
 ObjectBase* Game::findGroupLeader() {
-/*
-    std::set<Uint32>	searchAirUnits;
-    std::set<Uint32>    searchGroundAndUndergroundUnits;
 
-	for(int i = 1 ; i <= currentGameMap->getSizeX(); i++) {
-		for(int j = 1 ; j <= currentGameMap->getSizeY(); j++) {
-			if(currentGameMap->tileExists(i, j)) {
-			    Tile* pTile = currentGameMap->getTile(i,j);
-
-			    searchAirUnits.insert(pTile->getAirUnitList().begin(), pTile->getAirUnitList().end());
-			    searchGroundAndUndergroundUnits.insert(pTile->getInfantryList().begin(), pTile->getInfantryList().end());
-			    searchGroundAndUndergroundUnits.insert(pTile->getUndergroundUnitList().begin(), pTile->getUndergroundUnitList().end());
-			    searchGroundAndUndergroundUnits.insert(pTile->getNonInfantryGroundObjectList().begin(), pTile->getNonInfantryGroundObjectList().end());
-			}
-		}
-	}
-
-    std::set<Uint32>::const_iterator iter;
-    for(iter = searchGroundAndUndergroundUnits.begin(); iter != searchGroundAndUndergroundUnits.end() ;++iter) {
-        ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
-        if ( pObject->getOwner() == pLocalHouse && (pObject->isAGroundUnit() || pObject->isInfantry()) && ((UnitBase*)(pObject))->isLeader() ) {
-            return pObject;
-        }
-    }
-    for(iter = searchAirUnits.begin(); iter != searchAirUnits.end() ;++iter) {
-	   ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
-	   if (pObject->getOwner() == pLocalHouse && ((UnitBase*)(pObject))->isLeader()) {
-		   return pObject;
-	   }
-    }
-*/
     std::list<Uint32>::iterator iter;
     for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
         ObjectBase *tempObject = objectManager.getObject(*iter);

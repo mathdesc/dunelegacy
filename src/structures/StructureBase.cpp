@@ -366,7 +366,17 @@ bool StructureBase::update() {
             } else {
                 setHealth(newHealth);
             }
+        	if (!owner->isRepairOnDuty()) {
+				if (owner->getHouseID() == pLocalHouse->getHouseID())
+					soundPlayer->playVoice(RepairActivated, owner->getHouseID());
+				owner->informRepairBegins();
+			}
         } else {
+			if (owner->isRepairOnDuty()) {
+				if (owner->getHouseID() == pLocalHouse->getHouseID())
+					soundPlayer->playVoice(RepairDeactivated, owner->getHouseID());
+				owner->informRepairStops();
+			}
             repairing = false;
         }
     } else if(owner->isAI() && ((getHealth()/(float)getMaxHealth()) < 0.75f)) {

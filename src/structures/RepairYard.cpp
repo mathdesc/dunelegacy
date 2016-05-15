@@ -142,6 +142,17 @@ void RepairYard::updateStructureSpecificStuff() {
 		if (pRepairUnit->getHealth()*100/pRepairUnit->getMaxHealth() < 100) {
 			if (owner->takeCredits(UNIT_REPAIRCOST) > 0) {
 				pRepairUnit->addHealth();
+				if (!owner->isRepairOnDuty()) {
+					if (owner->getHouseID() == pLocalHouse->getHouseID())
+						soundPlayer->playVoice(RepairActivated, owner->getHouseID());
+					owner->informRepairBegins();
+				}
+			} else {
+				if (owner->isRepairOnDuty()) {
+					if (owner->getHouseID() == pLocalHouse->getHouseID())
+						soundPlayer->playVoice(RepairDeactivated, owner->getHouseID());
+					owner->informRepairStops();
+				}
 			}
 		} else if(((GroundUnit*)pRepairUnit)->isAwaitingPickup() == false) {
 

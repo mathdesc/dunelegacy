@@ -118,6 +118,17 @@ public:
 	*/
 	Uint32 getGameTime() const { return gameCycleCount * GAMESPEED_DEFAULT; };
 
+	std::string getGameTimeString() {
+			std::string time;
+			int     seconds = getGameTime() / 1000;
+			if (seconds / 3600 >0 )
+				time = std::to_string(seconds / 3600)+"h";
+			if ((seconds % 3600)/60 >0 )
+				time += std::to_string((seconds % 3600)/60)+"min";
+			time += std::to_string(seconds % 60)+"sec";
+			return time;
+	}
+
     /**
         Get the command manager of this game
         \return the command manager
@@ -518,6 +529,7 @@ public:
 
 private:
     bool        chatMode;           ///< chat mode on?
+    bool		drawFindTarget;		///< overlay drawning of FindTarget
     std::string typingChatMessage;  ///< currently typed chat message
 
 	bool        scrollDownMode;     ///< currently scrolling the map down?
