@@ -373,6 +373,12 @@ GFXManager::GFXManager() {
     objPic[ObjPic_ExplosionFlames][HOUSE_HARKONNEN][1] = Scaler::defaultDoubleTiledSurface(objPic[ObjPic_ExplosionFlames][HOUSE_HARKONNEN][0], 21, 1, false);
     objPic[ObjPic_ExplosionFlames][HOUSE_HARKONNEN][2] = Scaler::defaultTripleTiledSurface(objPic[ObjPic_ExplosionFlames][HOUSE_HARKONNEN][0], 21, 1, false);
 
+	objPic[ObjPic_ExplosionFire][HOUSE_HARKONNEN][0] = units1->getPictureArray(18,1,	17|TILE_NORMAL,18|TILE_NORMAL,19|TILE_NORMAL,17|TILE_NORMAL,
+																					18|TILE_NORMAL,19|TILE_NORMAL,17|TILE_NORMAL,18|TILE_NORMAL,19|TILE_NORMAL,17|TILE_NORMAL,18|TILE_NORMAL,
+																					19|TILE_NORMAL,17|TILE_NORMAL,18|TILE_NORMAL,19|TILE_NORMAL,20|TILE_NORMAL,21|TILE_NORMAL,22|TILE_NORMAL);
+    objPic[ObjPic_ExplosionFire][HOUSE_HARKONNEN][1] = Scaler::defaultDoubleTiledSurface(objPic[ObjPic_ExplosionFire][HOUSE_HARKONNEN][0], 18, 1, false);
+    objPic[ObjPic_ExplosionFire][HOUSE_HARKONNEN][2] = Scaler::defaultTripleTiledSurface(objPic[ObjPic_ExplosionFire][HOUSE_HARKONNEN][0], 18, 1, false);
+
     objPic[ObjPic_ExplosionSpiceBloom][HOUSE_HARKONNEN][0] = units1->getPictureArray(3,1,7|TILE_NORMAL,6|TILE_NORMAL,5|TILE_NORMAL);
     objPic[ObjPic_ExplosionSpiceBloom][HOUSE_HARKONNEN][1] = Scaler::defaultDoubleTiledSurface(objPic[ObjPic_ExplosionSpiceBloom][HOUSE_HARKONNEN][0], 3, 1, false);
     objPic[ObjPic_ExplosionSpiceBloom][HOUSE_HARKONNEN][2] = Scaler::defaultTripleTiledSurface(objPic[ObjPic_ExplosionSpiceBloom][HOUSE_HARKONNEN][0], 3, 1, false);

@@ -114,7 +114,7 @@ void AIPlayer::onDecrementStructures(int itemID, const Coord& location) {
 void AIPlayer::onDamage(const ObjectBase* pObject, int damage, Uint32 damagerID) {
     const ObjectBase* pDamager = getObject(damagerID);
 
-    if(pDamager == NULL || pDamager->getOwner() == getHouse()) {
+    if(pDamager == NULL || pDamager->getOwner() == getHouse() || damage == 0) {
         return;
     }
 
@@ -135,7 +135,7 @@ void AIPlayer::onDamage(const ObjectBase* pObject, int damage, Uint32 damagerID)
 			doRepair(const_cast<ObjectBase*>(pObject));
 			scrambleUnitsAndDefend(pDamager,  responseAllocation );
 
-			if((pDamager != NULL) && pDamager->isInfantry()) {
+			if(pDamager->isInfantry()) {
 				const UnitBase* pUnit = dynamic_cast<const UnitBase*>(pObject);
 				doAttackObject(pUnit, pDamager, false);
 			}
@@ -143,12 +143,17 @@ void AIPlayer::onDamage(const ObjectBase* pObject, int damage, Uint32 damagerID)
 	} else if(pObject->isAUnit() && pObject->canAttack(pDamager)) {
         const UnitBase* pUnit = dynamic_cast<const UnitBase*>(pObject);
 
-        if(pUnit->getAttackMode() == GUARD || pUnit->getAttackMode() == AMBUSH) {
-            doSetAttackMode(pUnit, HUNT);
-            doAttackObject(pUnit, pDamager, false);
-        } else if(pUnit->getAttackMode() == AREAGUARD) {
-            doAttackObject(pUnit, pDamager, false);
+        if (blockDistance(pUnit->getLocation(),pDamager->getLocation()) <= pUnit->getAreaGuardRange()*2) {
+			if(pUnit->getAttackMode() == GUARD || pUnit->getAttackMode() == AMBUSH) {
+				doSetAttackMode(pUnit, HUNT);
+				doAttackObject(pUnit, pDamager, false);
+			} else if(pUnit->getAttackMode() == AREAGUARD) {
+				doAttackObject(pUnit, pDamager, false);
+			}
         }
+	} else if(pObject->isAUnit() && ((UnitBase*)pObject)->isAFlyingUnit() /*&& pObject->getItemID() == Unit_Carryall*/) {
+		// TODO : implement evasive maneuvers
+
 	}
 }
 
@@ -175,6 +180,7 @@ void AIPlayer::scrambleUnitsAndDefend(const ObjectBase* pIntruder, Uint8 number)
 			
 			if((pUnit->getAttackMode() != HUNT) && !pUnit->hasATarget()) {
 				if (retaliate) {
+					doSetAttackMode(pUnit, HUNT);
 					doAttackObject(pUnit, pIntruder, true);
 					a++;
 				}
@@ -706,13 +712,24 @@ void AIPlayer::build() {
     buildTimer = getRandomGen().rand(0,3)*50;
 }
 
-Coord AIPlayer::mentatAnalysis_AttackVector(ObjectBase* target) {
+/**
+    Get the position of potent unit to lead an attack on a target
+    \param  target     		the target if null constYard will be targeted
+	\returns  attackPos		the position of the Attack Vector
+*/
+Coord AIPlayer::mentatAnalysis_AttackVector(const ObjectBase* target) {
     Coord attackPos = Coord::Invalid();
     float distance = INFINITY;
     Coord startpoint;
 
+
     if (target == NULL) {
-    	startpoint=getHouse()->findConstYard()->getLocation();
+    	ConstructionYard* constYard= getHouse()->findConstYard();
+    	if (constYard != NULL)
+    		startpoint=constYard->getLocation();
+    	else
+    		return attackPos;
+    	target = (ObjectBase*) getHouse()->findConstYard();
     } else {
     	startpoint=target->getLocation();
     }
@@ -722,17 +739,19 @@ Coord AIPlayer::mentatAnalysis_AttackVector(ObjectBase* target) {
 	for(iter = unitList.begin(); iter != unitList.end(); ++iter) {
 		UnitBase* tempUnit = *iter;
 		Uint32 itemID = tempUnit->getItemID();
-		bool retaliate_mask = (itemID != Unit_Harvester)  && (itemID != Unit_Carryall) && (itemID != Unit_Frigate) && (itemID != Unit_Saboteur) && (itemID != Unit_Sandworm);
+		bool retaliate_mask = (itemID != Unit_Harvester)  && (itemID != Unit_Carryall) && (itemID != Unit_Frigate) && (itemID != Unit_Saboteur) && (itemID != Unit_Sandworm) && (itemID != Unit_MCV);
 
 		if (tempUnit->isRespondable()
 			&& (tempUnit->getOwner() == getHouse())
 			&& tempUnit->isActive()
 			/*&& !(pUnit->getAttackMode() == HUNT)*/
 			&& (tempUnit->getAttackMode() == AREAGUARD || tempUnit->getAttackMode() == GUARD || tempUnit->getAttackMode() == AMBUSH)
-			&& (retaliate_mask)) {
-
-			if (blockDistance(startpoint,tempUnit->getLocation()) < distance) {
-				distance=blockDistance(startpoint,tempUnit->getLocation());
+			&& (retaliate_mask)
+			&& tempUnit->getHealthColor() == COLOR_LIGHTGREEN) {
+			float dist = blockDistance(startpoint,tempUnit->getLocation());
+			// Go nearest without being notable seen
+			if (dist < distance && dist >= (float)target->getAreaGuardRange()*1.5 ) {
+				distance = dist;
 				attackPos= tempUnit->getLocation();
 			}
 		}
@@ -741,53 +760,144 @@ Coord AIPlayer::mentatAnalysis_AttackVector(ObjectBase* target) {
 	return attackPos;
 }
 
-bool AIPlayer::mentatAnalysis() {
+/**
+    Get the best primary target (alpha target) of an attack
+    \param  attackVector     the unit to lead the attack
+	\returns  alphaTarget	 ObjectBase primary target
+*/
+ObjectBase* AIPlayer::mentatAnalysis_GetAlphaTarget(const UnitBase* attackVector) {
 
-	/* First Step : Evaluate and attack vector*/
-	Coord attackPos;
+	if (attackVector != NULL && attackVector->isAUnit()) {
+		Coord attackPos;
+		const StructureBase* closestStructure = attackVector->findClosestTargetStructure();
+		const UnitBase* closestUnit = attackVector->findClosestTargetUnit();
+		float structureDistance = INFINITY ;
+		float unitDistance = INFINITY;
+
+		if (closestUnit != NULL)
+			unitDistance 	 = blockDistance(attackVector->getLocation(), closestUnit->getLocation());
+
+		if (closestStructure != NULL)
+			structureDistance = blockDistance(attackVector->getLocation(),  closestStructure->getClosestPoint(attackVector->getLocation()));
+
+		if (attackVector->canAttack(closestStructure) || attackVector->canAttack(closestUnit))	{
+
+			if(closestStructure && structureDistance < unitDistance) {
+				attackPos = closestStructure->getClosestPoint(attackVector->getLocation());
+			} else {
+			  if(closestUnit) {
+				attackPos.x = closestUnit->getX();
+				attackPos.y = closestUnit->getY();
+			  } else {
+				attackPos = attackVector->getLocation();  // no unit/structure to attack : gather around the attackVector
+			  }
+			}
+		} else {
+			return NULL;	// attackVector unit cannot attack anymore
+		}
+
+
+		return (currentGameMap->getTile(attackPos)->getObject());
+	}
+	else return NULL;
+}
+
+
+
+bool AIPlayer::mentatAnalysis(bool performIfAdvised) {
+
+
+	Coord leaderPos, attackPos;
     const UnitBase* pLeaderUnit;
+    int myArmyValue = getHouse()->getArmyValue();
+    int targetArmyValue ;
 
-    attackPos = mentatAnalysis_AttackVector();
-    if (attackPos.isInvalid())
+    /* First Step : Evaluate an attack vector and get an alpha target*/
+    leaderPos = mentatAnalysis_AttackVector(NULL);
+    if (leaderPos.isInvalid())
     	return false;	// not attack vector
 
-    pLeaderUnit =  (UnitBase*)(currentGameMap->getTile(attackPos.x,attackPos.y))->getObject();
+    pLeaderUnit =  (UnitBase*)(currentGameMap->getTile(leaderPos.x,leaderPos.y))->getObject();
 
-
-    const StructureBase* closestStructure = pLeaderUnit->findClosestTargetStructure();
-	const UnitBase* closestUnit = pLeaderUnit->findClosestTargetUnit();
-
-	float unitDistance = INFINITY;
-		if (closestUnit != NULL)
-			unitDistance = 		unitDistance = blockDistance(pLeaderUnit->getLocation(), closestUnit->getLocation());
-	float structureDistance = INFINITY ;
-		if (closestStructure != NULL)
-			structureDistance = blockDistance(pLeaderUnit->getLocation(),  closestStructure->getClosestPoint(pLeaderUnit->getLocation()));
-
-	if (pLeaderUnit->canAttack(closestStructure) || pLeaderUnit->canAttack(closestUnit))	{
-
-		if(closestStructure && structureDistance < unitDistance) {
-			attackPos = closestStructure->getClosestPoint(pLeaderUnit->getLocation());
+    /* Second step  : Evaluate the opportunity */
+	ObjectBase* alphaTarget = mentatAnalysis_GetAlphaTarget(pLeaderUnit) ;
+	if (alphaTarget != NULL) {
+		attackPos = alphaTarget->getLocation();
+		if (alphaTarget->getOwner() != getHouse()) {
+			targetArmyValue = alphaTarget->getOwner()->getArmyValue();
 		} else {
-		  if(closestUnit) {
-			attackPos.x = closestUnit->getX();
-			attackPos.y = closestUnit->getY();
-		  }
-		  else return false;	// no unit to attack nor structure
+			// just to give a chance in the final step to reset attackPos to leaderPos
+			targetArmyValue = myArmyValue +1 ;
 		}
 	} else {
-		return false;	// leader unit cannot attack anymore
+		targetArmyValue = myArmyValue +1 ;
+	}
+	/* Third step  : Evaluate the scale of the attack */
+	/* Fourth step : Evaluate the defense & weakness */
+	/* Final step  : Give results */
+
+
+	if ( (alphaTarget != NULL && alphaTarget->getOwner() == getHouse()) || myArmyValue < targetArmyValue ) {
+
+			if (alphaTarget == NULL || alphaTarget->getOwner() != getHouse()) {
+				// reset attackPos to leaderPos since we are still weak
+				attackPos = pLeaderUnit->getLocation(); // could be better to give a secret rendez-vous point
+				if (!performIfAdvised)
+					return true;
+			}
+
+			// Regroup for a later attack : on perform doMove
+			if (performIfAdvised) {
+				doMove2Pos(pLeaderUnit, attackPos.x, attackPos.y, true);
+				RobustList<UnitBase*>::const_iterator iter;
+				for(iter = unitList.begin(); iter != unitList.end(); ++iter) {
+					UnitBase* tempUnit = *iter;
+					Uint32 itemID = tempUnit->getItemID();
+					bool retaliate_mask = (itemID != Unit_Harvester)  && (itemID != Unit_Carryall) && (itemID != Unit_Frigate) && (itemID != Unit_Saboteur) && (itemID != Unit_Sandworm) && (itemID != Unit_MCV);
+
+					if (tempUnit->isRespondable()
+						&& (tempUnit->getOwner() == getHouse())
+						&& tempUnit->isActive()
+						/*&& !(pUnit->getAttackMode() == HUNT)*/
+						&& (tempUnit->getAttackMode() == AREAGUARD || tempUnit->getAttackMode() == GUARD || tempUnit->getAttackMode() == AMBUSH)
+						&& (retaliate_mask)
+						&& tempUnit->getHealthColor() == COLOR_LIGHTGREEN) {
+						doMove2Pos(tempUnit, attackPos.x, attackPos.y, true); // could be better to give a secret rendez-vous point
+					}
+
+				}
+			}
 	}
 
-	/* 2 step  : Evaluate the opportunity */
-	ObjectBase* alphaTarget = (currentGameMap->getTile(attackPos)->getObject());
+	if (myArmyValue > targetArmyValue) {
+		if (alphaTarget->getOwner() != getHouse()) {
+			// Go for attack if advised
+			if (performIfAdvised) {
+				doMove2Pos(pLeaderUnit, attackPos.x, attackPos.y, true);
+				RobustList<UnitBase*>::const_iterator iter;
+				for(iter = unitList.begin(); iter != unitList.end(); ++iter) {
+					UnitBase* tempUnit = *iter;
+					Uint32 itemID = tempUnit->getItemID();
+					bool retaliate_mask = (itemID != Unit_Harvester)  && (itemID != Unit_Carryall) && (itemID != Unit_Frigate) && (itemID != Unit_Saboteur) && (itemID != Unit_Sandworm) && (itemID != Unit_MCV);
 
-	if (getHouse()->getArmyValue() >= alphaTarget->getOwner()->getArmyValue())  {
+					if (tempUnit->isRespondable()
+						&& (tempUnit->getOwner() == getHouse())
+						&& tempUnit->isActive()
+						/*&& !(pUnit->getAttackMode() == HUNT)*/
+						&& (tempUnit->getAttackMode() == AREAGUARD || tempUnit->getAttackMode() == GUARD || tempUnit->getAttackMode() == AMBUSH)
+						&& (retaliate_mask)
+						&& tempUnit->getHealthColor() == COLOR_LIGHTGREEN) {
+						doMove2Pos(tempUnit, attackPos.x, attackPos.y, true);
+					}
+
+				}
+			}
+			return true;
+		}
 		return true;
-	} else {
-		return false;
 	}
 
+	return false;
 
 
 }
@@ -800,83 +910,32 @@ void AIPlayer::attack() {
 	    //reset timer for next attack
 	    attackTimer = getRandomGen().rand(10000/5, 20000/5);
 	    return;
-	}
+	} else {
+		mentatAnalysis(true);
 
-    Coord destination;
-    const UnitBase* pLeaderUnit = NULL;
-    RobustList<const UnitBase*>::const_iterator iter;
-    for(iter = getUnitList().begin(); iter != getUnitList().end(); ++iter) {
-        const UnitBase *pUnit = *iter;
-        Uint32 itemID = pUnit->getItemID();
-        bool retaliate_mask = (itemID != Unit_Harvester)  && (itemID != Unit_Carryall) && (itemID != Unit_Frigate)  && (pUnit->getItemID() != Unit_MCV) ;
+	    /* If we can combine with a super weapon , let's do it ! */
+	   RobustList<const StructureBase*>::const_iterator iter2;
+	   for(iter2 = getStructureList().begin(); iter2 != getStructureList().end(); ++iter2) {
+		   const StructureBase *pStruct = *iter2;
 
-        if (pUnit->isRespondable()
-            && (pUnit->getOwner() == getHouse())
-            && pUnit->isActive()
-            /*&& !(pUnit->getAttackMode() == HUNT)*/
-            && (pUnit->getAttackMode() == AREAGUARD || pUnit->getAttackMode() == GUARD || pUnit->getAttackMode() == AMBUSH)
-            && (retaliate_mask)) {
-
-
-            if ((pUnit->getItemID() == Unit_Saboteur)) {
-                const StructureBase* closestStructure = pUnit->findClosestTargetStructure();
-                doMove2Pos(pUnit, closestStructure->getLocation().x, closestStructure->getLocation().y, false);
-            	continue;
-            }
-
-            /* Set a leader to define a target, other attacker units will have same target */
-            if(pLeaderUnit == NULL) {
-                pLeaderUnit = pUnit;
-
-                //default destination
-                destination.x = pLeaderUnit->getX();
-                destination.y = pLeaderUnit->getY();
-
-                const StructureBase* closestStructure = pLeaderUnit->findClosestTargetStructure();
-                const UnitBase* closestUnit = pLeaderUnit->findClosestTargetUnit();
-            	float unitDistance = INFINITY;
-            		if (closestUnit != NULL)
-            			unitDistance = 		unitDistance = blockDistance(pLeaderUnit->getLocation(), closestUnit->getLocation());
-            	float structureDistance = INFINITY ;
-            		if (closestStructure != NULL)
-            			structureDistance = blockDistance(pLeaderUnit->getLocation(),  closestStructure->getClosestPoint(pLeaderUnit->getLocation()));
-
-
-                if(closestStructure && structureDistance < unitDistance) {
-                    destination = closestStructure->getClosestPoint(pLeaderUnit->getLocation());
-                } else {
-                    if(closestUnit) {
-                        destination.x = closestUnit->getX();
-                        destination.y = closestUnit->getY();
-                    }
-                }
-            }
-
-            doMove2Pos(pUnit, destination.x, destination.y, true);
-            doSetAttackMode(pUnit, HUNT);
-        }
-
-        /* If we can combine with a superweapon , let's do it */
-		   RobustList<const StructureBase*>::const_iterator iter;
-		   for(iter = getStructureList().begin(); iter != getStructureList().end(); ++iter) {
-			   const StructureBase *pStruct = *iter;
-
-			   if (pStruct->getItemID() == Structure_Palace && getHouse() == pStruct->getOwner()) {
-				   if (getHouse()->getHouseID() == HOUSE_HARKONNEN || getHouse()->getHouseID() == HOUSE_SARDAUKAR ) {
-					   const StructureBase* closestStructure = pStruct->findClosestTargetStructure();
-					   if(closestStructure) {
-						   Coord temp = closestStructure->getClosestPoint(closestStructure->getLocation());
-						   doLaunchDeathhand( (Palace*) pStruct, temp.x, temp.y);
-					   }
-				   }
-				   else {
-					   doSpecialWeapon((Palace *)pStruct);
-
+		   if (pStruct->getItemID() == Structure_Palace && getHouse() == pStruct->getOwner()) {
+			   if (getHouse()->getHouseID() == HOUSE_HARKONNEN || getHouse()->getHouseID() == HOUSE_SARDAUKAR ) {
+				   const StructureBase* closestStructure = pStruct->findClosestTargetStructure();
+				   if(closestStructure) {
+					   Coord temp = closestStructure->getClosestPoint(closestStructure->getLocation());
+					   doLaunchDeathhand( (Palace*) pStruct, temp.x, temp.y);
 				   }
 			   }
+			   else {
+				   doSpecialWeapon((Palace *)pStruct);
 
+			   }
 		   }
-    }
+
+	   }
+
+	}
+
 
 
 
@@ -912,28 +971,29 @@ void AIPlayer::checkAllUnits() {
         }
         
         /* Pullback and detach a small force to cover before being damage */
-        if(pUnit->getOwner() != getHouse() && pUnit->isActive()) {
+        if(pUnit->getOwner() != getHouse() && pUnit->isActive() && pUnit->hasATarget() && pUnit->getTarget() != NULL &&(pUnit->getTarget())->getOwner() == getHouse()) {
                       RobustList<const UnitBase*>::const_iterator iter2;
                       for(iter2 = getUnitList().begin(); iter2 != getUnitList().end(); ++iter2) {
                           const UnitBase* pUnit2 = *iter2;
                           int itemID = pUnit2->getItemID();
 
                           bool retaliate_mask = (itemID != Unit_Harvester)  && (itemID != Unit_Carryall) && (itemID != Unit_Frigate) && (itemID != Unit_Saboteur) && (itemID != Unit_Sandworm);
+                          bool attacker_mask = pUnit->hasATarget() && pUnit->getTarget() != NULL && pUnit->getTarget() ==  pUnit2 && pUnit->canAttack(pUnit2) && pUnit->targetInWeaponRange() ;
 
-                          if ((pUnit2->getOwner() == getHouse() && pUnit->getTarget() ==  pUnit2) &&  ( retaliate_mask  ) ) {
+                          if (pUnit2->getOwner() == getHouse() && pUnit2->isActive() && !pUnit2->wasForced() && (attacker_mask) &&  (retaliate_mask) ) {
                         	  Uint8 responseAllocation = getHouse()->allocateSquadSize((ObjectBase*)pUnit2,(Uint32)pUnit->getItemID());
 
                               if( blockDistance(pUnit->getLocation(), pUnit2->getLocation()) <= pUnit->getAreaGuardRange()) {
                             	  if (pUnit2->getHealth() < pUnit2->getMaxHealth()/4)
                             		  doRepair((ObjectBase*)pUnit2);
-                                  scrambleUnitsAndDefend(pUnit,responseAllocation);
+                            	  if (pUnit2->getAttackMode() != HUNT || pUnit2->getAttackMode() != AMBUSH)
+                            		  scrambleUnitsAndDefend(pUnit,responseAllocation);
                               	 err_print("Player %s checkAllUnits scrambleUnitsAndDefend from %d!\n", AIPlayer::getPlayername().c_str(),pUnit->getItemID());
                               }
                           }
                       }
                   continue;
         }
-        
 
         if(pUnit->getOwner() != getHouse()) {
             continue;
@@ -955,17 +1015,21 @@ void AIPlayer::checkAllUnits() {
 
             case Unit_Harvester: {
                 const Harvester* pHarvester = dynamic_cast<const Harvester*>(pUnit);
-                if(getHouse()->getNumItems(Unit_Harvester) < 3 && pHarvester->getAmountOfSpice() >= HARVESTERMAXSPICE/2) {
+                if(getHouse()->getNumItems(Unit_Harvester) < 3 && pHarvester->getAmountOfSpice() >= HARVESTERMAXSPICE/2 && getHouse()->getStoredCredits() < getHouse()->getCapacity() ) {
                     doReturn(pHarvester);
                 }
                 if ( !getHouse()->isRepairOnDuty() && getHouse()->getCredits() < 50 && pHarvester->getAmountOfSpice() >= 100 ) {
                 	doReturn(pHarvester);
                 }
-                if (pHarvester->getAttackMode() == STOP) {
+                if (pHarvester->getAttackMode() == STOP && 1.1*getHouse()->getStoredCredits() < getHouse()->getCapacity() /*&& pHarvester->getAmountOfSpice() < HARVESTERMAXSPICE -1*/) {
                 	err_print("AIPlayer::checkAllUnits Player %s put Harvester back to business %d!\n", AIPlayer::getPlayername().c_str(),pHarvester->getObjectID());
-                	doDeploy(pHarvester,pHarvester->getDestination());
-
+        			doSetAttackMode(pUnit,AREAGUARD);
+					doReturn(pHarvester);
                 }
+				if (pHarvester->getAttackMode() != STOP && getHouse()->getStoredCredits() >= getHouse()->getCapacity() && pHarvester->getAmountOfSpice() > HARVESTERMAXSPICE -1) {
+					err_print("AIPlayer::checkAllUnits Player %s put Harvester back to sleep ... silos are full %d!\n", AIPlayer::getPlayername().c_str(),pHarvester->getObjectID());
+					doReturn(pHarvester);
+				}
             } break;
 
             default: {

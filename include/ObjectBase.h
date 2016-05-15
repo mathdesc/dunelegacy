@@ -188,8 +188,11 @@ public:
 	static ObjectBase* createObject(int itemID,House* Owner, Uint32 objectID = NONE);
 	static ObjectBase* loadObject(InputStream& stream, int itemID, Uint32 objectID);
 
-protected:
+
 	bool targetInWeaponRange() const;
+
+protected:
+
 
 	// constant for all objects of the same type
     Uint32  itemID;                 ///< The ItemID of this object.

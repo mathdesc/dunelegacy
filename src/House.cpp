@@ -290,7 +290,7 @@ void House::update() {
 		oldCredits = getCredits();
 	}
 
-	if(storedCredits > capacity) {
+	if(storedCredits > capacity + 20) {
 		storedCredits--;
 		if(storedCredits < 0.0f) {
 		 storedCredits = 0.0f;
@@ -305,7 +305,7 @@ void House::update() {
 	powerUsageTimer--;
 	if(powerUsageTimer <= 0) {
 	    powerUsageTimer = MILLI2CYCLES(15*1000);
-        takeCredits(((float)getPowerRequirement()) / 32.0f);
+        //takeCredits(((float)getPowerRequirement()) / 32.0f);
 	}
 
 	choam.update();

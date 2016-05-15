@@ -132,13 +132,21 @@ bool Refinery::deployHarvester(Carryall* pCarryall) {
 
 		firstRun = false;
 
-		if(pCarryall != NULL) {
+		if (owner->getStoredCredits() >= owner->getCapacity()) {
+			Coord deployPos = currentGameMap->findDeploySpot(pHarvester, location, location, structureSize);
+			pHarvester->deploy(deployPos);
+			if (pHarvester->getAmountOfSpice() >= HARVESTERMAXSPICE -1)
+				pHarvester->doSetAttackMode(STOP);
+			deployed = true;
+		} else if(pCarryall != NULL) {
 			pCarryall->giveCargo(pHarvester);
 			pCarryall->setTarget(NULL);
 			pCarryall->setDestination(pHarvester->getGuardPoint());
+			pCarryall->setDeployPos(pHarvester->getGuardPoint());
+			pCarryall->setFallbackPos(currentGameMap->findDeploySpot(pHarvester, location, pHarvester->getGuardPoint(), structureSize));
 			deployed = true;
 		} else {
-			Coord deployPos = currentGameMap->findDeploySpot(pHarvester, location, destination, structureSize);
+			Coord deployPos = currentGameMap->findDeploySpot(pHarvester, location, pHarvester->getGuardPoint(), structureSize);
 			pHarvester->deploy(deployPos);
 			deployed = true;
 		}
@@ -184,8 +192,12 @@ void Refinery::updateStructureSpecificStuff() {
 
 		    extractionSpeed = (extractionSpeed * scale) / 5;
 
-
-			owner->addCredits(pHarvester->extractSpice(extractionSpeed), true);
+		    if (owner->getStoredCredits() < owner->getCapacity()) {
+		    	owner->addCredits(pHarvester->extractSpice(extractionSpeed), true);
+		    } else {
+		    	// refuse cargo, we are full !
+		    	 deployHarvester();
+		    }
 		} else if(pHarvester->isAwaitingPickup() == false) {
 		    // find carryall
 		    Carryall* pCarryall = NULL;

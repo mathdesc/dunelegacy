@@ -1858,9 +1858,9 @@ bool Game::loadSaveGame(InputStream& stream) {
         selectedList = stream.readUint32List();
         selectedListCoord = stream.readUint32CoordPairList();
 
-   	 for(std::list<std::pair<Uint32,Coord>>::iterator iter2  = selectedListCoord.begin()  ;  iter2 != selectedListCoord.end(); ++iter2) {
+   	 /*for(std::list<std::pair<Uint32,Coord>>::iterator iter2  = selectedListCoord.begin()  ;  iter2 != selectedListCoord.end(); ++iter2) {
    		 fprintf(stdout,"Game::loadSaveGame first:%d second:%d,%d\n",iter2->first, iter2->second.x, iter2->second.y);
-   	 }
+   	 }*/
 
         //load the screenborder info
         screenborder->adjustScreenBorderToMapsize(currentGameMap->getSizeX(), currentGameMap->getSizeY());
@@ -2905,7 +2905,8 @@ bool Game::handleSelectedObjectsActionClick(int xPos, int yPos) {
 							//if this object obey the command
 							if((responder == NULL) && tempObject->isRespondable())
 								responder = tempObject;
-							dynamic_cast<UnitBase*>(tempObject)->setRegulatedSpeed(currentGame->objectData.data[tempObject->getItemID()][tempObject->getOriginalHouseID()].maxspeed);
+							UnitBase* pUnit = (UnitBase*)tempObject;
+							pUnit->setRegulatedSpeed(currentGame->objectData.data[tempObject->getItemID()][tempObject->getOriginalHouseID()].maxspeed);
 
 
 							// if Shift is pressed Handle a 90° Formation move
@@ -2915,8 +2916,8 @@ bool Game::handleSelectedObjectsActionClick(int xPos, int yPos) {
 								y= iter2->second.y ;
 							}
 
-							dbg_print("Game::handleSelectedObjectsActionClick [%f,%f] Obj:<%d,%d> x=%d+%d y=%d+%d\n",dynamic_cast<UnitBase*>(tempObject)->getxSpeed(),dynamic_cast<UnitBase*>(tempObject)->getySpeed() ,tempObject->getObjectID(),iter2->first,xPos , x, yPos ,y);
-							tempObject->handleActionClick(xPos + x , yPos + y);
+							dbg_print("Game::handleSelectedObjectsActionClick [%f,%f] Obj:<%d,%d> x=%d+%d y=%d+%d\n",pUnit->getxSpeed(),pUnit->getySpeed() ,pUnit->getObjectID(),iter2->first,xPos , x, yPos ,y);
+							pUnit->handleFormationActionClick(xPos + x , yPos + y);
 						}
 				 }
 			}
@@ -2927,15 +2928,15 @@ bool Game::handleSelectedObjectsActionClick(int xPos, int yPos) {
     	        ObjectBase *tempObject = objectManager.getObject(*iter);
     	        if (tempObject->isAUnit() && (tempObject->getOwner() == pLocalHouse) && tempObject->isRespondable()) {
     	            responder = (UnitBase*) tempObject;
-    	            dynamic_cast<UnitBase*>(tempObject)->setRegulatedSpeed(0);
+    	            UnitBase* pUnit = (UnitBase*)tempObject;
+    	            pUnit->setRegulatedSpeed(0);
     	            responder->handleActionClick(xPos,yPos);
     	        }
     	    }
 
     	}
 
-    }
-    else {
+    } else if (selectedList.size() == 1) {
     	iter = selectedList.begin();
     	tempObject = objectManager.getObject(*iter);
     	if(tempObject->getOwner() == pLocalHouse && tempObject->isRespondable()) {
@@ -2945,7 +2946,7 @@ bool Game::handleSelectedObjectsActionClick(int xPos, int yPos) {
     	}
 
     }
-
+    else return false;
 
     if(responder) {
         responder->playConfirmSound();

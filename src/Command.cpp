@@ -137,14 +137,14 @@ void Command::executeCommand() const {
 		} break;
 
 		case CMD_UNIT_MOVE2OBJECT: {
-			if(parameter.size() != 2) {
-				throw std::invalid_argument("Command::executeCommand(): CMD_UNIT_MOVE2OBJECT needs 2 Parameters!");
+			if(parameter.size() != 3) {
+				throw std::invalid_argument("Command::executeCommand(): CMD_UNIT_MOVE2OBJECT needs 3 Parameters!");
 			}
-			UnitBase* unit = dynamic_cast<UnitBase*>(currentGame->getObjectManager().getObject(parameter[0]));
+			UnitBase* unit =  dynamic_cast<UnitBase*>(currentGame->getObjectManager().getObject(parameter[0]));
 			if(unit == NULL) {
                 return;
 			}
-            unit->doMove2Object((int) parameter[1]);
+            unit->doMove2Object((int) parameter[1], (int) parameter[2]);
 		} break;
 
 		case CMD_UNIT_ATTACKPOS: {

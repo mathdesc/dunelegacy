@@ -213,9 +213,9 @@ void GroundUnit::doRepair() {
 
         if(bestRepairYard) {
             if(requestCarryall()) {
-                doMove2Object(bestRepairYard);
+                doMove2Object(oldTarget.getObjPointer(), bestRepairYard);
             } else if(owner->isAI()) {
-                doMove2Object(bestRepairYard);
+                doMove2Object(oldTarget.getObjPointer(), bestRepairYard);
             }
         }
 	}

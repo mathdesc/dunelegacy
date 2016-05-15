@@ -88,7 +88,8 @@ void Launcher::drawSelectionBox()
 	SDL_BlitSurface(selectionBox, NULL, screen, &dest);
 
 	for(int i=1;i<=currentZoomlevel+1;i++) {
-        drawHLine(screen, dest.x+1, dest.y-i, dest.x+1 + ((int)((getHealth()/(float)getMaxHealth())*(selectionBox->w-3))), getHealthColor());
+        drawRect(screen, dest.x+1, dest.y-1, dest.x+1 + ((int)((getHealth()/(float)getMaxHealth())*(selectionBox->w-3))),dest.y-2, getHealthColor());
+
 	}
 
 	int salvotimer=0,max=0;
@@ -97,9 +98,9 @@ void Launcher::drawSelectionBox()
 		max +=   (SALVO_TIMER_LAUNCHER*i)+SALVO_TIMER_LAUNCHER;
 	}
 
-	if((getOwner() == pLocalHouse)  && (salvotimer > 0)   ) {
+	if((getOwner() == pLocalHouse || debug)  && (salvotimer > 0)   ) {
         for(int i=1;i<=currentZoomlevel+1;i++) {
-            drawHLine(screen, dest.x+1, dest.y-i-(currentZoomlevel+1), dest.x+1 +  ((int)((((float)salvotimer)/max)*(selectionBox->w-3))), COLOR_BLUE);
+            drawRect(screen, dest.x+1, dest.y-3, dest.x+1 +  ((int)((((float)salvotimer)/max)*(selectionBox->w-3))), dest.y-4,COLOR_YELLOW);
         }
 	}
 
@@ -109,7 +110,7 @@ void Launcher::drawSelectionBox()
 		int imageW = star[currentZoomlevel]->w/3;
 
 	    SDL_Rect dest = {   x - imageW/2,
-	                        y - star[currentZoomlevel]->h,
+	                        y - 2*star[currentZoomlevel]->h,
 	                        imageW,
 	                        star[currentZoomlevel]->h };
 

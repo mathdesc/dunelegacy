@@ -33,6 +33,7 @@
 #include <units/GroundUnit.h>
 #include <units/Carryall.h>
 
+
 // Starport is counting in 30s from 10 to 0
 #define STARPORT_ARRIVETIME			(MILLI2CYCLES(30*1000))
 
@@ -274,12 +275,16 @@ bool StarPort::deployOrderedUnit(Carryall* pCarryall) {
 				pUnit->setTarget(NULL);
 				if (destination.isValid()) {
 						pCarryall->setDestination(pUnit->getDestination());
+						pCarryall->setDeployPos(pUnit->getDestination());
+						pCarryall->setFallbackPos(currentGameMap->findDeploySpot(pUnit, location, pUnit->getDestination(), structureSize));
 						dbg_print(" StarPort::deployOrderedUnit carryall destination(%d,%d) \n", pCarryall->getDestination().x,pCarryall->getDestination().y);
 
 				}
 				else {
-					pCarryall->setDestination(location);
-
+					Coord dp = currentGameMap->findDeploySpot(pUnit, location, location, structureSize);
+					pCarryall->setDestination(dp);
+					pCarryall->setDeployPos(dp);
+					pCarryall->setFallbackPos(dp+structureSize);
 					dbg_print(" StarPort::deployOrderedUnit@Home carryall destination(%d,%d) \n", pCarryall->getDestination().x,pCarryall->getDestination().y);
 				}
 
@@ -421,7 +426,8 @@ void StarPort::updateStructureSpecificStuff() {
 
 						if (newUnit != NULL) {
 							arrivedUnit = newUnit;
-							deploySpot = newUnit->isAFlyingUnit() ? location + Coord(1,1) : currentGameMap->findDeploySpot(newUnit, location, destination, structureSize);
+
+							deploySpot = newUnit->isAFlyingUnit() ? location + Coord(1,1) : currentGameMap->findDeploySpot(newUnit, location, destination.isValid() ? destination : location , structureSize);
 
 							// Deploy itself
 							if (!getOwner()->hasCarryalls() || newUnit->isAFlyingUnit() || newUnit->getItemID() == Unit_MCV ) {
@@ -468,8 +474,8 @@ void StarPort::updateStructureSpecificStuff() {
 										   gUnit->setAngle(lround(8.0f/256.0f*destinationAngle(gUnit->getLocation(), gUnit->getDestination())));
 									   } else {
 										   // Rally point is not set deploy locally
-										   gUnit->setGuardPoint(location);
-										   gUnit->setDestination(location);
+										   gUnit->setGuardPoint(deploySpot);
+										   gUnit->setDestination(deploySpot);
 										   gUnit->setAngle(lround(8.0f/256.0f*destinationAngle(gUnit->getLocation(), gUnit->getDestination())));
 									   }
 
@@ -505,9 +511,12 @@ void StarPort::updateStructureSpecificStuff() {
 								newUnit->doSetAttackMode(AREAGUARD);
 							}
 
-							if (unitDeployed && destination.isValid()) {
-								newUnit->setGuardPoint(destination);
-								newUnit->setDestination(destination);
+							if (unitDeployed) {
+
+
+									newUnit->setGuardPoint(deploySpot);
+									newUnit->setDestination(destination.isValid() ? destination : deploySpot);
+
 								dbg_print(" StarPort::updateStructureSpecificStuff Unit destination(%d,%d) \n", newUnit->getDestination().x,newUnit->getDestination().y);
 								newUnit->setAngle(lround(8.0f/256.0f*destinationAngle(newUnit->getLocation(), newUnit->getDestination())));
 							}

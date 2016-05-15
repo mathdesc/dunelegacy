@@ -145,7 +145,7 @@ void Map::damage(Uint32 damagerID, House* damagerOwner, const Coord& realPos, Ui
 
         if(air == true) {
             // air damage
-            if((bulletID == Bullet_DRocket) || (bulletID == Bullet_Rocket) || (bulletID == Bullet_TurretRocket)|| (bulletID == Bullet_SmallRocket)) {
+            if((bulletID == Bullet_DRocket) || (bulletID == Bullet_Rocket) || (bulletID == Bullet_TurretRocket)|| (bulletID == Bullet_SmallRocket) || (bulletID == Bullet_LargeRocket)) {
                 std::set<Uint32>::const_iterator iter;
                 for(iter = affectedAirUnits.begin(); iter != affectedAirUnits.end() ;++iter) {
                     AirUnit* pAirUnit = dynamic_cast<AirUnit*>(currentGame->getObjectManager().getObject(*iter));
@@ -166,7 +166,7 @@ void Map::damage(Uint32 damagerID, House* damagerOwner, const Coord& realPos, Ui
                                 }
                             }
                         } else {
-                            int scaledDamage = lroundf(damage) >> (distance/4 + 1);
+                            int scaledDamage = lroundf(damage) / (distance/4 + 1);
                             pAirUnit->handleDamage(scaledDamage, damagerID, damagerOwner);
                         }
                     }
@@ -214,7 +214,7 @@ void Map::damage(Uint32 damagerID, House* damagerOwner, const Coord& realPos, Ui
                         } else if(bulletID == Bullet_Sonic) {
                             pUnit->handleDamage(lroundf(damage), damagerID, damagerOwner);
                         } else {
-                            int scaledDamage = lroundf(damage) >> (distance/16 + 1);
+                            int scaledDamage = lroundf(damage) / (distance/16 + 1);
                             pUnit->handleDamage(scaledDamage, damagerID, damagerOwner);
                         }
                     }
@@ -239,7 +239,7 @@ void Map::damage(Uint32 damagerID, House* damagerOwner, const Coord& realPos, Ui
 
                         pTile->addDamage(Tile::Terrain_RockDamage, (bulletID==Bullet_SmallRocket) ? Tile::RockDamage1 : Tile::RockDamage2, realPos);
 
-                    } else if((pTile->getType() == Terrain_Sand) || (pTile->getType() == Terrain_Spice)) {
+                    } else if((pTile->getType() == Terrain_Sand) || (pTile->getType() == Terrain_Spice) || (pTile->getType() == Terrain_ThickSpice) ) {
                         if(bulletID==Bullet_SmallRocket) {
                             pTile->addDamage(Tile::Terrain_SandDamage, currentGame->randomGen.rand(Tile::SandDamage1, Tile::SandDamage2), realPos);
                         } else {
@@ -247,6 +247,36 @@ void Map::damage(Uint32 damagerID, House* damagerOwner, const Coord& realPos, Ui
                         }
                     }
                 }
+                bool terrain_mask = (pTile->getType() == Terrain_Spice || pTile->getType() == Terrain_ThickSpice ) ;
+                bool bullet_mask = (  (bulletID == Bullet_DRocket) || (bulletID == Bullet_LargeRocket) || (bulletID == Bullet_Rocket) || (bulletID == Bullet_TurretRocket) || (bulletID == Bullet_ShellSmall) || (bulletID == Bullet_ShellMedium) || (bulletID == Bullet_ShellLarge) || (bulletID == Bullet_SmallRocket) );
+                if (terrain_mask && bullet_mask &&  (!pTile->hasAGroundObject() || !pTile->getGroundObject()->isAStructure()) )   {
+                	float damage;
+                	switch (bulletID) {
+            			case Bullet_SmallRocket:
+            				damage = 20.0;
+            				break;
+                		case Bullet_LargeRocket:
+                			damage = 200.0;
+                			break;
+                		case Bullet_TurretRocket:
+						case Bullet_Rocket:
+							damage = 25.0;
+							break;
+                		case Bullet_ShellLarge:
+                			damage = 15.0;
+                			break;
+                		case Bullet_ShellMedium:
+                			damage = 10.0;
+                			break;
+                		case Bullet_DRocket:
+                		case Bullet_ShellSmall:
+                		default:
+                			damage = 0.0f;
+                	}
+                	pTile->setSpice(pTile->getSpiceRemaining() - damage);
+                }
+
+
             }
 
         }
@@ -410,7 +440,7 @@ Coord Map::findDeploySpot(UnitBase* pUnit, const Coord origin, const Coord gathe
 			pathList = pathfinder.getFoundReacheablePath();
 
 
-			if(blockDistance(temp, gatherPoint) < closestDistance && !pathList.empty()) {
+			if(/*blockDistance(temp, gatherPoint) < closestDistance && */!pathList.empty()) {
 				closestDistance = blockDistance(temp, gatherPoint);
 				closestPoint.x = ranX;
 				closestPoint.y = ranY;
@@ -420,7 +450,7 @@ Coord Map::findDeploySpot(UnitBase* pUnit, const Coord origin, const Coord gathe
 
 
 
-		if(counter++ >= 100) {
+		if(counter++ >= 40) {
 		    //if hasn't found a spot on tempObject layer in 100 tries, goto next
 
 			counter = 0;
@@ -486,7 +516,7 @@ void Map::removeObjectFromMap(Uint32 objectID) {
 void Map::recalutateCoordinates(const ObjectBase* objLeader, bool forcedRecal = false) {
 
 
-	{
+	/*{
 		std::list<std::pair<Uint32,Coord>>::iterator test;
 		for(test = currentGame->getSelectedListCoord().begin() ; test != currentGame->getSelectedListCoord().end(); ++test) {
 			ObjectBase *obj3 = currentGame->getObjectManager().getObject(test->first);
@@ -497,7 +527,7 @@ void Map::recalutateCoordinates(const ObjectBase* objLeader, bool forcedRecal = 
 			}
 		}
 		fprintf(stdout,"\n");
-	}
+	}*/
 
 
 	std::list<Uint32>::iterator itlist;
@@ -547,7 +577,6 @@ void Map::recalutateCoordinates(const ObjectBase* objLeader, bool forcedRecal = 
 								// Recalculate on self (0,0)
 								*coord3 = Coord (0,0);
 								err_print("Map::recalutateCoordinates resetting 0,0 (%d) \n",obj2->getObjectID());
-										//obj2->getLocation() -  obj3->getLocation();
 							}
 						}
 					}
@@ -559,7 +588,7 @@ void Map::recalutateCoordinates(const ObjectBase* objLeader, bool forcedRecal = 
 
 	}
 
-	{
+	/*{
 		std::list<std::pair<Uint32,Coord>>::iterator test;
 		for(test = currentGame->getSelectedListCoord().begin() ; test != currentGame->getSelectedListCoord().end(); ++test) {
 			ObjectBase *obj3 = currentGame->getObjectManager().getObject(test->first);
@@ -570,7 +599,7 @@ void Map::recalutateCoordinates(const ObjectBase* objLeader, bool forcedRecal = 
 			}
 		}
 		fprintf(stderr,"\n");
-	}
+	}*/
 
 }
 

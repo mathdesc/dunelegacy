@@ -401,7 +401,10 @@ void Carryall::deployUnit(Uint32 unitID)
 			pUnit->setAngle(drawnAngle);
 			if (deployPos.isInvalid()) {
 				dbg_print(" Carryall::deployUnit _deployPos was invalid, new deployPos\n");
-				deployPos = currentGameMap->findDeploySpot(pUnit, location, pUnit->getDestination().isValid() ? pUnit->getDestination() : Coord::Invalid());
+				if (fallBackPos.isInvalid()) {
+					fallBackPos = currentGameMap->findDeploySpot(pUnit, location, pUnit->getDestination().isValid() ? pUnit->getDestination() : Coord::Invalid());
+				}
+				deployPos = fallBackPos;
 			}
 
 			bool sound ;
@@ -417,7 +420,8 @@ void Carryall::deployUnit(Uint32 unitID)
 			}
 
 			dbg_print(" Carryall::deployUnit UnitDeploying to destination(%d,%d-%d,%d) [#%d] \n", pUnit->getDestination().x,pUnit->getDestination().y,deployPos.x,deployPos.y,tryDeploy);
-			if (abs(location.x - deployPos.x) <= 1 && abs(location.y - deployPos.y) <= 1) {
+
+			if ((abs(location.x - deployPos.x) <= 1 && abs(location.y - deployPos.y) <= 1) && pUnit->canPass(deployPos.x,deployPos.y)) {
 				pUnit->deploy(deployPos, sound);
 				deployPos.invalidate();
 				tryDeploy = 0;
@@ -434,13 +438,15 @@ void Carryall::deployUnit(Uint32 unitID)
 						pUnit = NULL;
 					} else {
 						dbg_print(" Carryall::deployUnit UnitDeploying for too long, CAN NOT DUMP cargo @(%d,%d) instead of destination(%d,%d-%d,%d) [#%d] \n",location.x, location.y, pUnit->getDestination().x,pUnit->getDestination().y,deployPos.x,deployPos.y,tryDeploy);
-						deployPos = currentGameMap->findDeploySpot(pUnit, location, pUnit->getDestination().isValid() ? pUnit->getDestination() : Coord::Invalid());
+						if (fallBackPos.isInvalid() || deployPos == fallBackPos)
+							fallBackPos = currentGameMap->findDeploySpot(pUnit, location, pUnit->getDestination().isValid() ? pUnit->getDestination() : Coord::Invalid());
+						deployPos = fallBackPos;
 						return;
 					}
 				} else {
 					setDestination(deployPos);
 					if(pUnit->getOwner() == pLocalHouse) {
-						soundPlayer->playVoiceAt(DropImpossible,pLocalHouse->getHouseID(),deployPos);
+						//soundPlayer->playVoiceAt(DropImpossible,pLocalHouse->getHouseID(),deployPos);
 					}
 					return;
 				}
@@ -584,7 +590,6 @@ void Carryall::giveCargo(UnitBase* newUnit)
 	pickedUpUnitList.push_back(newUnit->getObjectID());
 	tryDeploy=0;
 	deployPos.invalidate();
-	setFallbackPos(newUnit->getLocation());
 
 	newUnit->setPickedUp(this);
 
@@ -675,7 +680,7 @@ void Carryall::pickupTarget()
         if (!deployed) {
         	releaseTarget();
         }
-
+        clearPath();
 	}
 }
 
@@ -706,7 +711,7 @@ void Carryall::targeting() {
 bool Carryall::canPass(int xPos, int yPos) const
 {
 	// When selected units fly at lower altitude and then cannot pass above other flying unit
-	return (isSelected() && owner == pLocalHouse) ? AirUnit::canPass(xPos, yPos) && !currentGameMap->getTile(xPos, yPos)->hasAnAirUnit() : AirUnit::canPass(xPos, yPos) ;
+	return ((isSelected() && owner == pLocalHouse) /* TODO || evasiveTimer >0*/) ? AirUnit::canPass(xPos, yPos) && !currentGameMap->getTile(xPos, yPos)->hasAnAirUnit() : AirUnit::canPass(xPos, yPos) ;
 }
 
 

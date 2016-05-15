@@ -199,7 +199,7 @@ void Harvester::checkPos()
 				}
 
 				if (bestRefinery) {
-					doMove2Object(bestRefinery);
+					doMove2Object(bestRefinery, NULL);
 
 					bestRefinery->startAnimate();
 				}
@@ -314,12 +314,12 @@ void Harvester::drawSelectionBox()
 	SDL_BlitSurface(selectionBox, NULL, screen, &dest);
 
 	for(int i=1;i<=currentZoomlevel+1;i++) {
-        drawHLine(screen, dest.x+1, dest.y-i, dest.x+1 + ((int)((getHealth()/(float)getMaxHealth())*(selectionBox->w-3))), getHealthColor());
+        drawRect(screen, dest.x+1, dest.y-1, dest.x+1 + ((int)((getHealth()/(float)getMaxHealth())*(selectionBox->w-3))),dest.y-2, getHealthColor());
 	}
 
-	if((getOwner() == pLocalHouse) && (spice > 0.0f)) {
+	if((getOwner() == pLocalHouse || debug) && (spice > 0.0f)) {
         for(int i=1;i<=currentZoomlevel+1;i++) {
-            drawHLine(screen, dest.x+1, dest.y-i-(currentZoomlevel+1), dest.x+1 + ((int)((((float)spice)/HARVESTERMAXSPICE)*(selectionBox->w-3))), COLOR_ORANGE);
+            drawRect(screen, dest.x+1, dest.y-3, dest.x+1 + ((int)((((float)spice)/HARVESTERMAXSPICE)*(selectionBox->w-3))),dest.y-4, COLOR_ORANGE);
         }
 	}
 
@@ -329,7 +329,7 @@ void Harvester::drawSelectionBox()
 		int imageW = star[currentZoomlevel]->w/3;
 
 	    SDL_Rect dest = {   x - imageW/2,
-	                        y - star[currentZoomlevel]->h,
+	                        y - 2*star[currentZoomlevel]->h ,
 	                        imageW,
 	                        star[currentZoomlevel]->h };
 
@@ -476,7 +476,7 @@ void Harvester::move()
 }
 
 bool Harvester::isIdle() const {
-	return !isHarvesting() && !returningToRefinery && !moving && respondable && !target && attackMode !=STOP;
+	return !isHarvesting() && !returningToRefinery && !moving && respondable && !target && attackMode ==STOP;
 }
 
 

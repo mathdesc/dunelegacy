@@ -167,6 +167,7 @@ void TurretBase::attack() {
 	if((weaponTimer == 0) && (target.getObjPointer() != NULL)) {
 		Coord centerPoint = getCenterPoint();
 		Coord targetCenterPoint = target.getObjPointer()->getClosestCenterPoint(location);
+		err_print("TurretBase::attack WeaponRange:%d\n",currentGame->objectData.data[Structure_GunTurret][originalHouseID].weaponrange);
 
 		bulletList.push_back( new Bullet( objectID, &centerPoint, &targetCenterPoint,bulletType,
                                                currentGame->objectData.data[itemID][originalHouseID].weapondamage,

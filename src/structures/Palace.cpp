@@ -145,7 +145,7 @@ void Palace::doLaunchDeathhand(int x, int y) {
     }
 
     float randAngle = 2.0f * strictmath::pi * currentGame->randomGen.randFloat();
-    int radius = currentGame->randomGen.rand(0,10*TILESIZE);
+    int radius = nuclearday ? currentGame->randomGen.rand(0,10*TILESIZE) : 1;
     int deathOffX = strictmath::sin(randAngle) * radius;
     int deathOffY = strictmath::cos(randAngle) * radius;
 

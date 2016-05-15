@@ -54,6 +54,13 @@ public:
 	virtual void drawOtherPlayerSelectionBox();
 
 	/**
+		This method is called when a formation of units are simultaneously ordered by a right click
+		\param	xPos	the x position on the map
+		\param	yPos	the y position on the map
+	*/
+	virtual void handleFormationActionClick(int xPos, int yPos);
+
+	/**
 		This method is called when an unit is ordered by a right click
 		\param	xPos	the x position on the map
 		\param	yPos	the y position on the map
@@ -105,15 +112,17 @@ public:
 
 	/**
 		This method is called when an unit should move to another unit/structure
-		\param	TargetObjectID	the ID of the other unit/structure
+		\param	followObjectID	the ID of the other unit/structure
+		\param	TargetObjectID	the ID of its target
 	*/
-	virtual void doMove2Object(Uint32 TargetObjectID);
+	virtual void doMove2Object(Uint32 followObjectID, Uint32 TargetObjectID, bool follow = true);
 
 	/**
 		This method is called when an unit should move to another unit/structure
-		\param	pTargetObject	the other unit/structure
+		\param	pFellowObject	the other unit/structure
+		\param  pTargetObject   its current target
 	*/
-	virtual void doMove2Object(const ObjectBase* pTargetObject);
+	virtual void doMove2Object(const ObjectBase* pFellowObject, const ObjectBase* pTargetObject);
 
 	/**
 		This method is called when an unit should attack a position
@@ -183,6 +192,7 @@ public:
 	void setAngle(int newAngle);
 
 	virtual void setTarget(const ObjectBase* newTarget);
+	virtual void setFellow(const ObjectBase* newFellow);
 
 	void setGettingRepaired();
 
@@ -270,11 +280,13 @@ protected:
 	virtual bool checkSalveRealoaded(bool stillSalvingWhenReloaded);
 
     virtual void releaseTarget();
+    virtual void engageFollow(ObjectBase* pTarget);
 	virtual void engageTarget();
 	virtual void move();
 
     virtual void bumpyMovementOnRock(float fromDistanceX, float fromDistanceY, float toDistanceX, float toDistanceY);
 
+    virtual void fellow();
 	virtual void navigate();
 
     /**
@@ -309,6 +321,7 @@ protected:
     bool	goingToRepairYard;      ///< Are we currently going to a repair yard?
 	bool    pickedUp;               ///< Were we picked up by a carryall?
     bool    bFollow;                ///< Do we currently follow some other unit (specified by target)?
+    ObjectPointer	oldTarget;      ///< A copy pointer of the target to attack or move to
 
 
     bool	isGroupLeader;			///< Is this unit a group leader of unit selection

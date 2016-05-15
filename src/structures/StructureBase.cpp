@@ -214,7 +214,7 @@ void StructureBase::drawSelectionBox() {
 	}
 
     for(int i=1;i<=currentZoomlevel+1;i++) {
-        drawHLine(screen, dest.x, dest.y-i-1, dest.x + ((int)((getHealth()/(float)getMaxHealth())*(world2zoomedWorld(TILESIZE)*structureSize.x - 1))), getHealthColor());
+        drawRect(screen, dest.x+1, dest.y-1, dest.x + ((int)((getHealth()/(double)getMaxHealth())*(world2zoomedWorld(TILESIZE)*structureSize.x - 2))), dest.y-2, getHealthColor());
     }
 }
 

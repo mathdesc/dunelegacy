@@ -460,7 +460,7 @@ void UnitBase::drawSelectionBox() {
 	int x = screenborder->world2screenX(realX) - selectionBox->w/2;
 	int y = screenborder->world2screenY(realY) - selectionBox->h/2;
 	for(int i=1;i<=currentZoomlevel+1;i++) {
-        drawHLine(screen, x+1, y-i, x+1 + ((int)((getHealth()/(float)getMaxHealth())*(selectionBox->w-3))), getHealthColor());
+        drawRect(screen, x+1, y-1, x+1 + ((int)((getHealth()/(float)getMaxHealth())*(selectionBox->w-3))), y-2, getHealthColor());
 	}
 
 	if (isLeader()) {
@@ -470,7 +470,7 @@ void UnitBase::drawSelectionBox() {
 		int imageW = star[currentZoomlevel]->w/3;
 
 	    SDL_Rect dest = {   x - imageW/2,
-	                        y - star[currentZoomlevel]->h,
+	    					y - 2*star[currentZoomlevel]->h,
 	                        imageW,
 	                        star[currentZoomlevel]->h };
 
@@ -506,7 +506,8 @@ void UnitBase::releaseTarget() {
         guardPoint = location;
     }
     */
-    setDestination(guardPoint);
+	if (!bFollow)
+		setDestination(guardPoint);
 
     findTargetTimer = 0;
     setForced(false);
@@ -528,6 +529,33 @@ bool UnitBase::checkSalveRealoaded(bool stillSalvingWhenReloaded) {
 		if (!cant_while_salve_reload) salving = stillSalvingWhenReloaded;
 	}
 	return !cant_while_salve_reload;
+}
+
+
+void UnitBase::engageFollow(ObjectBase* pTarget) {
+	ObjectBase* old = (oldTarget.getObjPointer());
+	Coord oldLoc = old != NULL ?  old->getLocation() : Coord::Invalid();
+	Coord targetLocation = pTarget != NULL ? pTarget->getClosestPoint(location) : Coord::Invalid();
+
+
+		if(old != NULL) {
+			if (destination != oldLoc) {
+				// the location of the friend unit has moved
+				// => recalculate path
+				clearPath();
+			}
+			// The friend followed unit changed its target : follow firing orders
+			if (old->getTarget() != pTarget) {
+	    		 setTarget(old->getTarget());
+			}
+
+
+		}
+		if (salving) salving=false;
+		dbg_relax_print("UnitBase::follow  %d target x=%d y=%d oldtarget  x=%d y=%d \n", objectID, targetLocation.x,targetLocation.y,oldLoc.x,oldLoc.y);
+		//setDestination(oldLoc);
+
+
 }
 
 
@@ -558,23 +586,38 @@ void UnitBase::engageTarget() {
         releaseTarget();
         return;
     }
-
-    if(target && !targetFriendly && !forced && !isInAttackRange(target.getObjPointer())) {
-        // the (non-friendly) target left the attack mode range (and we were not forced to attack it)
+    											// FIXME : check this following adding
+    if(target && !targetFriendly && (!forced && !bFollow) && !isInAttackRange(target.getObjPointer())) {
+        // the (non-friendly) target left the attack mode range (and we were not forced to attack it nor we are following)
         releaseTarget();
         return;
     }
+
+	ObjectBase* old = (oldTarget.getObjPointer());
+	Coord oldLoc = old != NULL ?  old->getLocation() : Coord::Invalid();
+
 
     if(target) {
         // we have a target unit or structure
 
         Coord targetLocation = target.getObjPointer()->getClosestPoint(location);
 
-        if(destination != targetLocation) {
-            // the location of the target has moved
-            // => recalculate path
-            clearPath();
-        }
+
+        if(bFollow) {
+            // we are following someone : we need to choose between following target or the friend unit
+        	// if the friend unit is attacking a target & is in danger = move to his destination , attack his target
+        	engageFollow(target.getObjPointer());
+
+        	if (!target || target.getObjPointer()->getObjectID() == objectID) {
+        		// friend unit has just disengage, do same (also disengage if he engage this)
+        		findTargetTimer = 0;
+        		return;
+        	}
+        } else if(destination != targetLocation) {
+			// the location of the target has moved
+			// => recalculate path
+			clearPath();
+		}
 
         targetDistance = blockDistance(location, targetLocation);
 
@@ -583,18 +626,19 @@ void UnitBase::engageTarget() {
             newTargetAngle = 0;
         }
 
-        if(bFollow) {
-            // we are following someone
-        	if (salving) salving=false;
-            setDestination(targetLocation);
-            return;
-        }
 
         if(targetDistance > getWeaponRange()) {
             // we are not in attack range
             // => follow the target
         	if (!salving) {
-        		setDestination(targetLocation);
+
+        		if (!bFollow) {
+        			setDestination(targetLocation);
+        		} else {
+					setDestination(oldLoc);
+					dbg_relax_print("UnitBase::engageTarget %d notinrange1 target x=%d y=%d oldtarget  x=%d y=%d\n ", objectID, targetLocation.x,targetLocation.y,oldLoc.x,oldLoc.y);
+        		}
+
         	}
         	else {
         		dbg_relax_print("UnitBase::engageTarget setting salveattack unreached x=%d y=%d\n ",attackPos.x,attackPos.y);
@@ -605,8 +649,8 @@ void UnitBase::engageTarget() {
 
         // we are in attack range
 
-        if(targetFriendly && !forced) {
-            // the target is friendly and we only attack these if were forced to do so
+        if(targetFriendly && (!forced && !bFollow)) {
+            // the target is friendly and we only attack these if were forced to do so or not in following mode (firing orders)
             return;
         }
 
@@ -630,7 +674,7 @@ void UnitBase::engageTarget() {
             setDestination(location);
             if (checkSalveRealoaded(salving)) {
             	targetAngle = newTargetAngle;
-            	dbg_relax_print("UnitBase::engageTarget get new angle (salving %s)\n",salving ? "yes" :"no");
+            	//dbg_relax_print("UnitBase::engageTarget get new angle (salving %s)\n",salving ? "yes" :"no");
             }
         }
         attackPos = targetLocation;
@@ -647,7 +691,7 @@ void UnitBase::engageTarget() {
                	return;
         }
         if(!salving && getCurrentAttackAngle() == newTargetAngle) {
-        	dbg_relax_print("UnitBase::engageTarget nosalving attack x=%d y=%d!\n",targetLocation.x,targetLocation.y);
+        	//dbg_relax_print("UnitBase::engageTarget nosalving attack x=%d y=%d!\n",targetLocation.x,targetLocation.y);
             attack();
         }
 
@@ -742,7 +786,7 @@ void UnitBase::move() {
 
 			if ((fromDistanceX >= TILESIZE) || (fromDistanceY >= TILESIZE)) {
 
-				if(forced && (location == destination) && !target) {
+				if(forced && (location == destination) && !target  && !bFollow) { //FIXME : follow mode
 					setForced(false);
 				}
 
@@ -809,8 +853,63 @@ void UnitBase::bumpyMovementOnRock(float fromDistanceX, float fromDistanceY, flo
     }
 }
 
+
+void UnitBase::fellow() {
+
+	if(!moving && !justStoppedMoving) {
+		if(nextSpotFound == false)	{
+			 if(pathList.empty() && (recalculatePathTimer == 0)) {
+				 recalculatePathTimer = 100;
+
+
+				 if(!SearchPathWithAStar() && (++noCloserPointCount >= 3) && (location != oldLocation)) {
+
+						if (pathList.empty() && !target) {
+								 idleAction();
+						}
+
+
+				 }
+
+			 }
+			 if(!pathList.empty()) {
+				 nextSpot = pathList.front();
+				 pathList.pop_front();
+				 nextSpotFound = true;
+				 recalculatePathTimer = 0;
+				 noCloserPointCount = 0;
+			 }
+		} else {
+            int tempAngle = currentGameMap->getPosAngle(location, nextSpot);
+            if(tempAngle != INVALID) {
+                nextSpotAngle = tempAngle;
+            }
+
+            if(!canPass(nextSpot.x, nextSpot.y)) {
+                clearPath();
+            } else {
+                if (drawnAngle == nextSpotAngle)	{
+                    moving = true;
+                    nextSpotFound = false;
+
+                    assignToMap(nextSpot);
+                    angle = drawnAngle;
+                    setSpeeds();
+                }
+            }
+        }
+	}
+
+}
+
 void UnitBase::navigate() {
 
+	if (bFollow) {
+		if (oldTarget  && oldTarget.getObjPointer()->isActive()) {
+			fellow();
+			return;
+		}
+	}
     if(isAFlyingUnit() || (((currentGame->getGameCycleCount() + getObjectID()*1337) % 5) == 0)) {
         // navigation is only performed every 5th frame
 
@@ -828,13 +927,17 @@ void UnitBase::navigate() {
                                 && (target.getObjPointer()->getItemID() != Structure_RepairYard)
                                 && ((target.getObjPointer()->getItemID() != Structure_Refinery)
                                 || (getItemID() != Unit_Harvester))) {
-                                setTarget(NULL);
+                                setTarget(NULL);		// FIXME : following someone , set no target?
                             }
 
-                            setDestination(location);	//can't get any closer, give up
-                            forced = false;
+
+                            	setDestination(location);	//can't get any closer, give up
+                            	forced = false;
+
                         }
                     }
+
+
 
                     if(!pathList.empty()) {
                         nextSpot = pathList.front();
@@ -871,9 +974,10 @@ void UnitBase::navigate() {
     }
 }
 
+
 void UnitBase::idleAction() {
     //not moving and not wanting to go anywhere, do some random turning
-    if(isAGroundUnit() && (getItemID() != Unit_Harvester) && (getAttackMode() == GUARD)) {
+    if(isAGroundUnit() && (getItemID() != Unit_Harvester) && (getAttackMode() == GUARD || getAttackMode() == AREAGUARD )) {
         // we might turn this cylce with 20% chance
         if(currentGame->randomGen.rand(0, 4) == 0) {
             // choose a random one of the eight possible angles
@@ -882,19 +986,51 @@ void UnitBase::idleAction() {
     }
 }
 
-void UnitBase::handleActionClick(int xPos, int yPos) {
+void UnitBase::handleFormationActionClick(int xPos, int yPos) {
 	if(respondable) {
 		if(currentGameMap->tileExists(xPos, yPos)) {
 			if(currentGameMap->getTile(xPos,yPos)->hasAnObject()) {
  				// attack unit/structure or move to structure
-				ObjectBase* tempTarget = currentGameMap->getTile(xPos,yPos)->getObject();
+				ObjectBase* tempTarget 		 = currentGameMap->getTile(xPos,yPos)->getObject();
+				ObjectBase* tempTargetTarget = currentGameMap->getTile(xPos,yPos)->getObject()->getTarget();
+				Uint32 tTTID = 0;
+				if (tempTargetTarget != NULL) {
+					tTTID = tempTargetTarget->getObjectID();
+				}
 
 				if(tempTarget->getOwner()->getTeam() != getOwner()->getTeam()) {
 					// attack
 					currentGame->getCommandManager().addCommand(Command(pLocalPlayer->getPlayerID(), CMD_UNIT_ATTACKOBJECT,objectID,tempTarget->getObjectID()));
 				} else {
-					// move to object/structure
-					currentGame->getCommandManager().addCommand(Command(pLocalPlayer->getPlayerID(), CMD_UNIT_MOVE2OBJECT,objectID,tempTarget->getObjectID()));
+					// move this unit
+					currentGame->getCommandManager().addCommand(Command(pLocalPlayer->getPlayerID(), CMD_UNIT_MOVE2POS,objectID,(Uint32) xPos, (Uint32) yPos, (Uint32) true));
+				}
+			} else {
+				// move this unit
+				currentGame->getCommandManager().addCommand(Command(pLocalPlayer->getPlayerID(), CMD_UNIT_MOVE2POS,objectID,(Uint32) xPos, (Uint32) yPos, (Uint32) true));
+			}
+		}
+	}
+}
+
+void UnitBase::handleActionClick(int xPos, int yPos) {
+	if(respondable) {
+		if(currentGameMap->tileExists(xPos, yPos)) {
+			if(currentGameMap->getTile(xPos,yPos)->hasAnObject()) {
+ 				// attack unit/structure or move to structure
+				ObjectBase* tempTarget 		 = currentGameMap->getTile(xPos,yPos)->getObject();
+				ObjectBase* tempTargetTarget = currentGameMap->getTile(xPos,yPos)->getObject()->getTarget();
+				Uint32 tTTID = 0;
+				if (tempTargetTarget != NULL) {
+					tTTID = tempTargetTarget->getObjectID();
+				}
+
+				if(tempTarget->getOwner()->getTeam() != getOwner()->getTeam()) {
+					// attack
+					currentGame->getCommandManager().addCommand(Command(pLocalPlayer->getPlayerID(), CMD_UNIT_ATTACKOBJECT,objectID,tempTarget->getObjectID()));
+				} else {
+					// move to object/structure)
+					currentGame->getCommandManager().addCommand(Command(pLocalPlayer->getPlayerID(), CMD_UNIT_MOVE2OBJECT,objectID,tempTarget->getObjectID(),tTTID));
 				}
 			} else {
 				// move this unit
@@ -971,8 +1107,8 @@ void UnitBase::doMove2Pos(const Coord& coord, bool bForced) {
 	doMove2Pos(coord.x, coord.y, bForced);
 }
 
-void UnitBase::doMove2Object(const ObjectBase* pTargetObject) {
-	if(pTargetObject->getObjectID() == getObjectID()) {
+void UnitBase::doMove2Object(const ObjectBase* pFellowObject, const ObjectBase* pTargetObject) {
+	if(pFellowObject != NULL && pFellowObject->getObjectID() == getObjectID()) {
 		return;
 	}
 
@@ -981,23 +1117,36 @@ void UnitBase::doMove2Object(const ObjectBase* pTargetObject) {
 	}
 
 	setDestination(INVALID_POS,INVALID_POS);
+	err_print("ID:%d FellowID:%d TargetID:%d\n", objectID, pFellowObject !=NULL ? pFellowObject->getObjectID() : 0,pTargetObject != NULL ? pTargetObject->getObjectID() : 0);
+	setFellow(pFellowObject);
 	setTarget(pTargetObject);
 	setForced(true);
 
-	bFollow = true;
 
 	clearPath();
 	findTargetTimer = 0;
 }
 
-void UnitBase::doMove2Object(Uint32 targetObjectID) {
-	ObjectBase* pObject = currentGame->getObjectManager().getObject(targetObjectID);
+void UnitBase::doMove2Object(Uint32 followObjectID, Uint32 targetObjectID, bool follow) {
+	ObjectBase* pObjectfellow = NULL;
+	ObjectBase* pObjecttarget = NULL;
+	if (targetObjectID != 0) {
+		pObjecttarget = currentGame->getObjectManager().getObject(targetObjectID);
+	}
 
-    if(pObject == NULL) {
-        return;
-    }
+	if (follow) {
+		pObjectfellow = currentGame->getObjectManager().getObject(followObjectID);
+		if (pObjectfellow == NULL)
+			return;
+		/*if (!pObjectfellow->isAUnit()) {
+			doMove2Pos(pObjectfellow->getLocation(),false);
+			return;
+		}*/
+	} else {
+		pObjectfellow = NULL;
+	}
 
-	doMove2Object(pObject);
+	doMove2Object(pObjectfellow,pObjecttarget);
 }
 
 void UnitBase::doSalveAttackPos(int xPos, int yPos, bool bForced) {
@@ -1044,7 +1193,7 @@ void UnitBase::doAttackObject(const ObjectBase* pTargetObject, bool bForced) {
 	setDestination(INVALID_POS,INVALID_POS);
 
 	setTarget(pTargetObject);
-	// hack to make it possible to attack own repair yard
+	// hack to make it possible to attack own repair yard FIXME
     if(goingToRepairYard && target && (target.getObjPointer()->getItemID() == Structure_RepairYard)) {
 		((RepairYard*)target.getObjPointer())->unBook();
 		goingToRepairYard = false;
@@ -1094,6 +1243,10 @@ void UnitBase::doSetAttackMode(ATTACKMODE newAttackMode) {
             doMove2Pos(nextSpot, false);
 	    } else {
 	        doMove2Pos(location, false);
+	    }
+	    if (attackMode == STOP) {
+	    	bFollow = false;
+	    	oldTarget.pointTo(NONE);
 	    }
 	}
 	salving = false;
@@ -1262,6 +1415,7 @@ void UnitBase::setLocation(int xPos, int yPos) {
 }
 
 void UnitBase::setPickedUp(UnitBase* newCarrier) {
+
 	if(selected) {
 		removeFromSelectionLists();
     }
@@ -1362,15 +1516,16 @@ void UnitBase::setSpeeds() {
 
 void UnitBase::setTarget(const ObjectBase* newTarget) {
 	attackPos.invalidate();
-	bFollow = false;
+	//bFollow = false;	//FIXME perf : set target is running permanently, why ?
 	targetAngle = INVALID;
 
 	if(goingToRepairYard && target && (target.getObjPointer()->getItemID() == Structure_RepairYard)) {
 		((RepairYard*)target.getObjPointer())->unBook();
 		goingToRepairYard = false;
 	}
-
+	//err_print("UnitBase::setTarget 1 %d FellowID:%d TargetID:%d\n", objectID, oldTarget.getObjPointer() != NULL ? oldTarget.getObjPointer()->getObjectID() : 0, this->getTarget() != NULL ? this->getTarget()->getObjectID() : 0 );
 	ObjectBase::setTarget(newTarget);
+	//err_print("UnitBase::setTarget 2 %d FellowID:%d TargetID:%d\n", objectID,oldTarget.getObjPointer() != NULL ? oldTarget.getObjPointer()->getObjectID() : 0, this->getTarget() != NULL ? this->getTarget()->getObjectID() : 0 );
 
 	if(target.getObjPointer() != NULL
 		&& (target.getObjPointer()->getOwner() == getOwner())
@@ -1382,18 +1537,44 @@ void UnitBase::setTarget(const ObjectBase* newTarget) {
 	}
 }
 
+void UnitBase::setFellow(const ObjectBase* newFellow) {
+
+	if (newFellow != NULL)
+		bFollow = true;
+	else
+		bFollow = false;
+
+	oldTarget.pointTo(const_cast<ObjectBase*>(newFellow));
+}
+
+
 void UnitBase::targeting() {
+
+
+	if (this->isSelected()) err_relax_print("UnitBase::targeting ID:%d AreaGuardRange:%d salving:%s nofollow:%s(%d) notarget:%s(%d) noattackpos:%s notmoving:%s notjuststopped:%s notforced:%s guardpoint:[%d,%d] isidle:%s attackmode=%s timer=%d\n", objectID, getAreaGuardRange(), salving ? "yes" : "no", !oldTarget ? "y" : "n", oldTarget.getObjectID(),!target ? "y" : "n", target.getObjectID(),
+			!attackPos ? "y" : "n", !moving ? "y" : "n", !justStoppedMoving ? "y" : "n", !forced ? "y" : "n", guardPoint.x ,guardPoint.y, ((Harvester*)this)->isIdle() ? "y" : "n", getAttackModeNameByMode(attackMode).c_str(), findTargetTimer);
+
+
     if(findTargetTimer == 0) {
 
-    	if (this->isSelected()) err_relax_print("UnitBase::targeting AreaGuardRange:%d salving:%s notarget:%s(%d) noattackpos:%s notmoving:%s notjuststopped:%s notforced:%s guardpoint:[%d,%d] isidle:%s attackmode=%s\n", getAreaGuardRange(), salving ? "yes" : "no",!target ? "y" : "n", target.getObjectID(),
-    			!attackPos ? "y" : "n", !moving ? "y" : "n", !justStoppedMoving ? "y" : "n", !forced ? "y" : "n", guardPoint.x ,guardPoint.y, ((Harvester*)this)->isIdle() ? "y" : "n", getAttackModeNameByMode(attackMode).c_str());
 
         if(attackMode != STOP) {
-            if(!target && ( (!attackPos || attackPos.isInvalid() || !isSalving()) ) && !moving && !justStoppedMoving && !forced) {
-                // we have no target, we have stopped moving and we weren't forced to do anything else
+            if(!target && ( (!attackPos || attackPos.isInvalid() || !isSalving()) ) && !moving && !justStoppedMoving && (!forced || bFollow)) {
+                // we have no target, we have stopped moving and we weren't forced to do anything else or following
             	attackPos.invalidate();
 
-                const ObjectBase* pNewTarget = findTarget();
+                const ObjectBase* pNewTarget ;
+
+                if (bFollow && oldTarget && oldTarget.getObjPointer() != NULL && oldTarget.getObjPointer()->getTarget() != NULL) {
+                	pNewTarget =  oldTarget.getObjPointer()->getTarget();
+                	setTarget(pNewTarget);
+                	if (this->isSelected()) err_relax_print("UnitBase::targeting ID:%d follower is given the target %d\n", objectID, pNewTarget != NULL ? pNewTarget->getObjectID() : 0);
+                } else {
+                	pNewTarget = findTarget();
+                	if (this->isSelected()) err_relax_print("UnitBase::targeting ID:%d choose NEW target %d\n", objectID,pNewTarget != NULL ? pNewTarget->getObjectID() : 0);
+
+                }
+
 
                 if(pNewTarget != NULL && isInGuardRange(pNewTarget)) {
                     // we have found a new target => attack it
@@ -1404,7 +1585,7 @@ void UnitBase::targeting() {
 
                     if(getItemID() == Unit_Sandworm) {
                         if(pNewTarget->getOwner() == pLocalHouse) {
-                            soundPlayer->playVoice(WarningWormSign, pLocalHouse->getHouseID());
+                         //   soundPlayer->playVoice(WarningWormSign, pLocalHouse->getHouseID());
                         }
                         doSetAttackMode(HUNT);
                     }
@@ -1543,13 +1724,21 @@ bool UnitBase::canPass(int xPos, int yPos) const {
 bool UnitBase::SearchPathWithAStar() {
 	Coord destinationCoord;
 
-	if(target && target.getObjPointer() != NULL) {
-	    if(itemID == Unit_Carryall && target.getObjPointer()->getItemID() == Structure_Refinery) {
+	if(!bFollow && target && target.getObjPointer() != NULL) {
+	    if(itemID == Unit_Carryall && target.getObjPointer()->getItemID() == Structure_Refinery) {	//FIXME : target must not be ambivalent anymore, this syntax is obsolete : use oldTarget
             destinationCoord = target.getObjPointer()->getLocation() + Coord(2,0);
 	    } else if(itemID == Unit_Frigate && target.getObjPointer()->getItemID() == Structure_StarPort) {
             destinationCoord = target.getObjPointer()->getLocation() + Coord(1,1);
 	    } else {
             destinationCoord = target.getObjPointer()->getClosestPoint(location);
+	    }
+	} else if (bFollow && oldTarget && oldTarget.getObjPointer() != NULL) {
+	    if(itemID == Unit_Carryall && oldTarget.getObjPointer()->getItemID() == Structure_Refinery) {
+            destinationCoord = oldTarget.getObjPointer()->getLocation() + Coord(2,0);
+	    } else if(itemID == Unit_Frigate && oldTarget.getObjPointer()->getItemID() == Structure_StarPort) {
+            destinationCoord = oldTarget.getObjPointer()->getLocation() + Coord(1,1);
+	    } else {
+            destinationCoord = oldTarget.getObjPointer()->getClosestPoint(location);
 	    }
 	} else {
 		destinationCoord = destination;

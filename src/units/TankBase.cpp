@@ -84,18 +84,17 @@ void TankBase::navigate() {
             targetAngle = INVALID;
 	    } else {
             // change the turret angle so it faces the direction we are moving in
-            targetAngle = lround(8.0f/256.0f*destinationAngle(location, destination));
-
-            if(targetAngle == 8) {
-                targetAngle = 0;
-            }
+	    	if (!bFollow)
+	    		targetAngle = lround(8.0f/256.0f*destinationAngle(location, destination))%8;
+	    	else if (!target && oldTarget &&  oldTarget.getObjPointer() != NULL)
+	    		targetAngle =  lround(8.0f/256.0f*destinationAngle(location, oldTarget.getObjPointer()->getClosestPoint(location)))%8;
 	    }
 	}
 	TrackedUnit::navigate();
 }
 
 void TankBase::idleAction() {
-    if(getAttackMode() == GUARD) {
+    if(getAttackMode() == GUARD || getAttackMode() == AREAGUARD) {
         // do some random turning with 20% chance
         switch(currentGame->randomGen.rand(0, 9)) {
             case 0: {
@@ -170,6 +169,9 @@ void TankBase::engageTarget() {
             attack();
             target = temp;
         }
+    } else if (bFollow && oldTarget.getObjPointer() != NULL ) {
+
+    	drawnTurretAngle =  lround(8.0f/256.0f*destinationAngle(location, oldTarget.getObjPointer()->getClosestPoint(location)))%8;
     }
 }
 

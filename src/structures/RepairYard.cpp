@@ -102,8 +102,10 @@ bool RepairYard::deployRepairUnit(Carryall* pCarryall) {
 			pCarryall->giveCargo(pRepairUnit);
 			pCarryall->setTarget(NULL);
 			pCarryall->setDestination(pRepairUnit->getGuardPoint());
+			pCarryall->setDeployPos(pRepairUnit->getGuardPoint());
+			pCarryall->setFallbackPos(currentGameMap->findDeploySpot(pRepairUnit, location, pRepairUnit->getGuardPoint(), structureSize));
 		} else {
-			Coord deployPos = currentGameMap->findDeploySpot(pRepairUnit, location, destination, structureSize);
+			Coord deployPos = currentGameMap->findDeploySpot(pRepairUnit, location, pRepairUnit->getGuardPoint(), structureSize);
 			pRepairUnit->deploy(deployPos, false);
 			pRepairUnit->setTarget(NULL);
 		//    pRepairUnit->setDestination(pRepairUnit->getLocation());

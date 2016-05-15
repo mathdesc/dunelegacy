@@ -267,7 +267,7 @@ void ObjectBase::removeFromSelectionLists() {
     currentGame->selectionChanged();
     currentGame->getSelectedByOtherPlayerList().remove(getObjectID());
 
-    selected = false;
+
 
     for(int i=0; i < NUMSELECTEDLISTS; i++) {
         pLocalPlayer->getGroupList(i).remove(getObjectID());
@@ -275,14 +275,15 @@ void ObjectBase::removeFromSelectionLists() {
 
 
     // GroupLeader has been destroyed
-    if (isAUnit() && owner ==  pLocalHouse && (currentGame->getGroupLeader()) != NULL) {
-    	if ((currentGame->getGroupLeader())->getObjectID() == getObjectID() && currentGame->getSelectedList().size() >= 1) {
+    if (isAUnit() && owner ==  pLocalHouse && (currentGame->getGroupLeader()) != NULL && isSelected()) {
+    	if ((currentGame->getGroupLeader())->getObjectID() == objectID && currentGame->getSelectedList().size() >= 1) {
 			ObjectBase * newLead = currentGame->getObjectManager().getObject(currentGame->getSelectedList().front());
 			err_print("ObjectBase::removeFromSelectionLists new lead is %d \n",newLead->getObjectID());
 			currentGame->setGroupLeader(newLead);
 			currentGameMap->recalutateCoordinates(newLead,true);
     	}
     }
+    selected = false;
 }
 
 void ObjectBase::setDestination(int newX, int newY) {
@@ -410,6 +411,10 @@ const StructureBase* ObjectBase::findClosestTargetStructure() const {
         if(canAttack(tempStructure)) {
 			Coord closestPoint = tempStructure->getClosestPoint(getLocation());
 			float structureDistance = blockDistance(getLocation(), closestPoint);
+			bool attacker_mask = tempStructure->isActive() && tempStructure->hasATarget() && tempStructure->getTarget() != NULL && tempStructure->getTarget() ==  this && tempStructure->canAttack(this) && tempStructure->targetInWeaponRange() ;
+
+			if (attacker_mask)
+				return tempStructure;
 
 			if(tempStructure->getItemID() == Structure_Wall) {
 					structureDistance += 20000000.0f; //so that walls are targeted very last
@@ -436,14 +441,25 @@ const UnitBase* ObjectBase::findClosestTargetUnit() const {
 		if(canAttack(tempUnit)) {
 			Coord closestPoint = tempUnit->getClosestPoint(getLocation());
 			float unitDistance = blockDistance(getLocation(), closestPoint);
+			Uint32 titemID = tempUnit->getItemID();
+			bool priority_mask = (itemID == Unit_Ornithopter && tempUnit->isActive()) && (titemID == Unit_MCV || titemID == Unit_Ornithopter || titemID == Unit_Harvester || titemID == Unit_Launcher || titemID == Unit_Troopers) ;
+			bool attacker_mask = tempUnit->isActive() && tempUnit->hasATarget() && tempUnit->getTarget() != NULL && tempUnit->getTarget() ==  this && tempUnit->canAttack(this) && tempUnit->targetInWeaponRange() ;
 
-			if(tempUnit->getItemID() == Unit_Sandworm) {
-				unitDistance += 400.0f; //so that worms are targeted last
+			if (attacker_mask)
+				return tempUnit;
+														// FIXME : carryall should be regular target hard to shoot be reagular, instead unit should abandon this target if in danger
+			if(tempUnit->getItemID() == Unit_Sandworm || tempUnit->getItemID() == Unit_Carryall) {
+				unitDistance += 4000.0f; //so that worms are targeted last
 			}
 
 			if(unitDistance < closestDistance) {
+				if (priority_mask) {
+					unitDistance -= 400.0f;
+					if (unitDistance == 0) unitDistance = 0.1;
+				}
                 closestDistance = unitDistance;
 				closestUnit = tempUnit;
+
             }
         }
 	}
@@ -463,6 +479,10 @@ const ObjectBase* ObjectBase::findClosestTarget() const {
         if(canAttack(tempStructure)) {
 			Coord closestPoint = tempStructure->getClosestPoint(getLocation());
 			float structureDistance = blockDistance(getLocation(), closestPoint);
+			bool attacker_mask = tempStructure->isActive() && tempStructure->hasATarget() && tempStructure->getTarget() != NULL && tempStructure->getTarget() ==  this && tempStructure->canAttack(this) && tempStructure->targetInWeaponRange() ;
+
+			if (attacker_mask)
+				return tempStructure;
 
 			if(tempStructure->getItemID() == Structure_Wall) {
 					structureDistance += 20000000.0f; //so that walls are targeted very last
@@ -482,6 +502,12 @@ const ObjectBase* ObjectBase::findClosestTarget() const {
 		if(canAttack(tempUnit)) {
 			Coord closestPoint = tempUnit->getClosestPoint(getLocation());
 			float unitDistance = blockDistance(getLocation(), closestPoint);
+			Uint32 titemID = tempUnit->getItemID();
+			bool priority_mask = (itemID == Unit_Ornithopter && tempUnit->isActive()) && (titemID == Unit_MCV || titemID == Unit_Ornithopter || titemID == Unit_Harvester) ;
+			bool attacker_mask = tempUnit->isActive() && tempUnit->hasATarget() && tempUnit->getTarget() != NULL && tempUnit->getTarget() ==  this && tempUnit->canAttack(this) && tempUnit->targetInWeaponRange() ;
+
+			if (attacker_mask || priority_mask)
+				return tempUnit;
 
 			if(unitDistance < closestDistance) {
                 closestDistance = unitDistance;

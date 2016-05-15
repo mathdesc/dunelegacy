@@ -211,9 +211,9 @@ void Player::doMove2Pos(const UnitBase* pUnit, int x, int y, bool bForced) {
     }
 }
 
-void Player::doMove2Object(const UnitBase* pUnit, const ObjectBase* pTargetObject) {
+void Player::doMove2Object(const UnitBase* pUnit, const ObjectBase* pFellowObject, const ObjectBase* pTargetObject) {
     if(pUnit->getOwner() == getHouse()) {
-        const_cast<UnitBase*>(pUnit)->doMove2Object(pTargetObject);
+        const_cast<UnitBase*>(pUnit)->doMove2Object(pFellowObject,pTargetObject);
     } else {
         fprintf(stderr,"Player %s tries to move a unit (to an object) he doesn't own!\n", playername.c_str());
         return;

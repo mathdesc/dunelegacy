@@ -65,8 +65,9 @@ private:
 
 	void checkAllUnits();
 	void build();
-	Coord mentatAnalysis_AttackVector(ObjectBase* target = NULL);
-	bool mentatAnalysis();
+	Coord mentatAnalysis_AttackVector(const ObjectBase* target);
+	ObjectBase* mentatAnalysis_GetAlphaTarget(const UnitBase* attackVector);
+	bool mentatAnalysis(bool performIfAdvised = false);
 	void attack();
 
 	bool isAllowedToArm() const;

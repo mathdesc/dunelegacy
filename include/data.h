@@ -29,7 +29,8 @@ typedef enum {
 	Bullet_ShellLarge = 6,
 	Bullet_SmallRocket = 7,
 	Bullet_Sonic = 8,
-	Bullet_Sandworm = 9
+	Bullet_Sandworm = 9,
+	Bullet_HomingRocket = 10
 } BulletID_enum;
 
 typedef enum {
@@ -44,7 +45,8 @@ typedef enum {
     Explosion_ShellLarge = 8,
 	Explosion_SmallUnit = 9,
 	Explosion_Flames = 10,
-	Explosion_SpiceBloom = 11
+	Explosion_SpiceBloom = 11,
+	Explosion_Fire = 12
 } ExplosionID_enum;
 
 typedef enum {

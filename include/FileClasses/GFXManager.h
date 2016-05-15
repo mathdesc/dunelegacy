@@ -104,6 +104,7 @@ typedef enum {
 	ObjPic_Terrain_Hidden,
 	ObjPic_Terrain_Tracks,
 	ObjPic_Star,
+	ObjPic_ExplosionFire,
 	NUM_OBJPICS
 } ObjPic_enum;
 

@@ -145,7 +145,7 @@ void Bullet::init()
         } break;
 
         case Bullet_LargeRocket: {
-            damageRadius = TILESIZE;
+            damageRadius = TILESIZE*15;
             speed = 20.0f;
             detonationTimer = -1;
             numFrames = 16;
@@ -207,7 +207,7 @@ void Bullet::init()
             damageRadius = (TILESIZE*3)/4;
             speed = 9.0f;
             numFrames = 1;
-            detonationTimer = 28;
+            detonationTimer = 33;
             SDL_Surface** tmpSurfaceStack = pGFXManager->getObjPic(ObjPic_Bullet_Sonic, houseID);
             graphic = new SDL_Surface*[NUM_ZOOMLEVEL];
             for(int z = 0; z < NUM_ZOOMLEVEL; z++) {
@@ -431,7 +431,7 @@ void Bullet::update()
             currentGameMap->damage(shooterID, owner, realPos, bulletID, currentDamage/2.0f, damageRadius, false);
 		} else if( explodesAtGroundObjects
                     && currentGameMap->tileExists(location)
-                    && currentGameMap->getTile(location)->hasAGroundObject()
+                    && currentGameMap->getTile(location)->hasAGroundObject() && currentGameMap->getTile(location)->getObject()->getOwner() != owner
                     && currentGameMap->getTile(location)->getGroundObject()->isAStructure()) {
 			destroy();
             return;
@@ -468,21 +468,59 @@ void Bullet::destroy()
 
         case Bullet_LargeRocket: {
             soundPlayer->playSoundAt(Sound_ExplosionLarge, position);
+            int a = 0; int b =0; int c=0;
+            for(int i=0 ;i < damageRadius; i++) {
 
-            for(int i = 0; i < 5; i++) {
-                for(int j = 0; j < 5; j++) {
-                    if (((i != 0) && (i != 4)) || ((j != 0) && (j != 4))) {
-                        position.x = lround(realX) + (i - 2)*TILESIZE;
-                        position.y = lround(realY) + (j - 2)*TILESIZE;
+            	int r = i;
+            	float angle = 2.0f * strictmath::pi * currentGame->randomGen.randFloat();
 
-                        currentGameMap->damage(shooterID, owner, position, bulletID, damage, damageRadius, airAttack);
+				Coord offset = Coord ( (int) (r*strictmath::sin(angle)), (int) (-r*strictmath::cos(angle)));
+				Coord position = Coord(lround(realX) ,lround(realY) )  + offset;
+				Coord tileposition = Coord(position.x/TILESIZE, position.y/TILESIZE);
 
-                        Uint32 explosionID = currentGame->randomGen.getRandOf(2,Explosion_Large1,Explosion_Large2);
-                        currentGame->getExplosionList().push_back(new Explosion(explosionID,position,houseID));
-                        screenborder->shakeScreen(22);
-                    }
-                }
+
+				if (currentGameMap->tileExists(tileposition)) {
+				   Uint32 explosionID = Explosion_Fire;
+				  // int dist = distanceFrom(position,position+offset)/TILESIZE;
+
+
+				   if (i > damageRadius * 0.5 && i < damageRadius * 0.7 ){
+					   explosionID = Explosion_Fire;
+					   currentGame->getExplosionList().push_back(new Explosion(explosionID,position,houseID));
+					   currentGameMap->damage(shooterID, owner, position, bulletID, damage/15, 2, airAttack);
+					   currentGameMap->damage(shooterID, owner, position, bulletID, damage/15, 2, true);
+					   c++;
+				   }
+				   else if (i <= damageRadius * 0.5 && i >= damageRadius *0.2 ) {
+					   explosionID = currentGame->randomGen.getRandOf(2,Explosion_Medium1,Explosion_Medium2);
+					   currentGame->getExplosionList().push_back(new Explosion(explosionID,position,houseID));
+					   currentGameMap->damage(shooterID, owner, position, bulletID, damage/10, i, airAttack);
+					   currentGameMap->damage(shooterID, owner, position, bulletID, damage/10, i, true);
+					   b++;
+				   } else if ( i < damageRadius * 0.2 ) {
+					   currentGameMap->damage(shooterID, owner, position, bulletID, damage/5, i, airAttack);
+					   currentGameMap->damage(shooterID, owner, position, bulletID, damage/5, i, true);
+					   explosionID = currentGame->randomGen.getRandOf(2,Explosion_Large1,Explosion_Large2);
+					   currentGame->getExplosionList().push_back(new Explosion(explosionID,position,houseID));
+					   a++;
+				   }
+
+
+
+
+
+				   screenborder->shakeScreen(25);
+
+				}
             }
+
+          /*  fprintf(stdout,"Explosions : %d c:%d b:%d a:%d\n ",currentGame->getExplosionList().size(),
+            													(c*100/currentGame->getExplosionList().size()),
+																(b*100/currentGame->getExplosionList().size()),
+																(a*100/currentGame->getExplosionList().size()) );*/
+
+
+
         } break;
 
         case Bullet_Rocket:

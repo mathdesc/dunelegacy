@@ -189,9 +189,10 @@ protected:
 	/**
 		Moves the unit pUnit to x,y.
 		\param  pUnit           the unit to move
-		\param  pTargetObject   the object to move to
+		\param  pFellowObject   the object to move to
+		\param  pTargetObject	its current target if any
 	*/
-	void doMove2Object(const UnitBase* pUnit, const ObjectBase* pTargetObject);
+	void doMove2Object(const UnitBase* pUnit, const ObjectBase* pFellowObject, const ObjectBase* pTargetObject);
 
 	/**
 		Orders the unit pUnit to attack position x,y.

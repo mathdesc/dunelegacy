@@ -82,7 +82,14 @@ void HumanPlayer::update() {
 
 void onDamage(const ObjectBase* pObject, int damage, Uint32 damagerID) {
 
+
+	if(pObject->isAUnit() && ((UnitBase*)pObject)->isAFlyingUnit() /*&& pObject->getItemID() == Unit_Carryall*/) {
+			// TODO : implement evasive maneuvers
+
+	}
 }
+
+
 
 
 void HumanPlayer::build() {
@@ -217,7 +224,7 @@ void HumanPlayer::checkAllUnits() {
     for(iter = getUnitList().begin(); iter != getUnitList().end(); ++iter) {
         const UnitBase* pUnit = *iter;
 
-		/* Return harvester and detach a small force to protect */
+		/* Return harvester  */
         if(pUnit->getItemID() == Unit_Sandworm && pUnit->isActive()) {
                 RobustList<const UnitBase*>::const_iterator iter2;
                 for(iter2 = getUnitList().begin(); iter2 != getUnitList().end(); ++iter2) {
@@ -236,6 +243,25 @@ void HumanPlayer::checkAllUnits() {
                 }
             continue;
         }
+
+        /* Check Harvester status regarding silo capacity */
+        if (pUnit->getItemID() == Unit_Harvester && pUnit->getOwner() == getHouse()) {
+        	 Harvester* pHarvester = (Harvester*) pUnit;
+        	 if (pHarvester->getAttackMode() == STOP && 1.1*getHouse()->getStoredCredits() < getHouse()->getCapacity() && pHarvester->isIdle() /*&& pHarvester->getAmountOfSpice() < HARVESTERMAXSPICE -1*/) {
+				err_print("HumanPlayer::checkAllUnits Player %s put Harvester back to business %d!\n", getPlayername().c_str(),pHarvester->getObjectID());
+				doSetAttackMode(pUnit,AREAGUARD);
+				doReturn(pHarvester);
+				continue;
+        	 }
+        	 if (pHarvester->getAttackMode() != STOP && getHouse()->getStoredCredits() >= getHouse()->getCapacity() && pHarvester->getAmountOfSpice() > HARVESTERMAXSPICE -1) {
+        		err_print("HumanPlayer::checkAllUnits Player %s put Harvester back to sleep ... silos are full %d!\n", getPlayername().c_str(),pHarvester->getObjectID());
+        		doReturn(pHarvester);
+        		continue;
+        	 }
+
+
+        }
+
     }
 }
 

@@ -73,6 +73,7 @@ public:
 	inline bool isBooked() const { return (booked || hasCargo()); }
 
 	inline Coord getDeployPos() const { return deployPos; }
+	inline void setDeployPos(Coord coord) {  deployPos = coord; }
 
 	inline Coord getFallbackPos() const { return fallBackPos; }
 	inline void setFallbackPos(Coord coord) { fallBackPos = coord; }

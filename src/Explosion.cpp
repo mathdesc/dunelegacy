@@ -118,6 +118,10 @@ void Explosion::init()
             numFrames = 21;
         } break;
 
+        case Explosion_Fire: {
+        	graphic = pGFXManager->getObjPic(ObjPic_ExplosionFire);
+        	numFrames = 18 ;
+        } break;
         case Explosion_SpiceBloom: {
             graphic = pGFXManager->getObjPic(ObjPic_ExplosionSpiceBloom);
             numFrames = 3;
