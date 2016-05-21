@@ -34,9 +34,12 @@ std::string     resolveItemName(int itemID);
 int             getAnimByFilename(std::string filename);
 
 Coord	        getStructureSize(int itemID);
+Frame 			getStructureObjPicFrames(int itemID);
+
 
 Uint32          getItemIDByName(std::string name);
 std::string     getItemNameByID(Uint32 itemID);
+SDL_Surface**    resolveItemObjPicture(int itemID, HOUSETYPE house = HOUSE_HARKONNEN);
 SDL_Surface*    resolveItemPicture(int itemID, HOUSETYPE house = HOUSE_HARKONNEN);
 
 HOUSETYPE       getHouseByName(std::string name);

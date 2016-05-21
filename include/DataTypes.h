@@ -126,6 +126,41 @@ public:
 	int y;
 };
 
+
+
+class Frame {
+public:
+	Frame() {
+		numImagesX = numImagesY = firstAnimFrame = lastAnimFrame = 0;
+	}
+
+	Frame(int x,int y, int f, int l) {
+		this->numImagesX = x;
+		this->numImagesY = y;
+		this->firstAnimFrame = f;
+		this->lastAnimFrame = l;
+	}
+
+	inline bool operator==(const Frame& f) const {
+        return (numImagesX == f.numImagesX && numImagesY == f.numImagesY && firstAnimFrame == f.firstAnimFrame && lastAnimFrame == f.lastAnimFrame);
+	}
+
+	inline bool operator!=(const Frame& f) const {
+        return !operator==(f);
+	}
+
+	inline bool isValid() const {
+		return (numImagesX != 0 && numImagesY != 0 && firstAnimFrame <= numImagesX * numImagesY  && lastAnimFrame <= numImagesX * numImagesY && firstAnimFrame <= lastAnimFrame );
+	}
+public:
+	int	numImagesX;
+	int numImagesY;
+	int firstAnimFrame;
+	int lastAnimFrame;
+};
+
+
+
 typedef enum {
     ATTACKMODE_INVALID = -1,
     GUARD = 0,      ///< The unit will attack enemy units but will not move or follow enemy units.

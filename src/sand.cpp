@@ -72,6 +72,78 @@ void drawCursor() {
 }
 
 /**
+    This function resolves the object picture corresponding to one item id.
+    \param itemID   the id of the item to resolve (e.g. Unit_Quad)
+    \return the surface corresponding. This surface should not be freed or modified. NULL on error.
+*/
+SDL_Surface** resolveItemObjPicture(int itemID, HOUSETYPE house) {
+	int newPicID;
+
+
+	switch(itemID) {
+	        case Structure_Barracks:            newPicID = ObjPic_Barracks;		   		break;
+			case Structure_ConstructionYard:    newPicID = ObjPic_ConstructionYard;		break;
+			case Structure_GunTurret:			newPicID = ObjPic_GunTurret;		    break;
+			case Structure_HeavyFactory:		newPicID = ObjPic_HeavyFactory;			break;
+			case Structure_HighTechFactory:		newPicID = ObjPic_HighTechFactory;		break;
+			case Structure_IX:			        newPicID = ObjPic_IX;		            break;
+			case Structure_LightFactory:		newPicID = ObjPic_LightFactory;			break;
+			case Structure_Palace:			    newPicID = ObjPic_Palace;		        break;
+			case Structure_Radar:			    newPicID = ObjPic_Radar;		        break;
+			case Structure_Refinery:			newPicID = ObjPic_Refinery;	       		break;
+			case Structure_RepairYard:			newPicID = ObjPic_RepairYard;		    break;
+			case Structure_RocketTurret:		newPicID = ObjPic_RocketTurret;			break;
+			case Structure_Silo:			    newPicID = ObjPic_Silo;		        	break;
+			case Structure_Slab1:			    newPicID = UI_ValidPlace_Zoomlevel2;    	break;
+			case Structure_Slab4:			    newPicID = UI_ValidPlace_Zoomlevel2;		break;
+			case Structure_StarPort:			newPicID = ObjPic_Starport;	    		break;
+			case Structure_Wall:			    newPicID = ObjPic_Wall;	        		break;
+			case Structure_WindTrap:		   	newPicID = ObjPic_Windtrap;	    		break;
+			case Structure_WOR:			        newPicID = ObjPic_WOR;		            break;
+
+			case Unit_Carryall:			        newPicID = ObjPic_Carryall;		    	break;
+			case Unit_Devastator:		       	newPicID = ObjPic_Tank_Base;		    break;
+			case Unit_Deviator:			        newPicID = ObjPic_Tank_Base;	    	break;
+			case Unit_Frigate:			        newPicID = ObjPic_Frigate;	            break;
+			case Unit_Harvester:		    	newPicID = ObjPic_Harvester;		    break;
+			case Unit_Launcher:			        newPicID = ObjPic_Tank_Base;	    	break;
+			case Unit_MCV:			            newPicID = ObjPic_MCV;		            break;
+			case Unit_Ornithopter:			    newPicID = ObjPic_Ornithopter;		    break;
+			case Unit_Quad:		            	newPicID = ObjPic_Quad;		        	break;
+			case Unit_RaiderTrike:			    newPicID = ObjPic_Trike;		 	    break;
+			case Unit_SiegeTank:		    	newPicID = ObjPic_Tank_Base;	    	break;
+			case Unit_SonicTank:		    	newPicID = ObjPic_Tank_Base;	    	break;
+			case Unit_Tank:			            newPicID = ObjPic_Tank_Base;		    break;
+			case Unit_Trike:		        	newPicID = ObjPic_Trike;		        break;
+			case Unit_Saboteur:			        newPicID = ObjPic_Saboteur;	    		break;
+			case Unit_Sandworm:			        newPicID = ObjPic_Sandworm;           	break;
+			case Unit_Soldier:			        newPicID = ObjPic_Soldier;	        	break;
+			case Unit_Trooper: {
+			    switch(house) {
+			        case HOUSE_SARDAUKAR:      newPicID = ObjPic_Trooper;           	break;
+			        case HOUSE_FREMEN:         newPicID = ObjPic_Trooper;              	break;
+	                default:                   newPicID = ObjPic_Trooper;             	break;
+			    }
+	        } break;
+			//case Unit_Special:                  newPicID = ObjPic_Special;            	break;
+			case Unit_Infantry:                 newPicID = ObjPic_Soldier;            	break;
+			case Unit_Troopers: {
+			    switch(house) {
+			        case HOUSE_SARDAUKAR:      newPicID = ObjPic_Trooper;           	break;
+			        case HOUSE_FREMEN:         newPicID = ObjPic_Trooper;              	break;
+	                default:                   newPicID = ObjPic_Trooper;            	break;
+			    }
+	        } break;
+
+			default:
+	            throw std::invalid_argument("resolveItemObjPicture(): Invalid item ID " + stringify(itemID) + "!");
+	        break;
+	    }
+
+	    return pGFXManager->getObjPic(newPicID,house);
+}
+
+/**
     This function resolves the picture corresponding to one item id.
     \param itemID   the id of the item to resolve (e.g. Unit_Quad)
     \return the surface corresponding. This surface should not be freed or modified. NULL on error.
@@ -204,7 +276,7 @@ int getAnimByFilename(std::string filename) {
 /**
     This function returns the size of the specified item.
     \param ItemID   the id of the item (e.g. Structure_HeavyFactory)
-    \return a Coord containg the size (e.g. (3,2) ). Returns (0,0) on error.
+    \return a Coord containing the size (e.g. (3,2) ). Returns (0,0) on error.
 */
 Coord getStructureSize(int itemID) {
 
@@ -233,6 +305,41 @@ Coord getStructureSize(int itemID) {
 
 	return Coord(0,0);
 }
+
+
+/**
+    This function returns the number of frames of the specified item and first & last anim frame
+    \param ItemID   the id of the item (e.g. Structure_HeavyFactory)
+    \return a Frame : containing the number of frames in numImages{X,Y} (e.g. (4,1) ) and containing the number of the first and last frame. Returns (0,0,0,0) on error.
+*/
+Frame getStructureObjPicFrames(int itemID) {
+
+	switch(itemID) {
+		case Structure_Barracks:			return Frame(4,1,2,3); break;
+		case Structure_ConstructionYard:	return Frame(4,1,2,3); break;
+		case Structure_GunTurret: 			return Frame(10,1,2,10); break;
+		case Structure_HeavyFactory: 		return Frame(8,1,2,3); break;
+		case Structure_HighTechFactory:		return Frame(8,1,2,3); break;
+		case Structure_IX:					return Frame(4,1,2,3); break;
+		case Structure_LightFactory:		return Frame(6,1,2,3); break;
+		case Structure_Palace:				return Frame(4,1,2,3); break;
+		case Structure_Radar:				return Frame(6,1,2,5); break;
+		case Structure_Refinery:			return Frame(10,1,2,3); break;
+		case Structure_RepairYard:			return Frame(10,1,2,5); break;
+		case Structure_RocketTurret:		return Frame(10,1,2,10); break;
+		case Structure_Silo:				return Frame(4,1,2,3); break;
+		case Structure_StarPort:			return Frame(10,1,2,3); break;
+		case Structure_Slab1:				return Frame(0,0,0,0); break;	// special building in fact a tile, eh.
+		case Structure_Slab4:				return Frame(0,0,0,0); break;	// special building in fact a tile, eh.
+		case Structure_Wall:				return Frame(75,1,1,1); break;
+		case Structure_WindTrap:			return Frame(4,1,2,3); break;
+		case Structure_WOR:					return Frame(4,1,2,3); break;
+		default:							return Frame(0,0,0,0); break;
+	}
+
+	return Frame(0,0,0,0);
+}
+
 
 /**
     This function return the item id of an item specified by name. There may be multiple names for

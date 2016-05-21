@@ -61,6 +61,7 @@
 #include <units/Harvester.h>
 #include <units/InfantryBase.h>
 #include <Tile.h>
+#include <sand.h>
 
 #include <sstream>
 #include <iomanip>
@@ -649,13 +650,15 @@ void Game::drawScreen()
 			int yPos = screenborder->screen2MapY(mouse_y);
 
 			bool withinRange = false;
+			bool valid = true;
 
 			BuilderBase* builder = NULL;
 			if(selectedList.size() == 1) {
 			    builder = dynamic_cast<BuilderBase*>(objectManager.getObject(*selectedList.begin()));
 
-                int placeItem = builder->getCurrentProducedItem();
+                Uint32 placeItem = builder->getCurrentProducedItem();
                 Coord structuresize = getStructureSize(placeItem);
+
 
                 for (int i = xPos; i < (xPos + structuresize.x); i++) {
                     for (int j = yPos; j < (yPos + structuresize.y); j++) {
@@ -665,46 +668,79 @@ void Game::drawScreen()
                     }
                 }
 
-                SDL_Surface* validPlace = NULL;
-                SDL_Surface* invalidPlace = NULL;
+                SDL_Surface** validPlace = new SDL_Surface*[NUM_ZOOMLEVEL];
+                SDL_Surface** invalidPlace = new SDL_Surface*[NUM_ZOOMLEVEL];
 
-                switch(currentZoomlevel) {
-                    case 0: {
-                        validPlace = pGFXManager->getUIGraphic(UI_ValidPlace_Zoomlevel0);
-                        invalidPlace = pGFXManager->getUIGraphic(UI_InvalidPlace_Zoomlevel0);
-                    } break;
 
-                    case 1: {
-                        validPlace = pGFXManager->getUIGraphic(UI_ValidPlace_Zoomlevel1);
-                        invalidPlace = pGFXManager->getUIGraphic(UI_InvalidPlace_Zoomlevel1);
-                    } break;
+				validPlace[0] = pGFXManager->getUIGraphic(UI_ValidPlace_Zoomlevel0);
+				invalidPlace[0] = pGFXManager->getUIGraphic(UI_InvalidPlace_Zoomlevel0);
 
-                    case 2:
-                    default: {
-                        validPlace = pGFXManager->getUIGraphic(UI_ValidPlace_Zoomlevel2);
-                        invalidPlace = pGFXManager->getUIGraphic(UI_InvalidPlace_Zoomlevel2);
-                    } break;
+				validPlace[1] = pGFXManager->getUIGraphic(UI_ValidPlace_Zoomlevel1);
+				invalidPlace[1] = pGFXManager->getUIGraphic(UI_InvalidPlace_Zoomlevel1);
 
-                }
+
+				validPlace[2] = pGFXManager->getUIGraphic(UI_ValidPlace_Zoomlevel2);
+				invalidPlace[2] = pGFXManager->getUIGraphic(UI_InvalidPlace_Zoomlevel2);
+
 
                 for(int i = xPos; i < (xPos + structuresize.x); i++) {
                     for(int j = yPos; j < (yPos + structuresize.y); j++) {
-                        SDL_Surface* image;
-
                         if(!withinRange || !currentGameMap->tileExists(i,j) || !currentGameMap->getTile(i,j)->isRock()
                             || currentGameMap->getTile(i,j)->isMountain() || currentGameMap->getTile(i,j)->hasAGroundObject()
                             || (((placeItem == Structure_Slab1) || (placeItem == Structure_Slab4)) && currentGameMap->getTile(i,j)->isConcrete())) {
-                            image = invalidPlace;
-                        } else {
-                            image = validPlace;
-                        }
-
-                        SDL_Rect drawLocation = {   screenborder->world2screenX(i*TILESIZE), screenborder->world2screenY(j*TILESIZE),
-                                                    image->w, image->h };
-
-                        SDL_BlitSurface(image, NULL, screen, &drawLocation);
+                          valid &= false;
+                          break;
+                        } else
+                        valid &= true;
                     }
                 }
+                dbg_relax_print("Game::drawScreen placing %s building:%d (%d,%d) \n",valid ? "VALID" : "INVALID",placeItem,structuresize.x,structuresize.y);
+
+                SDL_Surface** image, **tmpimage;
+                int imageW , imageH, image_anim;
+                SDL_Rect source, source2;
+
+                if (placeItem == Structure_Slab1 || placeItem == Structure_Slab4) {
+                	if (valid)
+                		image = validPlace;
+                	else
+                		image = invalidPlace;
+                	imageW = image[currentZoomlevel]->w * structuresize.x;
+                	imageH = image[currentZoomlevel]->h * structuresize.y;
+                	if (placeItem == Structure_Slab4)  {
+                		for(int z = 0; z < NUM_ZOOMLEVEL; z++) {
+                			tmpimage[z] =  scaleSurface(image[z],structuresize.x*structuresize.y*8, false);	//make a copy of the image
+                		}
+                		image=tmpimage;
+                	}
+                	source = 	{ 0, 0, imageW , imageH };
+                	source2 = 	{ 0, 0, imageW , imageH };
+                } else {
+                		image = resolveItemObjPicture((int)placeItem, (HOUSETYPE)builder->getOwner()->getHouseID());
+                		Frame frame = getStructureObjPicFrames((int)placeItem);
+                		imageW = image[currentZoomlevel]->w/frame.numImagesX;
+     				  	imageH = image[currentZoomlevel]->h/frame.numImagesY;
+     				    source = { imageW * frame.firstAnimFrame, 0, imageW, imageH };
+     				    source2 = { 0 , 0, imageW, imageH };
+                }
+
+               if (image!= NULL) {
+				  //StructureBase* structure = new Palace();
+				   SDL_Rect drawLocation = { screenborder->world2screenX((int) xPos*TILESIZE), screenborder->world2screenY((int) yPos*TILESIZE), imageW, imageH };
+
+
+				   if(!valid) {
+					 //  image[currentZoomlevel] = mapSurfaceColorRange(image[currentZoomlevel], COLOR_HARKONNEN, COLOR_WINDTRAP_COLORCYCLE);
+					   SDL_BlitSurface(image[currentZoomlevel], &source, screen, &drawLocation);
+					   SDL_Surface* fogSurf = pGFXManager->getTransparent150Surface();
+					   SDL_BlitSurface(fogSurf, &source2, screen, &drawLocation);
+				   } else {
+					   SDL_BlitSurface(image[currentZoomlevel], &source, screen, &drawLocation);
+				   }
+               }
+
+
+                delete validPlace; delete invalidPlace;
             }
 		}
 	}
@@ -2797,6 +2833,7 @@ bool Game::handlePlacementClick(int xPos, int yPos) {
             soundPlayer->playSound(InvalidAction);	//can't place noise
 
             // is this building area only blocked by units?
+            // TODO interesting : use of this for unblocking packed unit (warn will brick pathfinding hard)?
             if(currentGameMap->okayToPlaceStructure(xPos, yPos, structuresize.x, structuresize.y, false, pBuilder->getOwner(), true)) {
                 // then we try to move all units outside the building area
                 for(int y = yPos; y < yPos + structuresize.y; y++) {
