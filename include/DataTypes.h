@@ -233,7 +233,7 @@ public:
         GameOptionsClass()
          : gameSpeed(GAMESPEED_DEFAULT), concreteRequired(true), structuresDegradeOnConcrete(true), fogOfWar(false),
            startWithExploredMap(false), instantBuild(false), onlyOnePalace(false), rocketTurretsNeedPower(false),
-           sandwormsRespawn(false), killedSandwormsDropSpice(false) {
+           sandwormsRespawn(false), killedSandwormsDropSpice(false), daynight(false), dayscale(GAMEDAYSCALE_DEFAULT) {
         }
 
 
@@ -247,7 +247,9 @@ public:
                     && (onlyOnePalace == goc.onlyOnePalace)
                     && (rocketTurretsNeedPower == goc.rocketTurretsNeedPower)
                     && (sandwormsRespawn == goc.sandwormsRespawn)
-                    && (killedSandwormsDropSpice == goc.killedSandwormsDropSpice);
+                    && (killedSandwormsDropSpice == goc.killedSandwormsDropSpice)
+					&& (daynight == goc.daynight)
+					&& (dayscale == goc.dayscale);
         }
 
         bool operator!=(const GameOptionsClass& goc) const {
@@ -264,6 +266,8 @@ public:
 		bool        rocketTurretsNeedPower;
         bool        sandwormsRespawn;
 		bool        killedSandwormsDropSpice;
+		bool 		daynight;
+		Uint8		dayscale;
 	} gameOptions;
 };
 

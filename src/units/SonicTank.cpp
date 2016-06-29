@@ -111,7 +111,7 @@ void SonicTank::handleDamage(int damage, Uint32 damagerID, House* damagerOwner) 
 	/*if (damager && damager != this &&
 			((damager->getItemID() != Unit_SonicTank  || damager->getOwner()->getTeam() != pLocalHouse->getTeam()))
 		)*/
-    if (damager && damager != this)
+    if (damager != this)
 		TrackedUnit::handleDamage(damage, damagerID, damagerOwner);
 }
 

@@ -264,6 +264,27 @@ void Carryall::flyAround() {
 	}
 }
 
+
+void Carryall::handleDamage(int damage, Uint32 damagerID, House* damagerOwner) {
+	UnitBase::handleDamage(damage, damagerID, damagerOwner);
+	// Emergency drop
+	if (getHealth() < getMaxHealth()/3 && hasCargo() ) {
+		//dump here
+		deployUnit(pickedUpUnitList.front());
+		// cannot deploy, still has a cargo, return to pickup location !
+		if (hasCargo()) {
+			UnitBase* pUnit = (UnitBase*) (currentGame->getObjectManager().getObject(pickedUpUnitList.front()));
+			if (pUnit->getGuardPoint().isValid()) {
+				setDestination(pUnit->getGuardPoint());
+			} else {
+				UnitBase::doMove2Pos(guardPoint.x,guardPoint.y,true);
+			}
+		} else {
+			releaseFellow();
+		}
+	}
+}
+
 void Carryall::doMove2Pos(int xPos, int yPos, bool bForced) {
 
 
@@ -659,14 +680,14 @@ void Carryall::pickupTarget()
 				pGroundUnitTarget->doRepair();
 			}
 
-			ObjectBase* newTarget = pGroundUnitTarget->hasAFellow() ? pGroundUnitTarget->getoldTarget() : NULL;
+			ObjectBase* newTarget = pGroundUnitTarget->hasAFellow() ? pGroundUnitTarget->getFellow() : NULL;
 
 			pickedUpUnitList.push_back(pTarget->getObjectID());
 			pGroundUnitTarget->setPickedUp(this);
 
 			drawnFrame = 1;
 			booked = true;
-			soundPlayer->playSoundAt(Sound_AirBrakes,location);
+			soundPlayer->playSoundAt(Sound_AirLift,location);
 			setFallbackPos(location);
 
             if(newTarget && ((newTarget->getItemID() == Structure_Refinery)
@@ -686,8 +707,8 @@ void Carryall::pickupTarget()
             clearPath();
 
 		} else {
-			dbg_print( " Carryall::pickupTarget %d(%d) that is going to be pickup \n", pGroundUnitTarget->getObjectID(),pGroundUnitTarget->getItemID());
-			pGroundUnitTarget->setAwaitingPickup(false);
+			dbg_print( " Carryall::pickupTarget %d(%d) that is going to be pickup BUGGY : don't seem to be fellowing this carrier \n", pGroundUnitTarget->getObjectID(),pGroundUnitTarget->getItemID());
+			//pGroundUnitTarget->setAwaitingPickup(false);
 			//releaseFellow();
 		}
 	} else {
@@ -753,7 +774,10 @@ void Carryall::targeting() {
 bool Carryall::canPass(int xPos, int yPos) const
 {
 	// When selected units fly at lower altitude and then cannot pass above other flying unit
-	return ((isSelected() && owner == pLocalHouse) /* TODO || evasiveTimer >0*/) ? AirUnit::canPass(xPos, yPos) && !currentGameMap->getTile(xPos, yPos)->hasAnAirUnit() : AirUnit::canPass(xPos, yPos) ;
+	bool tile_airunit = currentGameMap->tileExists(xPos, yPos) && (!(currentGameMap->getTile(xPos, yPos)->hasAnAirUnit()) ||
+			( (currentGameMap->getTile(xPos, yPos)->getAirUnit()->getOwner() == owner ) ) ) ;
+
+	return tile_airunit;
 }
 
 

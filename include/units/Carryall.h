@@ -31,6 +31,7 @@ public:
 	virtual ~Carryall();
 
 	void flyAround();
+	void handleDamage(int damage, Uint32 damagerID, House* damagerOwner);
 	void doMove2Pos(int xPos, int yPos, bool bForced);
 	void checkPos();
 
@@ -55,6 +56,9 @@ public:
 
 	void setFellow(const ObjectBase* newTarget);
 	void setTarget(const ObjectBase* newTarget);
+
+
+	inline bool isIdle() const { return idle; }
 
 	bool hasCargo() const {
         return !pickedUpUnitList.empty();

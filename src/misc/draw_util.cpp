@@ -217,6 +217,56 @@ void drawRect(SDL_Surface *surface, int x1, int y1, int x2, int y2, Uint32 color
 	}
 }
 
+SDL_Color inverse(const SDL_Color& color) {
+  SDL_Color inverse;
+  inverse.r = sizeof(Uint8)*255 - color.r;
+  inverse.g = sizeof(Uint8)*255 - color.g;
+  inverse.b = sizeof(Uint8)*255 - color.b;
+  return inverse;
+}
+
+
+void invertColors (SDL_Surface* surface) {
+	if(!SDL_MUSTLOCK(surface) || (SDL_LockSurface(surface) == 0)) {
+
+		Uint8 ck_r,ck_g,ck_b;
+
+		SDL_GetRGB(surface->format->colorkey,screen->format, &ck_r,&ck_g,&ck_b);
+        for(int y = 0; y < surface->h; y++) {
+            Uint8 *p = (Uint8 *)surface->pixels + (y * surface->pitch);
+
+            for(int x = 0; x < surface->w; x++, ++p) {
+            	if (*p != 0 && (*p != ck_r && *p+1 != ck_g && *p+2 != ck_b))
+                    *p = sizeof(Uint8)*255 - *p;
+
+            }
+        }
+
+        if(SDL_MUSTLOCK(surface)) {
+			SDL_UnlockSurface(surface);
+		}
+	}
+}
+
+void replaceNotColor(SDL_Surface *surface, Uint32 oldColor, Uint32 newColor) {
+	if(!SDL_MUSTLOCK(surface) || (SDL_LockSurface(surface) == 0)) {
+        for(int y = 0; y < surface->h; y++) {
+            Uint8 *p = (Uint8 *)surface->pixels + (y * surface->pitch);
+
+            for(int x = 0; x < surface->w; x++, ++p) {
+                if(*p != oldColor) {
+                    *p = newColor;
+                }
+            }
+        }
+
+        if(SDL_MUSTLOCK(surface)) {
+			SDL_UnlockSurface(surface);
+		}
+	}
+}
+
+
 void replaceColor(SDL_Surface *surface, Uint32 oldColor, Uint32 newColor) {
 	if(!SDL_MUSTLOCK(surface) || (SDL_LockSurface(surface) == 0)) {
         for(int y = 0; y < surface->h; y++) {
@@ -289,6 +339,53 @@ SDL_Surface* scaleSurface(SDL_Surface *surf, double ratio, bool freeSrcSurface) 
 
 	return scaled;
 }
+
+SDL_Surface* scaleSurface(SDL_Surface *surf, double ratiox,double ratioy, bool freeSrcSurface) {
+	SDL_Surface *scaled = SDL_CreateRGBSurface(SDL_HWSURFACE, (int)ceil((surf->w * ratiox)),(int)ceil((surf->h * ratioy)),8,0,0,0,0);
+    if(scaled == NULL) {
+        if(freeSrcSurface) {
+            SDL_FreeSurface(surf);
+        }
+
+        return NULL;
+    }
+    SDL_SetColors(scaled, surf->format->palette->colors, 0, surf->format->palette->ncolors);
+    SDL_SetColorKey(scaled, surf->flags & (SDL_SRCCOLORKEY | SDL_RLEACCEL), surf->format->colorkey);
+
+	SDL_LockSurface(scaled);
+	SDL_LockSurface(surf);
+
+	int X2 = (int)ceil((surf->w * ratiox));
+	int Y2 = (int)ceil((surf->h * ratioy));
+
+	for(int x = 0;x < X2;++x) {
+		for(int y = 0;y < Y2;++y) {
+			if (x >=0 && x <= ceil(x*ratiox))  {
+				if (y >=0 && y < 40)
+					putPixel(scaled,x,y,getPixel(surf,(int)floor((x/ratiox)), (int)floor((y/ratioy))));
+				else
+					putPixel(scaled,x,y,getPixel(surf,(int)floor((x/ratiox)), (int)ceil((y/ratioy))));
+			}
+			else {
+				if (y >=0 && y <= ceil(y*ratioy))
+					putPixel(scaled,x,y,getPixel(surf,(int)ceil((x/ratiox)), (int)floor((y/ratioy))));
+				else
+					putPixel(scaled,x,y,getPixel(surf,(int)ceil((x/ratiox)), (int)ceil((y/ratioy))));
+			}
+
+		}
+	}
+
+	SDL_UnlockSurface(scaled);
+	SDL_UnlockSurface(surf);
+
+	if(freeSrcSurface) {
+		SDL_FreeSurface(surf);
+	}
+
+	return scaled;
+}
+
 
 
 SDL_Surface* getSubPicture(SDL_Surface* Pic, int left, int top,
@@ -497,6 +594,9 @@ SDL_Surface* flipVSurface(SDL_Surface* inputPic, bool bFreeInputPic) {
 }
 
 
+
+
+
 SDL_Surface* createShadowSurface(SDL_Surface* source) {
     if(source == NULL) {
 	    throw std::invalid_argument("createShadowSurface(): source == NULL!");
@@ -547,6 +647,34 @@ SDL_Surface* mapSurfaceColorRange(SDL_Surface* source, int srcColor, int destCol
         Uint8* p = (Uint8*) retPic->pixels + y * retPic->pitch;
         for(int x = 0; x < retPic->w; ++x, ++p) {
 			if ((*p >= srcColor) && (*p < srcColor + 7))
+				*p = *p - srcColor + destColor;
+		}
+	}
+	SDL_UnlockSurface(retPic);
+
+	return retPic;
+}
+
+SDL_Surface* mapSurfaceNotColorRange(SDL_Surface* source, int srcColor, int destColor, int excludeColor, bool bFreeSource) {
+	SDL_Surface *retPic;
+
+    if(bFreeSource) {
+        retPic = source;
+    } else {
+        if((retPic = SDL_ConvertSurface(source,source->format,SDL_HWSURFACE)) == NULL) {
+            throw std::runtime_error("mapSurfaceColorRange(): Cannot copy image!");
+        }
+    }
+
+	if(SDL_LockSurface(retPic) != 0) {
+	    SDL_FreeSurface(retPic);
+	    throw std::runtime_error("mapSurfaceColorRange(): Cannot lock image!");
+	}
+
+    for(int y = 0; y < retPic->h; ++y) {
+        Uint8* p = (Uint8*) retPic->pixels + y * retPic->pitch;
+        for(int x = 0; x < retPic->w; ++x, ++p) {
+			if ((*p >= srcColor) && (*p < srcColor + 7) && (*p < excludeColor) &&  (*p >= excludeColor + 7) )
 				*p = *p - srcColor + destColor;
 		}
 	}

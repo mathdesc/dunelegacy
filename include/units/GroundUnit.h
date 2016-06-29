@@ -35,7 +35,7 @@ public:
 
 	virtual void assignToMap(const Coord& pos);
 
-	void playConfirmSound();
+	virtual void playConfirmSound();
 	void playSelectSound();
 
 	void bookCarrier(UnitBase* newCarrier);

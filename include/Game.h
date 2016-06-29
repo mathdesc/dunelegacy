@@ -31,6 +31,7 @@
 #include <Trigger/TriggerManager.h>
 #include <players/Player.h>
 
+
 #include <DataTypes.h>
 
 #include <SDL.h>
@@ -38,6 +39,7 @@
 #include <string>
 #include <map>
 #include <utility>
+#include <limits.h>
 
 // forward declarations
 class ObjectBase;
@@ -59,6 +61,10 @@ class Explosion;
 #define	GAME_DEBRIEFING_LOST	4
 #define GAME_CUSTOM_GAME_STATS  5
 
+
+#define NIGHT_MIN_GAMMA (float)0.35f
+#define NIGHT_MULT_GAMMA (float)0.70f
+#define NIGHT_MAX_GAMMA (float)(NIGHT_MIN_GAMMA+NIGHT_MULT_GAMMA)
 
 class Game
 {
@@ -118,6 +124,18 @@ public:
 	*/
 	Uint32 getGameTime() const { return gameCycleCount * GAMESPEED_DEFAULT; };
 
+
+	std::string getGameTimeStringFromCycle(Uint32 gamecycle) {
+				std::string time;
+				int     seconds = (gamecycle* GAMESPEED_DEFAULT) / 1000;
+				if (seconds / 3600 >0 )
+					time = std::to_string(seconds / 3600)+"h";
+				if ((seconds % 3600)/60 >0 )
+					time += std::to_string((seconds % 3600)/60)+"min";
+				time += std::to_string(seconds % 60)+"sec";
+				return time;
+	}
+
 	std::string getGameTimeString() {
 			std::string time;
 			int     seconds = getGameTime() / 1000;
@@ -126,6 +144,17 @@ public:
 			if ((seconds % 3600)/60 >0 )
 				time += std::to_string((seconds % 3600)/60)+"min";
 			time += std::to_string(seconds % 60)+"sec";
+			return time;
+	}
+
+	std::string getGameTimeString2() {
+			std::string time;
+			int     seconds = getGameTime() / 1000;
+			if (seconds / 3600 >0 )
+				time = std::to_string(seconds / 3600)+":";
+			if ((seconds % 3600)/60 >0 )
+				time += std::to_string((seconds % 3600)/60)+":";
+			time += std::to_string(seconds % 60);
 			return time;
 	}
 
@@ -155,7 +184,10 @@ public:
 	House* getHouse(int houseID) {
         return house[houseID];
 	}
-
+	/**
+        Tell if the game is ended and won or lost
+	*/
+	bool isGameWon();
 	/**
         The current game is finished and the local house has won
 	*/
@@ -175,6 +207,21 @@ public:
         Do the palette animation for the windtrap.
 	*/
 	void doWindTrapPalatteAnimation();
+
+	/**
+        Do the gamma setting for the day/night cycle.
+	*/
+	Uint32 doDayNightCycle(Uint32 refcycle,float ambiant);
+
+
+	typedef enum {
+		Begin=0,
+		End=1,
+	} TypeOffset;
+
+	int getDayNightOffset(Phase wanted_phase = Day);
+	int getDayNightToOffset(TypeOffset t, Phase wanted_phase, int offset_base);
+	std::pair<int,float> getDayNightLight(Uint32 refcycle,int offset ,Phase current_phase = Day);
 
     /**
         This method sets up the view. The start position is the center point of all owned units/structures
@@ -213,8 +260,11 @@ public:
         This method pauses the current game.
     */
 	void pauseGame() {
-        if(gameType != GAMETYPE_CUSTOM_MULTIPLAYER) {
+        if(bPause != true) {
             bPause = true;
+            palette.invertPalette();
+            palette.applyToSurface(screen,SDL_PHYSPAL,1,palette.getSDLPalette()->ncolors-1);
+            SDL_SetGamma(1,1,1);
         }
 	}
 
@@ -428,6 +478,98 @@ public:
 	inline ObjectBase* getGroupLeader() { return groupLeader; }
 	inline void setGroupLeader(ObjectBase* lead) {  groupLeader = lead; }
 
+
+
+    /* Night/Days  */
+    inline void setNumberOfDays(int d)		{ nbofdays = (Uint32)d; if (pInterface != NULL) pInterface->getDaysCounter().setCount(d);}
+    inline Uint32 getNumberOfDays() 		{return nbofdays;}
+
+
+    inline Uint8 getDayScale()				{ return dayscale; }
+    inline void setDayScale(Uint8 scale)	{
+    	if (scale >= GAMEDAYSCALE_MIN && scale <= GAMEDAYSCALE_MAX)
+    			dayscale = scale;
+
+    }
+    inline Uint32 getDayDuration() 			{return (((1 << (int)dayscale))%INT_MAX);}
+
+
+#define pow__2 ( (1 << (int)(dayscale+2)))
+#define pow__1 ( (1 << (int)(dayscale+1)))
+#define pow_0  ( (1 << (int)(dayscale-0)))
+#define pow_1  ( (1 << (int)(dayscale-1)))
+#define pow_2  ( (1 << (int)(dayscale-2)))
+#define pow_3  ( (1 << (int)(dayscale-3)))
+#define pow_4  ( (1 << (int)(dayscale-4)))
+#define pow_6  ( (1 << (int)(dayscale-6)))
+#define pow_7  ( (1 << (int)(dayscale-7)))
+#define pow_8  ( (1 << (int)(dayscale-8)))
+
+
+
+    inline void setDayPhase(Phase p)		{ dayphase = p; if (pInterface != NULL) pInterface->getDaysCounter().setCounterMode(dayphase);}
+    inline Phase getIncDayPhase(Phase p = currentGame->getDayPhase())
+    										{ int phase=(int)p;
+
+    											phase = (phase+1)%PHASES_NB;
+    											return (Phase)phase;}
+    inline Phase getDecDayPhase(Phase p = currentGame->getDayPhase())
+    										{ int phase=(int)p;
+
+    											phase = (phase-1)%PHASES_NB;
+    											if (phase ==0) phase=PHASES_NB;
+    											return (Phase)phase;}
+    inline Phase getDayPhase() 				{return dayphase;}
+
+    inline Phase getDayPhaseInverted(Phase p = currentGame->getDayPhase())
+    										{ Phase a =	(Phase)((int)(p + (PHASES_NB/2))%PHASES_NB); return (int)a == 0 ? (Phase) PHASES_NB : a ;}
+
+    inline void updateCycleAnim()
+    										{// TODO : Remove ?
+    										 if (pInterface != NULL) pInterface->getDaysCounter().updateBlitter(screen);}
+
+
+    inline Uint32 getLight() 				{return light;}
+    inline void setLight(float illum) 		{light = illum;}
+
+    inline void setDayPhaseString(std::string phase) {
+
+    	if (phase == "Morning") {
+    		setDayPhase (Morning);
+    	} else if (phase == "Day") {
+    		setDayPhase (Day);
+    	}else if (phase == "Eve") {
+    		setDayPhase (Eve);
+    	}else if (phase == "Night") {
+    		setDayPhase (Night);
+    	}else if (phase == "None") {
+    		setDayPhase (PHASE_NONE);
+    	}else {
+    		setDayPhase (PHASE_NONE);
+    	}
+    };
+    inline std::string getDayPhaseString(Phase phase = currentGame->getDayPhase()) {
+      	switch (phase) {
+      		case	Morning:
+      			return (_("Morning"));
+      			break;
+      		case	Day:
+      			return (_("Day"));
+      			break;
+      		case	Eve:
+      			return (_("Eve"));
+      			break;
+      		case	Night:
+      			return (_("Night"));
+      			break;
+      		case	PHASE_NONE:
+      		default:
+      			return (_("None"));
+      			break;
+
+      	}
+    };
+
 private:
 
     /**
@@ -503,6 +645,8 @@ private:
 
     ObjectBase* findGroupLeader();
 
+
+
 public:
     enum {
         CursorMode_Normal,
@@ -512,6 +656,8 @@ public:
         CursorMode_Capture,
         CursorMode_Placing
     };
+
+
 
     int         currentCursorMode;
 
@@ -556,6 +702,10 @@ private:
 
 
 	Uint32      gameCycleCount;
+	Uint32 		nbofdays;		///< Number of days on mission
+	Uint8		dayscale;		///< Scaler for the calculus of the day length [8 -14]
+	Phase		dayphase;		///< Phase of the current day
+	float		light;
 
 	Uint32      skipToGameCycle;    ///< skip to this game cycle
 

@@ -46,7 +46,7 @@ INIMapLoader::~INIMapLoader() {
 */
 void INIMapLoader::load() {
     checkFeatures();
-
+    loadEnvironment();
     loadMap();
     loadHouses();
     loadUnits();
@@ -54,6 +54,60 @@ void INIMapLoader::load() {
     loadReinforcements();
     loadView();
     loadChoam();
+}
+
+/**
+    This method loads the game environment. This is based on the [MAP] section in the INI file.
+*/
+void INIMapLoader::loadEnvironment() {
+	 dbg_print("INIMapLoader::loadEnvironment \n");
+
+	 if(inifile->hasKey("BASIC", "DayScale")) {
+		 int dayscale  = inifile->getIntValue("BASIC","DayScale",GAMEDAYSCALE_DEFAULT) ;
+		 if (dayscale >= GAMEDAYSCALE_MIN && dayscale <= GAMEDAYSCALE_MAX) {
+			 pGame->setDayScale((Uint8)dayscale) ;
+			 dbg_print("INIMapLoader::loadEnvironment set Day scale %d \n",pGame->getDayScale());
+		 } else {
+			 logWarning(inifile->getKey("BASIC", "DayScale")->getLineNumber(),
+					 "Invalid DayScaling (["+std::to_string(GAMEDAYSCALE_MIN)+"-"+std::to_string(GAMEDAYSCALE_MAX)+"]): "+std::to_string(dayscale)+" !");
+			 pGame->setDayScale((Uint8)GAMEDAYSCALE_DEFAULT) ;
+			 dbg_print("INIMapLoader::loadEnvironment fix Day scale to default %d \n",pGame->getDayScale());
+		 }
+	 } else {
+		 pGame->setDayScale((Uint8)GAMEDAYSCALE_DEFAULT) ;
+		 dbg_print("INIMapLoader::loadEnvironment (NoKey) set Day scale to default %d \n",pGame->getDayScale());
+	 }
+
+	 if(inifile->hasKey("BASIC", "Phase")) {
+		 std::string phase = inifile->getStringValue("BASIC","Phase","Day") ;
+		 if (phase != "None" && phase != "Morning" && phase != "Day" && phase != "Eve" && phase != "Night") {
+			 logWarning(inifile->getKey("BASIC", "Phase")->getLineNumber(), "Invalid Phase: '" + (phase) + "'!");
+			 pGame->setDayPhase(Day) ;
+			 dbg_print("INIMapLoader::loadEnvironment (NoKey) fix Day phase to %s \n",pGame->getDayPhaseString().c_str());
+		 } else {
+			 pGame->setDayPhaseString(phase) ;
+		 }
+		 dbg_print("INIMapLoader::loadEnvironment set Day phase %s\n",pGame->getDayPhaseString().c_str());
+	 } else {
+		 pGame->setDayPhase(Day) ;
+		 dbg_print("INIMapLoader::loadEnvironment (NoKey) set Day phase %s \n",pGame->getDayPhaseString().c_str());
+	 }
+
+	 if(inifile->hasKey("BASIC", "Day")) {
+		 int day  = inifile->getIntValue("BASIC","Day",1) ;
+		 if (day >0 && day <= 950) {
+			 pGame->setNumberOfDays(day);
+			 dbg_print("INIMapLoader::loadEnvironment set Day  %d \n",pGame->getNumberOfDays());
+		 } else {
+			 logWarning(inifile->getKey("BASIC", "Day")->getLineNumber(),
+					 "Invalid Day [1-950] is "+std::to_string(day)+" !");
+			 pGame->setNumberOfDays(1);
+			 dbg_print("INIMapLoader::loadEnvironment fix Day to default %d \n",pGame->getNumberOfDays());
+		 }
+	 } else {
+		 pGame->setNumberOfDays(1);
+		 dbg_print("INIMapLoader::loadEnvironment (NoKey) set Day to default %d \n",pGame->getNumberOfDays());
+	 }
 }
 
 /**

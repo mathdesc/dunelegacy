@@ -24,6 +24,8 @@
 
 #include <FileClasses/GFXManager.h>
 #include <FileClasses/TextManager.h>
+#include <FileClasses/music/MusicPlayer.h>
+
 
 #include <Game.h>
 #include <House.h>
@@ -104,8 +106,8 @@ CustomGameStatsMenu::CustomGameStatsMenu() : MenuBase()
 
             curHouseStat.houseName.setText(_("House") + " " + getHouseNameByNumber((HOUSETYPE) i));
             curHouseStat.houseName.setTextColor(color + 3);
-            curHouseStat.houseHBox.addWidget(&curHouseStat.houseName, 130);
-            curHouseStat.houseHBox.addWidget(Spacer::create(), 10);
+            curHouseStat.houseHBox.addWidget(&curHouseStat.houseName, 140);
+            curHouseStat.houseHBox.addWidget(Spacer::create(), 15);
 
             curHouseStat.value1.setText( stringify(pHouse->getBuiltValue()*100));
             curHouseStat.value1.setTextFont(FONT_STD10);
@@ -173,6 +175,29 @@ CustomGameStatsMenu::CustomGameStatsMenu() : MenuBase()
     timeLabel.setTextColor(localHouseColor + 3);
 	buttonHBox.addWidget(&timeLabel, 0.2);
 
+	buttonHBox.addWidget(HSpacer::create(20));
+
+	int nbdays = currentGame->getNumberOfDays();
+	std::string  phase = currentGame->getDayPhaseString();
+	std::string qualif,sepa, daycal, daytext;
+	if (nbdays == 1) {
+		qualif = (_("st"));
+	} else if (nbdays == 2) {
+		qualif = (_("nd"));
+	} else {
+		qualif = (_("th"));;
+	}
+
+
+	daycal= (_("on the"));
+
+	daytext = phase+" "+daycal+" "+ std::to_string(nbdays)+ qualif+sepa;
+    dayLabel.setText(daytext);
+    dayLabel.setTextColor(localHouseColor + 3);
+    if ( currentGame->getGameInitSettings().getGameOptions().daynight ) {
+    	buttonHBox.addWidget(&dayLabel, 0.2);
+    }
+
 	buttonHBox.addWidget(Spacer::create(), 0.0625);
 	buttonHBox.addWidget(Spacer::create(), 0.475);
 	buttonHBox.addWidget(Spacer::create(), 0.0625);
@@ -183,6 +208,40 @@ CustomGameStatsMenu::CustomGameStatsMenu() : MenuBase()
 	buttonHBox.addWidget(&okButton, 0.2);
 	buttonHBox.addWidget(HSpacer::create(90));
 }
+
+
+int CustomGameStatsMenu::showMenu()
+{
+	MUSICTYPE type ;
+	HOUSETYPE house = (HOUSETYPE) pLocalHouse->getHouseID() ;
+	bool won = (currentGame->isGameWon());
+	won ? type = MUSIC_GAMESTAT : type = MUSIC_LOSE;
+
+	switch (house) {
+		case HOUSE_HARKONNEN:
+			won ? type = MUSIC_WIN_H : type = MUSIC_LOSE;
+			break;
+
+		case HOUSE_ATREIDES:
+			won ? type = MUSIC_WIN_A : type = MUSIC_LOSE;
+			break;
+
+		case HOUSE_ORDOS:
+			won ? type = MUSIC_WIN_O : type = MUSIC_LOSE;
+			break;
+
+		default:
+			won ? type = MUSIC_GAMESTAT : type = MUSIC_LOSE;
+			break;
+	}
+
+    musicPlayer->changeMusic(type);
+
+
+    return MenuBase::showMenu();
+}
+
+
 
 CustomGameStatsMenu::~CustomGameStatsMenu()
 {

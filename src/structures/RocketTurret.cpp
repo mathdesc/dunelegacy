@@ -63,7 +63,7 @@ void RocketTurret::updateStructureSpecificStuff() {
 
 bool RocketTurret::canAttack(const ObjectBase* object) const {
 	if((object != NULL)
-		&& ((object->getOwner()->getTeam() != owner->getTeam()) || object->getItemID() == Unit_Sandworm)
+		&& ((object->getOwner()->getTeam() != owner->getTeam()) || (object->getItemID() == Unit_Sandworm && getOwner()->getHouseID()!= HOUSE_FREMEN))
 		&& object->isVisible(getOwner()->getTeam())) {
 		return true;
 	} else {
@@ -82,7 +82,7 @@ void RocketTurret::attack() {
                                                    currentGame->objectData.data[Structure_GunTurret][originalHouseID].weapondamage,
                                                    target.getObjPointer()->isAFlyingUnit() ) );
 
-            soundPlayer->playSoundAt(Sound_Gun, location);
+            soundPlayer->playSoundAt(Sound_MountedCannon, location);
             weaponTimer = currentGame->objectData.data[Structure_GunTurret][originalHouseID].weaponreloadtime;
 		} else {
             // we are in normal shooting mode

@@ -80,13 +80,15 @@ public:
 		}
 	}
 
-private:
 	/*!
 		the function plays a sound with a given volume
 		@param soundID id of a sound to be played
 		@param volume sound will be played with this volume
 	*/
 	void playSound(Sound_enum soundID, int volume);
+
+private:
+
 
 	//! whether sound should be played
 	bool	soundOn;

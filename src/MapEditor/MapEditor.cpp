@@ -445,6 +445,24 @@ void MapEditor::saveMap(const std::string& filepath) {
 
     loadedINIFile->setIntValue("BASIC","TimeOut", mapInfo.timeout);
 
+    std::string phase;
+    switch(mapInfo.dayPhase) {
+    	case 1:
+    		phase = "Morning";	break;
+    	case 2:
+    		phase = "Day";		break;
+    	case 3:
+    		phase = "Eve";		break;
+    	case 4:
+    		phase = "Night";	break;
+    	default :
+    		phase = "Day";
+    }
+
+    loadedINIFile->setStringValue("BASIC","Phase",phase);
+    loadedINIFile->setIntValue("BASIC","DayScale", mapInfo.dayScaling);
+    loadedINIFile->setIntValue("BASIC","Day", mapInfo.startDay);
+
     int logicalSizeX;
     //int logicalSizeY;
     int logicalOffsetX;

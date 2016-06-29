@@ -235,20 +235,11 @@ void ObjectBase::handleDamage(int damage, Uint32 damagerID, House* damagerOwner)
             setHealth(newHealth);
         }
     }
-    /* TODO  For structure follower (guards) ask to ask damager */
     if(getOwner() == pLocalHouse && damagerOwner != pLocalHouse) {
         musicPlayer->changeMusic(MUSIC_ATTACK);
     }
 
-    if(getOwner() == pLocalHouse && getOwner() != damagerOwner && isAStructure()) {
-      //  currentGame->addToNewsTicker(_("@DUNE.ENG|81#Your Base is under attack"));
-    	if (getHealth() < getMaxHealth() / 2 )
-    		soundPlayer->playVoice(WarningBaseIsUnderAttack, pLocalHouse->getHouseID());
-    	else
-    		soundPlayer->playVoice(BaseIsUnderAttack, pLocalHouse->getHouseID());
-    }
-
-    getOwner()->noteDamageLocation(this, damage, damagerID);
+    getOwner()->noteDamageLocation(this, damage, damagerID,damagerOwner);
 }
 
 void ObjectBase::handleInterfaceEvent(SDL_Event* event) {
@@ -365,7 +356,7 @@ bool ObjectBase::canAttack(const ObjectBase* object) const {
 		&& (object->isAStructure()
 			|| !object->isAFlyingUnit())
 		&& ((object->getOwner()->getTeam() != owner->getTeam())
-			|| object->getItemID() == Unit_Sandworm)
+			|| (object->getItemID() == Unit_Sandworm && getOwner()->getHouseID()!= HOUSE_FREMEN))
 		&& object->isVisible(getOwner()->getTeam())) {
 		return true;
 	} else {
@@ -612,6 +603,7 @@ const ObjectBase* ObjectBase::findTarget() const {
 
 					prevent_wall = ( (tTID != Structure_Wall) );
 					no_caryall = ( (tTID != Unit_Carryall) );
+
 
 					if (tTID == Structure_Wall || tTID == Unit_Carryall )
 						targetDistance *= 10;

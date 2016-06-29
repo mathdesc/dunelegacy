@@ -33,7 +33,7 @@ INIMapEditorLoader::~INIMapEditorLoader() {
 */
 void INIMapEditorLoader::load() {
     checkFeatures();
-
+    loadEnvironment();
     loadMap();
     loadHouses();
     loadUnits();
@@ -43,6 +43,61 @@ void INIMapEditorLoader::load() {
     loadTeams();
 
     pMapEditor->informPlayersChanged();
+}
+
+
+void INIMapEditorLoader::loadEnvironment() {
+
+	 if(inifile->hasKey("BASIC", "DayScale")) {
+		 int dayscale  = inifile->getIntValue("BASIC","DayScale",GAMEDAYSCALE_DEFAULT) ;
+		 if (dayscale >= GAMEDAYSCALE_MIN && dayscale <= GAMEDAYSCALE_MAX) {
+			 pMapEditor->mapInfo.dayScaling = dayscale;
+		 } else {
+			 logWarning(inifile->getKey("BASIC", "DayScale")->getLineNumber(),
+					 "Invalid DayScaling (["+std::to_string(GAMEDAYSCALE_MIN)+"-"+std::to_string(GAMEDAYSCALE_MAX)+"]): "+std::to_string(dayscale)+" !");
+			 pMapEditor->mapInfo.dayScaling = GAMEDAYSCALE_DEFAULT ;
+		 }
+	 } else {
+		 pMapEditor->mapInfo.dayScaling = GAMEDAYSCALE_DEFAULT;
+	 }
+
+	 if(inifile->hasKey("BASIC", "Phase")) {
+		 std::string phase = inifile->getStringValue("BASIC","Phase","Day") ;
+		 if (phase == "None" || phase == "Morning" || phase == "Day" || phase == "Eve" || phase == "Night") {
+			 int numphase;
+			 if (phase == "Morning") {
+				 numphase=1;
+			 } else if (phase == "Day") {
+				 numphase=2;
+			 } else if (phase == "Eve") {
+				 numphase=3;
+			 } else if (phase == "Night") {
+				 numphase=4;
+			 } else {
+				 numphase=2;
+			 }
+			 pMapEditor->mapInfo.dayPhase = numphase;
+		 } else {
+			 logWarning(inifile->getKey("BASIC", "Phase")->getLineNumber(), "Invalid Phase: '" + (phase) + "'!");
+			 pMapEditor->mapInfo.dayPhase =  2; //default to Day
+		 }
+	 } else {
+		 pMapEditor->mapInfo.dayPhase = 2;	//default to Day
+	 }
+
+	 if(inifile->hasKey("BASIC", "Day")) {
+		 int day  = inifile->getIntValue("BASIC","Day",1) ;
+		 if (day >0 && day <= 950) {
+			 pMapEditor->mapInfo.startDay = day ;
+		 } else {
+			 logWarning(inifile->getKey("BASIC", "Day")->getLineNumber(),
+					 "Invalid Day [1-950] is "+std::to_string(day)+" !");
+			 pMapEditor->mapInfo.startDay = 1 ;
+		 }
+	 } else {
+		 pMapEditor->mapInfo.startDay = 1 ;
+	 }
+
 }
 
 /**

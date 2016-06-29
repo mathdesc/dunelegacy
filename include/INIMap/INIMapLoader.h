@@ -41,6 +41,7 @@ public:
 
 private:
     void load();
+    void loadEnvironment();
     void loadMap();
     void loadHouses();
     void loadChoam();

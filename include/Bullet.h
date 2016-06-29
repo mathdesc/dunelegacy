@@ -53,7 +53,9 @@ private:
     int     damageRadius;               ///< The radius of the bullet
     bool    explodesAtGroundObjects;    ///< false = bullet goes through objects, true = bullet explodes at ground objects
     float  speed;                       ///< The speed of this bullet
-    Sint8    detonationTimer;            ///< How long is this bullet alive before it explodes
+    Sint8    detonationTimer;           ///< How long is this bullet alive before it explodes
+    Sint8	detonationModulus;			///< How many hits(damage dealt) wanted before it is destroyed
+    Sint8	detonationNbHits;			///< How many hits(damage dealt) wanted before it is destroyed
 
     // bullet state
     Uint32  bulletID;                   ///< The ID of the bullet

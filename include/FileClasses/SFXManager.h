@@ -85,9 +85,12 @@ typedef enum {
 	Sound_ExplosionMedium,
 	Sound_ExplosionLarge,
 	Sound_ExplosionStructure,
+	Sound_ExplosionSand,
 	Sound_WormAttack,
 	Sound_Gun,
+	Sound_Blast,
 	Sound_Rocket,
+	Sound_GasRocket,
 	Sound_Bloom,
 	Sound_Scream1,
 	Sound_Scream2,
@@ -100,7 +103,9 @@ typedef enum {
 	Sound_MachineGun,
 	Sound_Sonic,
 	Sound_RocketSmall,
-	Sound_AirBrakes,
+	Sound_Steam,
+	Sound_AirLift,
+	Sound_MountedCannon,
 	NUM_SOUNDCHUNK
 } Sound_enum;
 

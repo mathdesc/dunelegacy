@@ -41,12 +41,21 @@ void drawVLine(SDL_Surface *surface, int x, int y1, int y2, Uint32 color);
 
 void drawRect(SDL_Surface *surface, int x1, int y1, int x2, int y2, Uint32 color);
 
+SDL_Color inverse(const SDL_Color& color);
+
+
+void invertColors (SDL_Surface* surface) ;
+
 void replaceColor(SDL_Surface *surface, Uint32 oldColor, Uint32 newColor);
+void replaceNotColor(SDL_Surface *surface, Uint32 oldColor, Uint32 newColor);
 void mapColor(SDL_Surface *surface, Uint8 colorMap[256]);
 
 SDL_Surface*    copySurface(SDL_Surface* inSurface);
 
 SDL_Surface*    scaleSurface(SDL_Surface *surf, double ratio, bool freeSrcSurface = true);
+SDL_Surface*    scaleSurface(SDL_Surface *surf, double ratiox, double ratioy, bool freeSrcSurface  = true);
+
+
 
 SDL_Surface*	getSubPicture(SDL_Surface* Pic, int left, int top, unsigned int width, unsigned int height);
 
@@ -60,8 +69,6 @@ SDL_Surface*	rotateSurfaceRight(SDL_Surface* inputPic, bool bFreeInputPic = true
 SDL_Surface*	flipHSurface(SDL_Surface* inputPic, bool bFreeInputPic = true);
 SDL_Surface*	flipVSurface(SDL_Surface* inputPic, bool bFreeInputPic = true);
 
-
-
 SDL_Surface*    createShadowSurface(SDL_Surface* source);
 
 /**
@@ -73,5 +80,9 @@ SDL_Surface*    createShadowSurface(SDL_Surface* source);
     \return The mapped surface
 */
 SDL_Surface*	mapSurfaceColorRange(SDL_Surface* source, int srcColor, int destColor, bool bFreeSource = false);
+
+SDL_Surface* mapSurfaceNotColorRange(SDL_Surface* source, int srcColor, int destColor, int excludeColor, bool bFreeSource);
+
+
 
 #endif // DRAW_UTIL_H

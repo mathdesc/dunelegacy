@@ -22,6 +22,8 @@
 
 #include <string>
 #include <queue>
+#include <math.h>
+#include <misc/draw_util.h>
 
 #include <SDL.h>
 
@@ -48,11 +50,14 @@ public:
 	*/
 	virtual Point getMinimumSize() const {
 		if(pBackground != NULL) {
-			return Point((Sint32) pBackground->w, (Sint32) pBackground->h);
+			return Point((Sint32) 180, (Sint32) pBackground->h);
 		} else {
 			return Point(0,0);
 		}
 	}
+
+
+	virtual void resize(Uint32 _width, Uint32 _height) ;
 
 private:
 	SDL_Surface* pBackground;

@@ -28,10 +28,6 @@
 
 #include <config.h>
 
-#ifdef _
-#undef _
-#endif
-#define _(msgid) getLocalized(msgid)
 
 TextManager::TextManager() {
 	std::list<std::string> languagesList = getFileNamesList(DUNELEGACY_DATADIR "/locale", settings.general.language + ".po", true, FileListOrder_Name_Asc);

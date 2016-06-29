@@ -188,6 +188,8 @@ typedef enum {
     UI_DeployIcon,
     UI_DestructIcon,
 	UI_CreditsDigits,
+	UI_DaysDigits,
+	UI_DaysFlashingDigits,
 	UI_SideBar,
 	UI_Indicator,
 	UI_InvalidPlace_Zoomlevel0,
@@ -199,6 +201,15 @@ typedef enum {
 	UI_GreyPlace_Zoomlevel0,
 	UI_GreyPlace_Zoomlevel1,
 	UI_GreyPlace_Zoomlevel2,
+	UI_InvalidPlace4_Zoomlevel0,
+	UI_InvalidPlace4_Zoomlevel1,
+	UI_InvalidPlace4_Zoomlevel2,
+	UI_ValidPlace4_Zoomlevel0,
+	UI_ValidPlace4_Zoomlevel1,
+	UI_ValidPlace4_Zoomlevel2,
+	UI_GreyPlace4_Zoomlevel0,
+	UI_GreyPlace4_Zoomlevel1,
+	UI_GreyPlace4_Zoomlevel2,
 	UI_MenuBackground,
 	UI_Background,
 	UI_GameStatsBackground,
@@ -262,6 +273,12 @@ typedef enum {
 	UI_MentatRepeat,
 	UI_MentatRepeat_Pressed,
 	UI_PlanetBackground,
+	UI_PlanetScape,
+	UI_PlanetDay,
+	UI_PlanetMorning,
+	UI_PlanetNight,
+	UI_PlanetEve,
+	UI_Sandworm,
 	UI_MenuButtonBorder,
 	UI_DuneLegacy,
 	UI_MapChoiceScreen,
@@ -444,6 +461,7 @@ public:
 
 	SDL_Surface*    getTransparent40Surface() { return pTransparent40Surface; };
 	SDL_Surface*    getTransparent150Surface() { return pTransparent150Surface; };
+	SDL_Surface*    getTransparentXSurface() { return pTransparentXSurface; };
 
 	Animation*		getAnimation(unsigned int id);
 
@@ -464,6 +482,7 @@ private:
 
 	SDL_Surface*    pTransparent40Surface;
 	SDL_Surface*    pTransparent150Surface;
+	SDL_Surface*    pTransparentXSurface;
 };
 
 #endif // GFXMANAGER_H

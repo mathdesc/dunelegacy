@@ -68,6 +68,20 @@ Bullet::Bullet(Uint32 shooterID, Coord* newRealLocation, Coord* newRealDestinati
 		float ratio = (weaponrange*TILESIZE)/square_root;
 		destination.x = newRealLocation->x + (int)(((float)diffX)*ratio);
 		destination.y = newRealLocation->y + (int)(((float)diffY)*ratio);
+	} else if (bulletID == Bullet_GasCloud) {
+		int diffX = destination.x - newRealLocation->x;
+		int diffY = destination.y - newRealLocation->y;
+
+		int weaponrange = currentGame->objectData.data[Unit_Deviator][(owner == NULL) ? HOUSE_ORDOS : owner->getHouseID()].weaponrange;
+
+		if((diffX == 0) && (diffY == 0)) {
+			diffY = weaponrange*TILESIZE;
+		}
+
+		float square_root = strictmath::sqrt((float)(diffX*diffX + diffY*diffY));
+		float ratio = (weaponrange*TILESIZE)/square_root;
+		destination.x = newRealLocation->x + (int)(((float)diffX)*ratio);
+		destination.y = newRealLocation->y + (int)(((float)diffY)*ratio);
 	} else if(bulletID == Bullet_Rocket || bulletID == Bullet_DRocket) {
 	    float distance = distanceFrom(*newRealLocation, *newRealDestination);
 
@@ -134,7 +148,8 @@ void Bullet::init()
     explodesAtGroundObjects = false;
 
 	int houseID = (owner == NULL) ? HOUSE_HARKONNEN : owner->getHouseID();
-
+	detonationModulus = 1;
+	detonationNbHits = 1;
 	switch(bulletID) {
         case Bullet_DRocket: {
             damageRadius = TILESIZE/2;
@@ -143,7 +158,15 @@ void Bullet::init()
             numFrames = 16;
             graphic = pGFXManager->getObjPic(ObjPic_Bullet_MediumRocket, houseID);
         } break;
-
+        case Bullet_GasCloud: {
+        	damageRadius = (TILESIZE*3)/4;
+            speed = 0.5f;		// TODO : depends on wind speed
+            detonationTimer = std::numeric_limits<Sint8 >::max();
+            detonationNbHits = 8;
+            detonationModulus = detonationTimer % detonationNbHits;
+            numFrames = 5;
+            graphic = pGFXManager->getObjPic(ObjPic_Hit_Gas, houseID);
+        } break;
         case Bullet_LargeRocket: {
             damageRadius = TILESIZE*15;
             speed = 20.0f;
@@ -392,7 +415,7 @@ void Bullet::update()
 	location.x = (int)(realX/TILESIZE);
 	location.y = (int)(realY/TILESIZE);
 
-	if((location.x < -5) || (location.x >= currentGameMap->getSizeX() + 5) || (location.y < -5) || (location.y >= currentGameMap->getSizeY() + 5)) {
+	if((location.x < -5) || (location.x >= currentGameMap->getSizeX() + 5) || (location.y < -5) || (location.y >= currentGameMap->getSizeY() + 5) || !currentGameMap->tileExists(location)) {
         // it's off the map => delete it
         bulletList.remove(this);
         delete this;
@@ -439,15 +462,43 @@ void Bullet::update()
 
             if(bulletID == Bullet_Rocket || bulletID == Bullet_DRocket) {
                 if(detonationTimer == 0) {
+                	if (bulletID == Bullet_DRocket) {
+                		for (int i=0; i<4; i++) {
+                			int angle= rand()%7;	// TODO : Depend on wind angle
+                		    Coord nextCoord = currentGameMap->getMapPos(angle, destination);
+                			if (currentGameMap->tileExists(nextCoord/TILESIZE)) {
+                				bulletList.push_back( new Bullet( shooterID, &destination, &nextCoord, Bullet_GasCloud, damage, false) );
+                			} else {
+                				i--;
+                			}
+                		}
+
+                	}
                     destroy();
-                return;
+                    return;
                 }
-            } else {
+
+            } else if (bulletID != Bullet_GasCloud) {
                 realX = destination.x;
                 realY = destination.y;
                 destroy();
                 return;
             }
+		} else if (bulletID == Bullet_GasCloud) {
+				if(detonationTimer == 0) {
+					 destroy();
+					 return;
+				 }
+
+				// Cloud passing by can still deviate
+				Coord realPos = Coord(lround(realX), lround(realY));
+				if (detonationTimer%detonationModulus == 0 ) {
+					currentGameMap->damage(shooterID, owner, realPos, bulletID, damage, damageRadius, false);
+					currentGameMap->damage(shooterID, owner, realPos, bulletID, damage, damageRadius, true);
+				}
+
+				realX += xSpeed;  // TODO : Adapt speed on wind
+				realY += ySpeed;
 		}
 	}
 }
@@ -458,16 +509,29 @@ void Bullet::destroy()
     Coord position = Coord(lround(realX), lround(realY));
 
     int houseID = (owner == NULL) ? HOUSE_HARKONNEN : owner->getHouseID();
+    Coord location = Coord(position.x/TILESIZE, position.y/TILESIZE);
+    bool bulletHitSand = false;
+    if (currentGameMap->tileExists(location)) {
+    	Tile* targetTile=  currentGameMap->getTile(location);
+    	bulletHitSand = (targetTile->getGroundObject() == NULL && (!targetTile->isConcrete()   && !targetTile->isMountain() && !targetTile->isRock()));
+    }
 
     switch(bulletID) {
+    	case Bullet_GasCloud:
+    		// does not dealt dommage when gas is totally evaporated
+    		bulletHitSand &= false;
+    		break;
         case Bullet_DRocket: {
-            currentGameMap->damage(shooterID, owner, position, bulletID, damage, damageRadius, airAttack);
-            soundPlayer->playSoundAt(Sound_ExplosionGas, position);
+			currentGameMap->damage(shooterID, owner, position, bulletID, damage, damageRadius, false);
+            soundPlayer->playSoundAt(Sound_ExplosionGas, location);
             currentGame->getExplosionList().push_back(new Explosion(Explosion_Gas,position,houseID));
+
+            bulletHitSand &= false;
         } break;
 
         case Bullet_LargeRocket: {
-            soundPlayer->playSoundAt(Sound_ExplosionLarge, position);
+            soundPlayer->playSoundAt(Sound_ExplosionLarge, location);
+            bulletHitSand &= false;
             int a = 0; int b =0; int c=0;
             for(int i=0 ;i < damageRadius; i++) {
 
@@ -533,6 +597,7 @@ void Bullet::destroy()
         case Bullet_ShellSmall: {
             currentGameMap->damage(shooterID, owner, position, bulletID, damage, damageRadius, airAttack);
             currentGame->getExplosionList().push_back(new Explosion(Explosion_ShellSmall,position,houseID));
+            bulletHitSand &= false;
         } break;
 
         case Bullet_ShellMedium: {
@@ -548,8 +613,12 @@ void Bullet::destroy()
         case Bullet_Sonic:
         case Bullet_Sandworm:
         default: {
+        	bulletHitSand &= false;
             // do nothing
         } break;
+    }
+    if (bulletHitSand) {
+    	soundPlayer->playSoundAt(Sound_ExplosionSand, location);
     }
 
     bulletList.remove(this);

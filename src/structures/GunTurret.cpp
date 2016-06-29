@@ -37,7 +37,8 @@ void GunTurret::init() {
     itemID = Structure_GunTurret;
 	owner->incrementStructures(itemID);
 
-	attackSound = Sound_Gun;
+
+	attackSound = Sound_MountedCannon;
 	bulletType = Bullet_ShellMedium;
 
 	graphicID = ObjPic_GunTurret;
@@ -46,6 +47,17 @@ void GunTurret::init() {
 	numImagesY = 1;
 	curAnimFrame = firstAnimFrame = lastAnimFrame = ((10-drawnAngle) % 8) + 2;
 }
+
+bool GunTurret::canAttack(const ObjectBase* object) const {
+	if((object != NULL)
+		&& ((object->getOwner()->getTeam() != owner->getTeam()) || (object->getItemID() == Unit_Sandworm && getOwner()->getHouseID()!= HOUSE_FREMEN))
+		&& object->isVisible(getOwner()->getTeam())) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
 
 GunTurret::~GunTurret() {
 }

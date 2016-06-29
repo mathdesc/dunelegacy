@@ -347,7 +347,8 @@ bool Sandworm::update() {
                 drawnFrame++;
                 if(drawnFrame >= 9) {
                     drawnFrame = INVALID;
-                    if(kills >= 10) {				//	mathdesc : number of kills
+                    if(kills >= 10) {				// number of kills
+                    	doSetAttackMode(AMBUSH);
                         if(sleepOrDie() == false) {
                             return false;
                         }
@@ -356,7 +357,7 @@ bool Sandworm::update() {
                     attackFrameTimer = SANDWORM_ATTACKFRAMETIME;
                     if(drawnFrame == 1) {
                         // the close mouth bit of graphic is currently shown => eat unit
-                        bool wasAlive = ( target && target.getObjPointer()->isVisible(getOwner()->getTeam()));	//see if unit was alive before attack
+                        bool wasAlive = ( target && target.getObjPointer() != NULL && target.getObjPointer()->isVisible(getOwner()->getTeam()));	//see if unit was alive before attack
                         Coord realPos = Coord(lround(realX), lround(realY));
                         currentGameMap->damage(objectID, getOwner(), realPos, Bullet_Sandworm, 5000, NONE, false);
 
@@ -385,6 +386,14 @@ bool Sandworm::update() {
 
 	                    if(canPass(x, y)) {
 	                        deploy(currentGameMap->getTile(x, y)->getLocation());
+	                        attackMode = HUNT;
+	                        setActive(true);
+							drawnFrame=1;
+							attackFrameTimer = SANDWORM_ATTACKFRAMETIME;
+							setVisible(VIS_ALL, true);
+							soundPlayer->playSound(Sound_WormAttack, soundPlayer->getSfxVolume()*2);
+
+							primaryWeaponTimer = getWeaponReloadTime()/2;
 	                        break;
 	                    }
 					}
@@ -397,9 +406,9 @@ bool Sandworm::update() {
 						setActive(true);
 						drawnFrame=1;
 						attackFrameTimer = SANDWORM_ATTACKFRAMETIME;
-						setRespondable(true);
+						//setRespondable(true);
 						setVisible(VIS_ALL, true);
-						soundPlayer->playSoundAt(Sound_WormAttack, location);
+						soundPlayer->playSound(Sound_WormAttack,soundPlayer->getSfxVolume()*2);
 						primaryWeaponTimer = getWeaponReloadTime()/2;
 			    }
 
@@ -451,14 +460,20 @@ const ObjectBase* Sandworm::findTarget() const {
         RobustList<UnitBase*>::const_iterator iter;
 	    for(iter = unitList.begin() ; iter != unitList.end()  ; ++iter) {
 			UnitBase* tempUnit = *iter;
-			int ItemID = tempUnit->getItemID();
 			// find Heavy unit (worms are attracted by vibrations from far away)
-            if (canAttack(tempUnit) &&  (ItemID == Unit_Harvester || ItemID == Unit_MCV || ItemID == Unit_Devastator || ItemID == Unit_SiegeTank || ItemID == Unit_Tank ) &&
+            if (canAttack(tempUnit) &&  (tempUnit->getItemID() == Unit_Harvester || (tempUnit->isTracked() && (tempUnit->isMoving() ))) &&
             		(blockDistance(location, tempUnit->getLocation()) < closestDistance)) {
                  closestDistance = blockDistance(location, tempUnit->getLocation());
                  closestTarget = tempUnit;
                  currentGame->addUrgentMessageToNewsTicker("SandWorm activity reported !");
-
+            }
+            // find lighter unit (adds a penalty to promote farer yet heavier targets) yet wouldnot enfage fremen light troups
+            bool fre_inf = (tempUnit->isInfantry() && tempUnit->getOriginalHouseID() == HOUSE_FREMEN);
+            if (canAttack(tempUnit) &&  (!(tempUnit->isTracked())  && (tempUnit->isMoving())) && !fre_inf &&
+                       		(blockDistance(location, tempUnit->getLocation()) < closestDistance)) {
+				closestDistance = blockDistance(location, tempUnit->getLocation())+10;
+				closestTarget = tempUnit;
+				currentGame->addUrgentMessageToNewsTicker("SandWorm activity reported !");
             }
 		}
 	} else {
@@ -475,4 +490,8 @@ int Sandworm::getCurrentAttackAngle() const {
 
 void Sandworm::playAttackSound() {
 	soundPlayer->playSoundAt(Sound_WormAttack,location);
+}
+void Sandworm::playConfirmSound() {
+	// Do not say "yes sir !" please
+	;
 }

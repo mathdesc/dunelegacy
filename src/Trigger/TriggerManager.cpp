@@ -21,7 +21,6 @@
 
 #include <stdexcept>
 
-#define DEBUG
 
 #ifdef DEBUG
 #undef DEBUG

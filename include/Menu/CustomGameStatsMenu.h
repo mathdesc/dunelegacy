@@ -33,6 +33,7 @@ class CustomGameStatsMenu : public MenuBase
 public:
 	CustomGameStatsMenu();
 	virtual ~CustomGameStatsMenu();
+	int showMenu();
 
 private:
     void onOK();
@@ -75,6 +76,7 @@ private:
     // bottom row of buttons
     HBox            buttonHBox;
     Label           timeLabel;
+    Label			dayLabel;
     TextButton		okButton;
 };
 

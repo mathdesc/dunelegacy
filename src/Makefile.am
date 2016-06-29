@@ -73,6 +73,7 @@ dunelegacy_SOURCES =	AStarSearch.cpp\
 						GUI/TextView.cpp\
 						GUI/RadioButtonManager.cpp\
 						$(NULL)\
+						GUI/dune/DaysCounter.cpp\
 						GUI/dune/ChatManager.cpp\
 						GUI/dune/DuneStyle.cpp\
 						GUI/dune/GameOptionsWindow.cpp\

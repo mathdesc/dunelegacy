@@ -25,6 +25,7 @@ class GunTurret : public TurretBase
 public:
 	GunTurret(House* newOwner);
 	GunTurret(InputStream& stream);
+	bool canAttack(const ObjectBase* object) const ;
 	void init();
 	virtual ~GunTurret();
 };

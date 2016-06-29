@@ -190,7 +190,9 @@ void createDefaultConfigFile(std::string configfilepath, std::string language) {
 								"Only One Palace = false \t\t\t#If true, only one palace can be build per house\n"
 								"Rocket-Turrets Need Power = false \t\t\t#If true, rocket turrets are dysfunctional on power shortage\n"
                                 "Sandworms Respawn = false\t\t\t\t#If true, killed sandworms respawn after some time\n"
-								"Killed Sandworms Drop Spice = false \t\t\t#If true, killed sandworms drop some spice\n";
+								"Killed Sandworms Drop Spice = false \t\t\t#If true, killed sandworms drop some spice\n"
+								"Day Night Cycle = false \t\t\t#If true, game will cycle day and night\n"
+								"Day Night Scale = 10 \t\t\t#If DayNight Cycle is true, pick between 9 and 15, the greater make day longer\n";
 
     char playername[MAX_PLAYERNAMELENGHT+1] = "Player";
 
@@ -492,6 +494,8 @@ int main(int argc, char *argv[]) {
         settings.gameOptions.rocketTurretsNeedPower = myINIFile.getBoolValue("Game Options","Rocket-Turrets Need Power",false);
         settings.gameOptions.sandwormsRespawn = myINIFile.getBoolValue("Game Options","Sandworms Respawn",false);
         settings.gameOptions.killedSandwormsDropSpice = myINIFile.getBoolValue("Game Options","Killed Sandworms Drop Spice",false);
+        settings.gameOptions.daynight = myINIFile.getBoolValue("Game Options","Day Night Cycle",false);
+        settings.gameOptions.dayscale = (Uint8)myINIFile.getIntValue("Game Options","Day Night Scale",false);
 
         fprintf(stdout, "loading texts....."); fflush(stdout);
         pTextManager = new TextManager();
@@ -563,7 +567,7 @@ int main(int argc, char *argv[]) {
 				fprintf(stderr,"Warning: Couldn't set %d Hz 16-bit audio\n- Reason: %s\n",settings.audio.frequency,SDL_GetError());
 				exit(EXIT_FAILURE);
 			} else {
-				fprintf(stdout, "allocated %d channels.\n", Mix_AllocateChannels(6)); fflush(stdout);
+				fprintf(stdout, "allocated %d channels.\n", Mix_AllocateChannels(9)); fflush(stdout);
 			}
 		}
 

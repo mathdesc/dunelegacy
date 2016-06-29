@@ -117,7 +117,7 @@ public:
         \param  damage      the damage taken
         \param  damagerID   the shooter of the bullet, rocket, etc. if known; NONE otherwise
     */
-    void noteDamageLocation(ObjectBase* pObject, int damage, Uint32 damagerID);
+    void noteDamageLocation(ObjectBase* pObject, int damage, Uint32 damagerID, House* damagerOwner);
 
     void informWasBuilt(Uint32 itemID);
 	void informHasKilled(Uint32 itemID);

@@ -57,9 +57,14 @@ GameInterface::GameInterface() : Window(0,0,0,0) {
 	windowWidget.addWidget(&topBarHBox,Point(5,5),
 							Point(screen->w - sideBar.getSize().x, topBar.getSize().y - 10));
 
-	topBarHBox.addWidget(&newsticker);
+	/* Weight the newsticker heavily to gain precedence over other regular widget in resizing process */
+	topBarHBox.addWidget(&newsticker,(double)10);
+
+
 
 	topBarHBox.addWidget(Spacer::create());
+
+
 
 	surf = pGFXManager->getUIGraphic(UI_Options, pLocalHouse->getHouseID());
 	surfPressed = pGFXManager->getUIGraphic(UI_Options_Pressed, pLocalHouse->getHouseID());
@@ -79,6 +84,20 @@ GameInterface::GameInterface() : Window(0,0,0,0) {
 
 	topBarHBox.addWidget(Spacer::create());
 
+	// add the day counter
+	GAMETYPE type = currentGame->getGameInitSettings().getGameType();
+
+
+	if (currentGame->getGameInitSettings().getGameOptions().daynight &&
+			(type == GAMETYPE_CUSTOM || type == GAMETYPE_SKIRMISH ||
+			type == GAMETYPE_CUSTOM_MULTIPLAYER || type == GAMETYPE_LOAD_MULTIPLAYER)) {
+		days.setOnClick(std::bind(&DaysCounter::enlarge,&days));
+		topBarHBox.addWidget(&days);
+	}
+
+
+	topBarHBox.addWidget(Spacer::create());
+
 	// add radar
 	windowWidget.addWidget(&radarView,Point(screen->w-sideBar.getSize().x+SIDEBAR_COLUMN_WIDTH, 0),radarView.getMinimumSize());
 	radarView.setOnRadarClick(std::bind(&Game::onRadarClick, currentGame, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
@@ -92,6 +111,7 @@ GameInterface::~GameInterface() {
 }
 
 void GameInterface::draw(SDL_Surface* screen, Point position) {
+	days.update();
 	Window::draw(screen,position);
 
 	// draw Power Indicator and Spice indicator
@@ -171,6 +191,9 @@ void GameInterface::draw(SDL_Surface* screen, Point position) {
                             surface->w/10, surface->h};
 		SDL_BlitSurface(surface, &source, screen, &dest);
 	}
+
+
+
 }
 
 void GameInterface::updateObjectInterface() {

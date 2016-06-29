@@ -2,7 +2,7 @@
 
 mkdir -p build
 cd build
-../configure --prefix="" --enable-debug
+../configure CPPFLAGS="-O0 -std=c++11" CXXFLAGS="-O0" --prefix="" --enable-debug 
 cd tests
 make check
 cd ..

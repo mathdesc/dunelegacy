@@ -196,7 +196,8 @@ void Refinery::updateStructureSpecificStuff() {
 		    	owner->addCredits(pHarvester->extractSpice(extractionSpeed), true);
 		    } else {
 		    	// refuse cargo, we are full !
-		    	 deployHarvester();
+		    	soundPlayer->playSoundAt(Sound_Steam,this->location);
+		    	deployHarvester();
 		    }
 		} else if(pHarvester->isAwaitingPickup() == false) {
 		    // find carryall
@@ -222,10 +223,13 @@ void Refinery::updateStructureSpecificStuff() {
                 pHarvester->bookCarrier(pCarryall);
                 pHarvester->setFellow(NULL);
                 pHarvester->setDestination(pHarvester->getGuardPoint());
+                soundPlayer->playSoundAt(Sound_Steam,this->location);
             } else {
+            	soundPlayer->playSoundAt(Sound_Steam,this->location);
                 deployHarvester();
             }
 		} else if(!pHarvester->hasBookedCarrier()) {
+			soundPlayer->playSoundAt(Sound_Steam,this->location);
 		    deployHarvester();
 		}
 	}

@@ -320,6 +320,7 @@ void SFXManager::loadEnglishVoice() {
 	soundChunk[Sound_ExplosionMedium] = getChunkFromFile("EXMED.VOC");
 	soundChunk[Sound_ExplosionLarge] = getChunkFromFile("EXLARGE.VOC");
 	soundChunk[Sound_ExplosionStructure] = getChunkFromFile("CRUMBLE.VOC");
+	soundChunk[Sound_ExplosionSand] = getChunkFromFile("EXSAND.VOC");
 	soundChunk[Sound_WormAttack] = getChunkFromFile("WORMET3P.VOC");
 	soundChunk[Sound_Gun] = getChunkFromFile("GUN.VOC");
 	soundChunk[Sound_Rocket] = getChunkFromFile("ROCKET.VOC");
@@ -335,7 +336,11 @@ void SFXManager::loadEnglishVoice() {
 	soundChunk[Sound_MachineGun] = getChunkFromFile("GUNMULTI.VOC");
 	soundChunk[Sound_Sonic] = Mix_LoadWAV_RW(pFileManager->openFile("SONIC.WAV"),1);
 	soundChunk[Sound_RocketSmall] = getChunkFromFile("MISLTINP.VOC");
-	soundChunk[Sound_AirBrakes]  = getChunkFromFile("BRAKES2P.VOC");
+	soundChunk[Sound_AirLift]  = Mix_LoadWAV_RW(pFileManager->openFile("CLANK.VOC"),1);
+	soundChunk[Sound_Steam]  = getChunkFromFile("BRAKES2P.VOC");
+	soundChunk[Sound_Blast]  = Mix_LoadWAV_RW(pFileManager->openFile("BLASTER.VOC"),1);
+	soundChunk[Sound_GasRocket]  = Mix_LoadWAV_RW(pFileManager->openFile("MISSLE8.VOC"),1);
+	soundChunk[Sound_MountedCannon]  = Mix_LoadWAV_RW(pFileManager->openFile("BLOWUP1.VOC"),1);
 }
 
 
@@ -453,6 +458,7 @@ void SFXManager::loadNonEnglishVoice(std::string languagePrefix) {
 	soundChunk[Sound_ExplosionMedium] = getChunkFromFile("EXMED.VOC");
 	soundChunk[Sound_ExplosionLarge] = getChunkFromFile("EXLARGE.VOC");
 	soundChunk[Sound_ExplosionStructure] = getChunkFromFile("CRUMBLE.VOC");
+	soundChunk[Sound_ExplosionSand] = getChunkFromFile("EXSAND.VOC");
 	soundChunk[Sound_WormAttack] = getChunkFromFile("WORMET3P.VOC");
 	soundChunk[Sound_Gun] = getChunkFromFile("GUN.VOC");
 	soundChunk[Sound_Rocket] = getChunkFromFile("ROCKET.VOC");
@@ -468,7 +474,11 @@ void SFXManager::loadNonEnglishVoice(std::string languagePrefix) {
 	soundChunk[Sound_MachineGun] = getChunkFromFile("GUNMULTI.VOC");
 	soundChunk[Sound_Sonic] = Mix_LoadWAV_RW(pFileManager->openFile("SONIC.WAV"),1);
 	soundChunk[Sound_RocketSmall] = getChunkFromFile("MISLTINP.VOC");
-	soundChunk[Sound_AirBrakes]  = getChunkFromFile("BRAKES2P.VOC");
+	soundChunk[Sound_Steam]  = getChunkFromFile("BRAKES2P.VOC");
+	soundChunk[Sound_AirLift]  = Mix_LoadWAV_RW(pFileManager->openFile("CLANK.VOC"),1);
+	soundChunk[Sound_Blast]  = Mix_LoadWAV_RW(pFileManager->openFile("BLASTER.VOC"),1);
+	soundChunk[Sound_GasRocket]  = Mix_LoadWAV_RW(pFileManager->openFile("MISSLE8.VOC"),1);
+	soundChunk[Sound_MountedCannon]  = Mix_LoadWAV_RW(pFileManager->openFile("BLOWUP1.VOC"),1);
 }
 
 Mix_Chunk* SFXManager::getNonEnglishVoice(Voice_enum id, int house) {

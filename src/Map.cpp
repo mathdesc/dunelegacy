@@ -145,7 +145,7 @@ void Map::damage(Uint32 damagerID, House* damagerOwner, const Coord& realPos, Ui
 
         if(air == true) {
             // air damage
-            if((bulletID == Bullet_DRocket) || (bulletID == Bullet_Rocket) || (bulletID == Bullet_TurretRocket)|| (bulletID == Bullet_SmallRocket) || (bulletID == Bullet_LargeRocket)) {
+            if((bulletID == Bullet_DRocket) || bulletID == Bullet_GasCloud || (bulletID == Bullet_Rocket) || (bulletID == Bullet_TurretRocket)|| (bulletID == Bullet_SmallRocket) || (bulletID == Bullet_LargeRocket)) {
                 std::set<Uint32>::const_iterator iter;
                 for(iter = affectedAirUnits.begin(); iter != affectedAirUnits.end() ;++iter) {
                     AirUnit* pAirUnit = dynamic_cast<AirUnit*>(currentGame->getObjectManager().getObject(*iter));
@@ -158,10 +158,10 @@ void Map::damage(Uint32 damagerID, House* damagerOwner, const Coord& realPos, Ui
                     int distance = lroundf(distanceFrom(centerPoint, realPos));
 
                     if(distance <= damageRadius) {
-                        if(bulletID == Bullet_DRocket) {
+                        if(bulletID == Bullet_DRocket || bulletID == Bullet_GasCloud) {
                             if((pAirUnit->getItemID() != Unit_Carryall) && (pAirUnit->getItemID() != Unit_Sandworm) && (pAirUnit->getItemID() != Unit_Frigate)) {
                                 // try to deviate
-                                if(currentGame->randomGen.randFloat() < getDeviateWeakness((HOUSETYPE) pAirUnit->getOriginalHouseID())) {
+                                if((currentGame->randomGen.randFloat() < getDeviateWeakness((HOUSETYPE) pAirUnit->getOriginalHouseID()))) {
                                     pAirUnit->deviate(damagerOwner);
                                 }
                             }
@@ -204,13 +204,24 @@ void Map::damage(Uint32 damagerID, House* damagerOwner, const Coord& realPos, Ui
                     int distance = lroundf(distanceFrom(centerPoint, realPos));
 
                     if(distance <= damageRadius) {
-                        if(bulletID == Bullet_DRocket) {
+                        if(bulletID == Bullet_DRocket || bulletID == Bullet_GasCloud) {
                             if((pUnit->getItemID() != Unit_Carryall) && (pUnit->getItemID() != Unit_Sandworm) && (pUnit->getItemID() != Unit_Frigate)) {
-                                // try to deviate
-                                if(currentGame->randomGen.randFloat() < getDeviateWeakness((HOUSETYPE) pUnit->getOriginalHouseID())) {
-                                    pUnit->deviate(damagerOwner);
-                                }
+                            	// This Bullet hit and is destroyed
+                            	if (bulletID == Bullet_DRocket) {
+                            		// try to deviate
+                            		if((currentGame->randomGen.randFloat() < getDeviateWeakness((HOUSETYPE) pUnit->getOriginalHouseID()) )) {
+                            			pUnit->deviate(damagerOwner);
+                            		}
+                            	}
+                            	// This Bullet is a cloud it deals damage for a while
+                            	if (bulletID == Bullet_GasCloud) {
+									// try to deviate
+									if((currentGame->randomGen.randFloat() < getDeviateWeakness((HOUSETYPE) pUnit->getOriginalHouseID()) )) {
+										pUnit->deviate(damagerOwner);
+									}
+                            	}
                             }
+
                         } else if(bulletID == Bullet_Sonic) {
                         	if ((pUnit->getItemID() != Unit_SonicTank  || pUnit->getOwner()->getTeam() != pLocalHouse->getTeam()))
                         		pUnit->handleDamage(lroundf(damage), damagerID, damagerOwner);
@@ -249,7 +260,9 @@ void Map::damage(Uint32 damagerID, House* damagerOwner, const Coord& realPos, Ui
                     }
                 }
                 bool terrain_mask = (pTile->getType() == Terrain_Spice || pTile->getType() == Terrain_ThickSpice ) ;
-                bool bullet_mask = (  (bulletID == Bullet_DRocket) || (bulletID == Bullet_LargeRocket) || (bulletID == Bullet_Rocket) || (bulletID == Bullet_TurretRocket) || (bulletID == Bullet_ShellSmall) || (bulletID == Bullet_ShellMedium) || (bulletID == Bullet_ShellLarge) || (bulletID == Bullet_SmallRocket) );
+                bool bullet_mask = (  (bulletID == Bullet_DRocket) || (bulletID == Bullet_GasCloud)  || (bulletID == Bullet_LargeRocket) ||
+                		(bulletID == Bullet_Rocket) || (bulletID == Bullet_TurretRocket) || (bulletID == Bullet_ShellSmall) ||
+						(bulletID == Bullet_ShellMedium) || (bulletID == Bullet_ShellLarge) || (bulletID == Bullet_SmallRocket) );
                 if (terrain_mask && bullet_mask &&  (!pTile->hasAGroundObject() || !pTile->getGroundObject()->isAStructure()) )   {
                 	float damage;
                 	switch (bulletID) {
@@ -269,6 +282,7 @@ void Map::damage(Uint32 damagerID, House* damagerOwner, const Coord& realPos, Ui
                 		case Bullet_ShellMedium:
                 			damage = 10.0;
                 			break;
+                		case Bullet_GasCloud:
                 		case Bullet_DRocket:
                 		case Bullet_ShellSmall:
                 		default:
@@ -280,7 +294,7 @@ void Map::damage(Uint32 damagerID, House* damagerOwner, const Coord& realPos, Ui
 
             }
 
-        }
+        } // end of non air damage
     }
 
 	if((bulletID != Bullet_Sonic) && (bulletID != Bullet_Sandworm) && tileExists(location) && getTile(location)->isSpiceBloom()) {

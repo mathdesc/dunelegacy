@@ -28,6 +28,8 @@
 #include <GUI/Spacer.h>
 #include <GUI/PictureLabel.h>
 #include <GUI/dune/DigitsCounter.h>
+#include <GUI/dune/GameOptionsWindow.h>
+
 
 #include <misc/string_util.h>
 
@@ -36,9 +38,15 @@ class SinglePlayerSkirmishMenu : public MenuBase
 public:
 	SinglePlayerSkirmishMenu();
 	virtual ~SinglePlayerSkirmishMenu();
+	/**
+		This method is called, when the child window is about to be closed.
+		This child window will be closed after this method returns.
+		\param	pChildWindow	The child window that will be closed
+	*/
+	virtual void onChildWindowClose(Window* pChildWindow);
 
 private:
-
+	void onGameOptions();
 	void onDifficulty();
 	void onStart();
 	void onCancel();
@@ -74,11 +82,14 @@ private:
 	VBox			menuButtonsVBox;
 
 	TextButton		startButton;
+	TextButton      gameOptionsButton;
 	TextButton		backButton;
 
 	PictureLabel	heraldPicture;
 	PictureLabel	duneLegacy;
 	PictureLabel	buttonBorder;
+
+	SettingsClass::GameOptionsClass currentGameOptions;
 
     int currentHouseChoiceScrollPos;
     int selectedButton;

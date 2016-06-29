@@ -16,6 +16,7 @@
  */
 
 #include <units/Ornithopter.h>
+#include <units/Carryall.h>
 
 #include <globals.h>
 
@@ -46,7 +47,7 @@ void Ornithopter::init() {
 	numImagesX = NUM_ANGLES;
 	numImagesY = 3;
 
-	numWeapons = 1;
+	numWeapons = 2;
 	bulletType = Bullet_SmallRocket;
 }
 
@@ -60,11 +61,15 @@ void Ornithopter::checkPos() {
 	if(drawnFrame >= 3) {
 		drawnFrame = 0;
 	}
+	Tile *t= currentGameMap->getTile(location.x, location.y);
+	if (t != NULL &&  t->getAirUnit() != this && t->getAirUnit()->getOwner() != pLocalHouse  ) {
+		//TODO : evasive manoeuver
+	}
 }
 
 bool Ornithopter::canAttack(const ObjectBase* object) const {
 	if ((object != NULL)
-		&& ((object->getOwner()->getTeam() != owner->getTeam()) || object->getItemID() == Unit_Sandworm)
+		&& ((object->getOwner()->getTeam() != owner->getTeam()) || (object->getItemID() == Unit_Sandworm && getOwner()->getHouseID()!= HOUSE_FREMEN))
 		&& object->isVisible(getOwner()->getTeam()))
 		return true;
 	else
@@ -82,7 +87,11 @@ void Ornithopter::destroy() {
 }
 
 void Ornithopter::playAttackSound() {
-	soundPlayer->playSoundAt(Sound_Rocket,location);
+	if (target && target.getObjPointer() != NULL && target.getObjPointer()->isInfantry()) {
+		soundPlayer->playSoundAt(Sound_MachineGun,location);
+	} else {
+		soundPlayer->playSoundAt(Sound_Rocket,location);
+	}
 }
 
 bool Ornithopter::canPass(int xPos, int yPos) const {

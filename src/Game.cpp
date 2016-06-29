@@ -33,6 +33,7 @@
 #include <misc/fnkdat.h>
 #include <misc/draw_util.h>
 #include <misc/string_util.h>
+#include <misc/strictmath.h>
 #include <misc/md5.h>
 
 #include <players/HumanPlayer.h>
@@ -120,6 +121,7 @@ Game::Game() {
     house.resize(NUM_HOUSES);
 
 	gamespeed = GAMESPEED_DEFAULT;
+	dayscale = GAMEDAYSCALE_DEFAULT;
 
 	SDL_Surface* pSideBarSurface = pGFXManager->getUIGraphic(UI_SideBar);
 	sideBarPos.w = pSideBarSurface->w;
@@ -161,6 +163,8 @@ Game::Game() {
 	//////////////////////////////////////////////////////////////////////////
 	SDL_Rect gameBoardRect = { 0, topBarPos.h, sideBarPos.x, screen->h - topBarPos.h };
 	screenborder = new ScreenBorder(gameBoardRect);
+
+	setNumberOfDays(1);
 }
 
 
@@ -248,7 +252,13 @@ void Game::initGame(const GameInitSettings& newGameInitSettings) {
                 techLevel = ((gameInitSettings.getMission() + 1)/3) + 1 ;
             }
 
+            // Insure Sane defaults
             gamespeed = gameInitSettings.getGameOptions().gameSpeed;
+            dayscale = gameInitSettings.getGameOptions().dayscale;
+            nbofdays = 1;
+            dayphase = Day;
+
+
 
             INIMapLoader* pINIMapLoader = new INIMapLoader(this, gameInitSettings.getFilename(), gameInitSettings.getFiledata());
             delete pINIMapLoader;
@@ -327,6 +337,13 @@ void Game::processObjects()
 	}
 }
 
+#define SAVE 1
+
+#if SAVE
+#define SAVEPERF					if (!pTile->isExplored(pLocalHouse->getHouseID())) continue;
+#else
+#define SAVEPERF
+#endif
 
 void Game::drawScreen()
 {
@@ -350,6 +367,7 @@ void Game::drawScreen()
 
 			if (currentGameMap->tileExists(currentTile))	{
 				Tile* pTile = currentGameMap->getTile(currentTile);
+				SAVEPERF
 				pTile->blitGround( screenborder->world2screenX(currentTile.x*TILESIZE),
                                   screenborder->world2screenY(currentTile.y*TILESIZE));
 			}
@@ -362,6 +380,7 @@ void Game::drawScreen()
 
 			if (currentGameMap->tileExists(currentTile))	{
 				Tile* pTile = currentGameMap->getTile(currentTile);
+				SAVEPERF
 				pTile->blitStructures( screenborder->world2screenX(currentTile.x*TILESIZE),
                                       screenborder->world2screenY(currentTile.y*TILESIZE));
 			}
@@ -374,6 +393,7 @@ void Game::drawScreen()
 
 			if (currentGameMap->tileExists(currentTile))	{
 				Tile* pTile = currentGameMap->getTile(currentTile);
+				SAVEPERF
 				pTile->blitUndergroundUnits( screenborder->world2screenX(currentTile.x*TILESIZE),
                                             screenborder->world2screenY(currentTile.y*TILESIZE));
 			}
@@ -386,6 +406,7 @@ void Game::drawScreen()
 
 			if (currentGameMap->tileExists(currentTile))	{
 				Tile* pTile = currentGameMap->getTile(currentTile);
+				SAVEPERF
 				pTile->blitDeadUnits( screenborder->world2screenX(currentTile.x*TILESIZE),
                                      screenborder->world2screenY(currentTile.y*TILESIZE));
 			}
@@ -398,6 +419,7 @@ void Game::drawScreen()
 
 			if (currentGameMap->tileExists(currentTile))	{
 				Tile* pTile = currentGameMap->getTile(currentTile);
+				SAVEPERF
 				pTile->blitInfantry( screenborder->world2screenX(currentTile.x*TILESIZE),
                                     screenborder->world2screenY(currentTile.y*TILESIZE));
 			}
@@ -410,6 +432,7 @@ void Game::drawScreen()
 
 			if (currentGameMap->tileExists(currentTile))	{
 				Tile* pTile = currentGameMap->getTile(currentTile);
+				SAVEPERF
 				pTile->blitNonInfantryGroundUnits( screenborder->world2screenX(currentTile.x*TILESIZE),
                                                   screenborder->world2screenY(currentTile.y*TILESIZE));
 			}
@@ -434,6 +457,7 @@ void Game::drawScreen()
 
 			if (currentGameMap->tileExists(currentTile))	{
 				Tile* pTile = currentGameMap->getTile(currentTile);
+				SAVEPERF
 				pTile->blitAirUnits(   screenborder->world2screenX(currentTile.x*TILESIZE),
                                       screenborder->world2screenY(currentTile.y*TILESIZE));
 			}
@@ -476,6 +500,30 @@ void Game::drawScreen()
 						    SDL_Rect drawLocation = {   screenborder->world2screenX(x*TILESIZE), screenborder->world2screenY(y*TILESIZE),
                                                         zoomedTileSize, zoomedTileSize };
 							SDL_BlitSurface(hiddenSurf[currentZoomlevel], &source, screen, &drawLocation);
+						} else {
+
+							{
+
+									/*
+								SDL_Surface* airsurf = pGFXManager->getTransparentXSurface();
+								SDL_Surface* airsurf = pGFXManager->getObjPic(ObjPic_Terrain_Hidden)[currentZoomlevel];
+								SDL_Rect source = { world2zoomedWorld(TILESIZE)*15, 0, zoomedTileSize, zoomedTileSize };
+								SDL_Rect drawLocation = {   screenborder->world2screenX(x*TILESIZE), screenborder->world2screenY(y*TILESIZE),
+															zoomedTileSize, zoomedTileSize };
+								SDL_BlitSurface(airsurf, &source, screen, &drawLocation);
+
+
+								//doDayNightPalatteAnimation(airsurf->format->palette,airsurf);
+								*/
+
+
+
+
+							}
+
+
+
+
 						}
 
 						if(gameInitSettings.getGameOptions().fogOfWar == true) {
@@ -511,21 +559,26 @@ void Game::drawScreen()
                             }
 						}
 					} else {
+#if !SAVE
 					    if(!debug) {
 					        SDL_Surface** hiddenSurf = pGFXManager->getObjPic(ObjPic_Terrain_Hidden);
 					        SDL_Rect source = { world2zoomedWorld(TILESIZE)*15, 0, zoomedTileSize, zoomedTileSize };
 					        SDL_Rect drawLocation = {   screenborder->world2screenX(x*TILESIZE), screenborder->world2screenY(y*TILESIZE),
                                                         zoomedTileSize, zoomedTileSize };
                             SDL_BlitSurface(hiddenSurf[currentZoomlevel], &source, screen, &drawLocation);
+
+
+
 					    }
+#endif
 					}
 				} else {
-                    // we are outside the map => draw complete hidden
+                    /* we are outside the map => draw complete hidden
                     SDL_Surface** hiddenSurf = pGFXManager->getObjPic(ObjPic_Terrain_Hidden);
                     SDL_Rect source = { world2zoomedWorld(TILESIZE)*15, 0, zoomedTileSize, zoomedTileSize };
                     SDL_Rect drawLocation = {   screenborder->world2screenX(x*TILESIZE), screenborder->world2screenY(y*TILESIZE),
                                                 zoomedTileSize, zoomedTileSize };
-                    SDL_BlitSurface(hiddenSurf[currentZoomlevel], &source, screen, &drawLocation);
+                    SDL_BlitSurface(hiddenSurf[currentZoomlevel], &source, screen, &drawLocation);*/
 				}
 			}
 		}
@@ -670,7 +723,12 @@ void Game::drawScreen()
 
                 SDL_Surface** validPlace = new SDL_Surface*[NUM_ZOOMLEVEL];
                 SDL_Surface** invalidPlace = new SDL_Surface*[NUM_ZOOMLEVEL];
-
+                /*             graphic = new SDL_Surface*[NUM_ZOOMLEVEL];
+                for(int z = 0; z < NUM_ZOOMLEVEL; z++) {
+                    graphic[z] =  copySurface(tmpSurfaceStack[z]);	//make a copy of the image
+                }*/
+                // Initialize frantically XXX MEM PROFILE
+                SDL_Surface** image = validPlace ; SDL_Surface** tmpimage = validPlace;
 
 				validPlace[0] = pGFXManager->getUIGraphic(UI_ValidPlace_Zoomlevel0);
 				invalidPlace[0] = pGFXManager->getUIGraphic(UI_InvalidPlace_Zoomlevel0);
@@ -696,8 +754,8 @@ void Game::drawScreen()
                 }
                 dbg_relax_print("Game::drawScreen placing %s building:%d (%d,%d) \n",valid ? "VALID" : "INVALID",placeItem,structuresize.x,structuresize.y);
 
-                SDL_Surface** image, **tmpimage;
-                int imageW , imageH, image_anim;
+
+                int imageW , imageH;
                 SDL_Rect source, source2;
 
                 if (placeItem == Structure_Slab1 || placeItem == Structure_Slab4) {
@@ -708,13 +766,20 @@ void Game::drawScreen()
                 	imageW = image[currentZoomlevel]->w * structuresize.x;
                 	imageH = image[currentZoomlevel]->h * structuresize.y;
                 	if (placeItem == Structure_Slab4)  {
-                		for(int z = 0; z < NUM_ZOOMLEVEL; z++) {
-                			tmpimage[z] =  scaleSurface(image[z],structuresize.x*structuresize.y*8, false);	//make a copy of the image
+                		if (valid){
+                			tmpimage[0] = pGFXManager->getUIGraphic(UI_ValidPlace4_Zoomlevel0);
+                			tmpimage[1] = pGFXManager->getUIGraphic(UI_ValidPlace4_Zoomlevel1);
+                			tmpimage[2] = pGFXManager->getUIGraphic(UI_ValidPlace4_Zoomlevel2);
+                		} else {
+                			tmpimage[0] = pGFXManager->getUIGraphic(UI_InvalidPlace4_Zoomlevel0);
+                			tmpimage[1] = pGFXManager->getUIGraphic(UI_InvalidPlace4_Zoomlevel1);
+                			tmpimage[2] = pGFXManager->getUIGraphic(UI_InvalidPlace4_Zoomlevel2);
                 		}
-                		image=tmpimage;
+						image=tmpimage;
                 	}
-                	source = 	{ 0, 0, imageW , imageH };
-                	source2 = 	{ 0, 0, imageW , imageH };
+					source = 	{ 0, 0, imageW , imageH };
+					source2 = 	{ 0, 0, imageW , imageH };
+
                 } else {
                 		image = resolveItemObjPicture((int)placeItem, (HOUSETYPE)builder->getOwner()->getHouseID());
                 		Frame frame = getStructureObjPicFrames((int)placeItem);
@@ -1326,6 +1391,155 @@ void Game::doWindTrapPalatteAnimation() {
 	}
 }
 
+
+
+
+int Game::getDayNightToOffset(TypeOffset t, Phase wanted_phase, int offset_base) {
+
+
+	int ret_offset;
+	int offset[PHASES_NB+1][2];
+
+	// offset for phase begin
+	offset[PHASE_NONE][0] 	=  pow_2;
+	offset[Day][0] 			=  pow_2;
+	offset[Eve][0]			=  pow_1 + pow_2 - pow_8;
+	//offset[Night][0]		=  pow_1 + pow_3 + pow_4 - pow_7 - pow_8 ;
+	offset[Night][0]		=  pow_1 + pow_2 - pow_4 - pow_7 - pow_8 ;
+	offset[Morning][0]		=  pow_2 + pow_4 + pow_7;
+
+	// offset for phase end (by definition the beginning of the next phase)
+	offset[PHASE_NONE][1]	=  offset[Eve][0];
+	offset[Day][1]			=  offset[Eve][0];
+	offset[Eve][1] 			=  offset[Night][0];
+	offset[Night][1] 		=  offset[Morning][0];
+	offset[Morning][1] 		=  offset[Day][0] ;
+
+
+	int j=t;
+	switch (wanted_phase) {
+	      		case Morning:
+	      			// wanted_ambiant  0.55f;
+	      			ret_offset = offset[Morning][j];
+	      			break;
+	      		case Day:
+	      			// wanted_ambiant  0.70f;
+	      			ret_offset = offset[Day][j];
+	      			break;
+	      		case Eve:
+	      			// wanted_ambiant  0.55f;
+	      			ret_offset = offset[Eve][j];
+	      			break;
+	      		case Night:
+	      			// wanted_ambiant  0.35f;
+	      			ret_offset = offset[Night][j];
+	      			break;
+	      		case PHASE_NONE:
+	      		default:
+	      			// wanted_ambiant  0.70f;
+	      			ret_offset = offset[Day][j];
+	      			break;
+
+	}
+
+	return ret_offset + offset_base ;
+}
+
+
+std::pair<int,float> Game::getDayNightLight(Uint32 refcycle, int offset,Phase currentPhase) {
+
+	int phase 					= (int) (refcycle * GAMESPEED_DEFAULT / 100)%getDayDuration();
+	float ambiant;
+
+	double z = strictmath::cos((phase-offset) * M_PI / (getDayDuration()/2));
+	ambiant = (float) (roundf((NIGHT_MIN_GAMMA + NIGHT_MULT_GAMMA * (z + 1.0f) / 2.0f)*1000.0f)) /1000.0f;
+
+
+	return std::pair<int,float>(offset,ambiant);
+
+}
+
+
+
+
+Uint32 Game::doDayNightCycle(Uint32 offset,float ambiant) {
+
+	static float _ambiant = -1.0f;
+	Uint32 refcycle = gameCycleCount;
+	Uint32 newPhase = 0;
+
+	static float max = -1.0f;
+	static float min = +1.0f;
+	static int timepreviousday = refcycle;
+
+	updateCycleAnim();
+
+	if (ambiant*1000/1000 != _ambiant*1000/1000) {
+		if (ambiant>max) max=ambiant;
+		if (ambiant<min) min=ambiant;
+
+		_ambiant=ambiant;
+
+		if (ambiant == 0.35f) {
+			int difftimeday = refcycle - timepreviousday;
+			timepreviousday = refcycle;
+			setNumberOfDays(getNumberOfDays()+(Uint32)1);
+			dbg_print("Day has passed (light min:%f max:%f):  %i days at @ %s (day duration: %s for %i) !\n", min, max, getNumberOfDays(), getGameTimeString().c_str(),
+					getGameTimeStringFromCycle(difftimeday).c_str(),getDayDuration());
+			//newPhase = refcycle;
+		}
+
+#define traceCycle(time) do {  err_print("%s %s dur:%i : light:%f §%i : %i days at @ %s !(%d)\n",(gameCycleCount <= skipToGameCycle && skipToGameCycle != 0) ? "Skipping" : "",time, \
+								getDayDuration(),ambiant, refcycle,getNumberOfDays(), getGameTimeString().c_str() , newPhase );  } while (0)
+
+		//traceCycle(getDayPhaseString().c_str());
+
+			if (ambiant >= 0.35f && ambiant < 0.55f && (getDayPhase() == Night ||  getDayPhase() == Eve )) {
+				// Night
+				if (getDayPhase() != Night) {
+					setDayPhase(Night);
+					traceCycle("Night");
+					newPhase = 0;
+				}
+			} else if (ambiant >= 0.55f && ambiant < 0.70f && (getDayPhase() == Morning ||  getDayPhase() == Night )) {
+				// Morning
+				if (getDayPhase() != Morning) {
+					setDayPhase(Morning);
+					traceCycle("Morning");
+					newPhase = 0;
+				}
+			} else if (ambiant >= 0.70f && ambiant <= NIGHT_MIN_GAMMA+NIGHT_MULT_GAMMA && (getDayPhase() == Day ||  getDayPhase() == Morning )) {
+				// Day
+				if (getDayPhase() != Day) {
+					setDayPhase(Day);
+					traceCycle("Day");
+					newPhase = 0;
+				}
+			} else if (ambiant >= 0.55f && ambiant < 0.70f && (getDayPhase() == Eve ||  getDayPhase() == Day )) {
+				// Eve
+				if (getDayPhase() != Eve) {
+					setDayPhase(Eve);
+					traceCycle("Eve");
+					newPhase = 0;
+				}
+			} else {
+				// None
+				if (getDayPhase() != PHASE_NONE) {
+					setDayPhase(PHASE_NONE);
+				err_print("Phase:None dur:%i : light:%f §%i : %i days at @ %s !\n",
+							getDayDuration(),ambiant, refcycle,getNumberOfDays(), getGameTimeString().c_str());
+					newPhase = 0;
+				}
+			}
+
+
+		SDL_SetGamma(ambiant,ambiant,ambiant);
+	}
+	return newPhase;
+}
+
+
+
 void Game::setupView()
 {
 	int i = 0;
@@ -1363,6 +1577,7 @@ void Game::setupView()
 		j = j*TILESIZE/count;
 	}
 
+	// XXX interesting: centering on coord.
 	screenborder->setNewScreenCenter(Coord(i,j));
 }
 
@@ -1377,6 +1592,7 @@ void Game::runMainLoop() {
         if(gameState == LOADING) {
             // when loading a save game we set radar directly
             pInterface->getRadarView().setRadarMode(pLocalHouse->hasRadarOn());
+
         } else if(pLocalHouse->hasRadarOn()) {
             // when starting a new game we switch the radar on with an animation if appropriate
             pInterface->getRadarView().switchRadarMode(true);
@@ -1384,6 +1600,7 @@ void Game::runMainLoop() {
 	}
 
     gameState = BEGUN;
+    setNumberOfDays(nbofdays);
 
 	//setup endlevel conditions
 	finishedLevel = false;
@@ -1439,13 +1656,48 @@ void Game::runMainLoop() {
 	int     numFrames = 0;
 
     //fprintf(stderr, "Random Seed (GameCycle %d): 0x%0X\n", gameCycleCount, randomGen.getSeed());
+#if 0
+	Uint8 _dayscale = dayscale;
+	std::pair<int,float> offset_light ;
+	for (int d=GAMEDAYSCALE_MIN ; d<=GAMEDAYSCALE_MAX; d++) {
+		offset_light.first = 0;
+		setDayScale(d);
+		for (Phase p=Morning ; p < PHASE_END; p =(Phase) (((int)p) + 1)) {
+			std::pair<int,float> offset_light = getDayNightLight(0,p);
+			printf("TestPhase[DayScale:%d] %s(%i) : %d , %f \n",getDayScale(),getDayPhaseString(p).c_str(),(int)p, offset_light.first,offset_light.second);
+		}
+		printf("\n");
+	}
+	finished = false;
+	dayscale = _dayscale;
+#endif
+
+
+
+
+	setDayPhase(dayphase);
+	Uint32 PhaseOffset = 0 , newPhaseOffset = 0;
+	int offset = getDayNightToOffset(Begin,dayphase,0);
+	err_print("offset %d  phase %s \n",offset,getDayPhaseString(getDecDayPhase(dayphase)).c_str());
+	// Init with the wanted light from phase
+	light = getDayNightLight(gameCycleCount+newPhaseOffset,offset,dayphase).second;
+	newPhaseOffset = doDayNightCycle(newPhaseOffset,light);
+
 
 	//main game loop
     do {
-        doWindTrapPalatteAnimation();
+
+    	doWindTrapPalatteAnimation();
+
+        if (!bPause && currentGame->getGameInitSettings().getGameOptions().daynight) {
+        	light = getDayNightLight(gameCycleCount+newPhaseOffset,offset,dayphase).second;
+        	newPhaseOffset = doDayNightCycle(newPhaseOffset,light);
+        }
+
         drawScreen();
 
         SDL_Flip(screen);
+
         frameEnd = SDL_GetTicks();
 
         if(frameEnd == frameStart) {
@@ -1458,7 +1710,6 @@ void Game::runMainLoop() {
         numFrames++;
 
         if (bShowFPS) {
-
             averageFrameTime = 0.999f * averageFrameTime + 0.001f * frameTime;
             FrameTime[gameCycleCount%(sideBarPos.x*2)] = frameTime;
             //fprintf(stderr, "Cycle %d: fps:%lf\n", gameCycleCount,  FrameTime[gameCycleCount%(sideBarPos.x*2)]);
@@ -1477,7 +1728,7 @@ void Game::runMainLoop() {
             }
         }
 
-
+        /* While frame skipping is activated */
         while( (frameTime > gamespeed) || (!finished && (gameCycleCount < skipToGameCycle)) )	{
 
             bool bWaitForNetwork = false;
@@ -1542,6 +1793,23 @@ void Game::runMainLoop() {
 
             cmdManager.update();
 
+
+            if(gameCycleCount <= skipToGameCycle) {
+
+            	if (frameTime == 0) {
+            		// This is the light done step by step towards at end of frame skipping
+            		// used to be able to increment day passing
+            		 if (!bPause && currentGame->getGameInitSettings().getGameOptions().daynight) {
+						light = getDayNightLight(gameCycleCount+newPhaseOffset,offset,dayphase).second;
+						newPhaseOffset = doDayNightCycle(newPhaseOffset,light);
+            		 }
+
+            	}
+                frameTime = 0;
+            } else {
+                frameTime -= gamespeed;
+            }
+
             if(!bWaitForNetwork && !bPause)	{
                 pInterface->getRadarView().update();
                 cmdManager.executeCommands(gameCycleCount);
@@ -1576,17 +1844,19 @@ void Game::runMainLoop() {
                 gameCycleCount++;
             }
 
-            if(gameCycleCount <= skipToGameCycle) {
-                frameTime = 0;
-            } else {
-                frameTime -= gamespeed;
-            }
-        }
+
+        } /* ! While frame skipping is activated */
+
+
 
         musicPlayer->musicCheck();	//if song has finished, start playing next one
     } while (!bQuitGame && !finishedLevel);//not sure if we need this extra bool
 
 
+    // recover the original palette
+    palette.invertPalette();
+    palette.applyToSurface(screen,SDL_PHYSPAL,1,palette.getSDLPalette()->ncolors-1);
+    SDL_SetGamma(1,1,1);
 
 	// Game is finished
 
@@ -1618,8 +1888,11 @@ void Game::runMainLoop() {
 void Game::resumeGame()
 {
 	bMenu = false;
-	if(gameType != GAMETYPE_CUSTOM_MULTIPLAYER) {
+	if(bPause != false) {
         bPause = false;
+        palette.invertPalette();
+        palette.applyToSurface(screen,SDL_PHYSPAL,1,palette.getSDLPalette()->ncolors-1);
+        SDL_SetGamma(1,1,1);
 	}
 }
 
@@ -1791,8 +2064,10 @@ bool Game::loadSaveGame(InputStream& stream) {
 	//create the new map
 	currentGameMap = new Map(mapSizeX, mapSizeY);
 
-	//read GameCycleCount
+	//read GameCycleCount & day info
 	gameCycleCount = stream.readUint32();
+	setNumberOfDays(stream.readUint32());
+	setDayPhase((Phase)stream.readSint8());
 
 	// read some settings
 	gameType = (GAMETYPE) stream.readSint8();
@@ -1947,8 +2222,10 @@ bool Game::saveGame(std::string filename)
 	fs.writeUint32(currentGameMap->getSizeX());
 	fs.writeUint32(currentGameMap->getSizeY());
 
-	// write GameCycleCount
+	// write GameCycleCount & day info
 	fs.writeUint32(gameCycleCount);
+	fs.writeUint32(getNumberOfDays());
+	fs.writeSint8(getDayPhase());
 
 	// write some settings
 	fs.writeSint8(gameType);
@@ -2103,6 +2380,11 @@ void Game::onPeerDisconnected(std::string name, bool bHost, int cause) {
     pInterface->getChatManager().addInfoMessage(name + " disconnected!");
 }
 
+
+bool Game::isGameWon() {
+	return won;
+}
+
 void Game::setGameWon() {
     if(!bQuitGame && !finished) {
         won = true;
@@ -2206,6 +2488,18 @@ void Game::handleChatInput(SDL_KeyboardEvent& keyboardEvent) {
             } else if((bCheatsEnabled == true) && ((md5string == "0x1A12BE3DBE54C5A504CAA6EE9782C1C8") || typingChatMessage.compare("/debug on")  == 0 )) {
                 if(debug == true) {
                     pInterface->getChatManager().addInfoMessage("You are already in debug mode");
+            	    int zoomedTileSize = world2zoomedWorld(TILESIZE);
+            		for(int x = screenborder->getTopLeftTile().x - 1; x <= screenborder->getBottomRightTile().x + 1; x++) {
+            			for (int y = screenborder->getTopLeftTile().y - 1; y <= screenborder->getBottomRightTile().y + 1; y++) {
+
+            				if((x >= 0) && (x < currentGameMap->getSizeX()) && (y >= 0) && (y < currentGameMap->getSizeY())) {
+            					Tile* pTile = currentGameMap->getTile(x, y);
+            					pTile->setExplored(pLocalHouse->getHouseID(),gameCycleCount);
+            				}
+            			}
+            		}
+
+
                 } else if (gameType != GAMETYPE_CUSTOM_MULTIPLAYER) {
                     pInterface->getChatManager().addInfoMessage("Debug mode enabled");
                     debug = true;
@@ -2287,7 +2581,7 @@ void Game::handleChatInput(SDL_KeyboardEvent& keyboardEvent) {
                     std::set<Uint32>::const_iterator iter;
                     for(iter = affectedGroundAndUndergroundUnits.begin(); iter != affectedGroundAndUndergroundUnits.end() ;++iter) {
                         ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
-                        if ((pObject->getItemID() != Unit_Sandworm) && (pObject->isAGroundUnit() || pObject->isInfantry())) {
+                        if (/*pObject->getOwner() != pLocalHouse &&*/ (pObject->getItemID() != Unit_Sandworm) && (pObject->isAGroundUnit() || pObject->isInfantry())) {
                             pObject->handleDamage( lroundf((pObject->getHealth()*.95)), NULL, pLocalHouse);
                         }
                     }
@@ -2308,7 +2602,41 @@ void Game::handleChatInput(SDL_KeyboardEvent& keyboardEvent) {
             		 ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
             		 pObject->handleDamage( lroundf((pObject->getHealth()*.95)), NULL, pObject->getOwner());
             	 }
+            } else if((bCheatsEnabled == true) && (typingChatMessage.compare("/win")  == 0 )) {
 
+            	pInterface->getChatManager().addInfoMessage("Epic cheat");
+
+        	    std::set<Uint32>	affectedAirUnits;
+        	    std::set<Uint32>    affectedGroundAndUndergroundUnits;
+        	    std::set<Uint32>    affectedStructure;
+
+        		for(int i = 1 ; i <= currentGameMap->getSizeX(); i++) {
+        			for(int j = 1 ; j <= currentGameMap->getSizeY(); j++) {
+        				if(currentGameMap->tileExists(i, j)) {
+        				    Tile* pTile = currentGameMap->getTile(i,j);
+
+        	                affectedAirUnits.insert(pTile->getAirUnitList().begin(), pTile->getAirUnitList().end());
+        	                affectedGroundAndUndergroundUnits.insert(pTile->getInfantryList().begin(), pTile->getInfantryList().end());
+        	                affectedGroundAndUndergroundUnits.insert(pTile->getUndergroundUnitList().begin(), pTile->getUndergroundUnitList().end());
+        	                affectedGroundAndUndergroundUnits.insert(pTile->getNonInfantryGroundObjectList().begin(), pTile->getNonInfantryGroundObjectList().end());
+        	               // affectedStructure.insert(pTile->getGroundObject()->begin(), pTile->getNonInfantryGroundObjectList().end());
+        				}
+        			}
+        		}
+
+                std::set<Uint32>::const_iterator iter;
+                for(iter = affectedGroundAndUndergroundUnits.begin(); iter != affectedGroundAndUndergroundUnits.end() ;++iter) {
+                    ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
+                    if (pObject->getOwner() != pLocalHouse && (pObject->getItemID() != Unit_Sandworm)) {
+                        pObject->handleDamage( pObject->getHealth()*2, NULL, pLocalHouse);
+                    }
+                }
+                for(iter = affectedAirUnits.begin(); iter != affectedAirUnits.end() ;++iter) {
+				   ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
+				   if (pObject->getOwner() != pLocalHouse) {
+					   pObject->handleDamage( pObject->getHealth()*2, NULL, pLocalHouse);
+				   }
+                }
 
             } else if((bCheatsEnabled == true) && (typingChatMessage.compare("/instantdeath")  == 0 )) {
 

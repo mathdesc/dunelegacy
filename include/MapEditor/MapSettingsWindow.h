@@ -114,6 +114,13 @@ private:
     Label           licenseLabel;
     TextBox         licenseTextBox;
 
+    HBox                nightDayHBox;
+	Label               startDayLabel;
+	DigitsTextBox       startDayTextBox;
+	Label               dayScalingLabel;
+	DigitsTextBox       dayScalingTextBox;
+	Label               dayPhaseLabel;
+	DropDownBox      	dayPhaseDropDown;
 
 	HBox	        buttonHBox;
 

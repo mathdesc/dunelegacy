@@ -25,7 +25,6 @@
 #include <misc/RobustList.h>
 #include <SDL.h>
 
-#define DEBUG
 
 #ifdef DEBUG
 #undef DEBUG
@@ -34,7 +33,7 @@
 #define DEBUG 0
 #endif
 
-#define dbg_relax_print_nb_second 3
+#define dbg_relax_print_nb_second 1
 
 
 #define dbg_relax_print(...) \

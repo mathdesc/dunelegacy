@@ -56,6 +56,7 @@ public:
 	virtual int getCurrentAttackAngle() const;
 
 	void playAttackSound();
+	void playConfirmSound();
 
 	virtual float getTerrainDifficulty(TERRAINTYPE terrainType) const {
 	    switch(terrainType) {

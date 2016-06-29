@@ -25,11 +25,11 @@
 class Palette
 {
     public:
-        Palette() : pSDLPalette(NULL) {
+        Palette() : pSDLPalette(NULL), pSDLPaletteBck(NULL) {
 
         }
 
-        Palette(int numPaletteEntries) : pSDLPalette(NULL) {
+        Palette(int numPaletteEntries) : pSDLPalette(NULL),pSDLPaletteBck(NULL) {
             try {
                 pSDLPalette = new SDL_Palette;
                 pSDLPalette->ncolors = numPaletteEntries;
@@ -37,21 +37,32 @@ class Palette
                 pSDLPalette->colors = new SDL_Color[pSDLPalette->ncolors];
 
                 memset(pSDLPalette->colors, 0, sizeof(SDL_Color) * pSDLPalette->ncolors);
+
+                pSDLPaletteBck = new SDL_Palette;
+                pSDLPaletteBck->ncolors = numPaletteEntries;
+                pSDLPaletteBck->colors = NULL;
+                pSDLPaletteBck->colors = new SDL_Color[pSDLPaletteBck->ncolors];
+
+                memset(pSDLPaletteBck->colors, 0, sizeof(SDL_Color) * pSDLPaletteBck->ncolors);
+
             } catch (...) {
                 if(pSDLPalette != NULL) {
                     delete [] pSDLPalette->colors;
                 }
+                if(pSDLPaletteBck != NULL) {
+                    delete [] pSDLPaletteBck->colors;
+                }
                 delete pSDLPalette;
-
+                delete pSDLPaletteBck;
                 throw;
             }
         }
 
-        Palette(const SDL_Palette* pSDLPalette) : pSDLPalette(NULL) {
+        Palette(const SDL_Palette* pSDLPalette) : pSDLPalette(NULL), pSDLPaletteBck(NULL) {
             setSDLPalette(pSDLPalette);
         }
 
-        Palette(const Palette& palette) : pSDLPalette(NULL) {
+        Palette(const Palette& palette) : pSDLPalette(NULL), pSDLPaletteBck(NULL) {
             *this = palette;
         }
 
@@ -85,12 +96,22 @@ class Palette
             return pSDLPalette->colors[i];
         }
 
+        inline void invertPalette() {
+        	 SDL_Palette* pTemp = pSDLPaletteBck;
+        	 pSDLPaletteBck = pSDLPalette;
+        	 pSDLPaletteBck = pTemp;
+        }
+
         inline SDL_Palette* getSDLPalette() const {
             return pSDLPalette;
+        }
+        inline SDL_Palette* getSDLPaletteBackup() const {
+            return pSDLPaletteBck;
         }
 
         void setSDLPalette(const SDL_Palette* pSDLPalette) {
             SDL_Palette* pNewSDLPalette = NULL;
+            SDL_Palette* pNewSDLPaletteBck = NULL;
 
             try {
                 pNewSDLPalette = new SDL_Palette;
@@ -99,17 +120,28 @@ class Palette
                 pNewSDLPalette->colors = new SDL_Color[pNewSDLPalette->ncolors];
 
                 memcpy(pNewSDLPalette->colors, pSDLPalette->colors, pSDLPalette->ncolors * sizeof(SDL_Color));
+
+                pNewSDLPaletteBck = new SDL_Palette;
+                pNewSDLPaletteBck->ncolors = pSDLPalette->ncolors;
+                pNewSDLPaletteBck->colors = NULL;
+                pNewSDLPaletteBck->colors = new SDL_Color[pNewSDLPaletteBck->ncolors];
+                memcpy(pNewSDLPaletteBck->colors, pSDLPalette->colors, pSDLPalette->ncolors * sizeof(SDL_Color));
+
             } catch (...) {
                 if(pNewSDLPalette != NULL) {
                     delete [] pNewSDLPalette->colors;
                 }
+                if(pNewSDLPaletteBck != NULL) {
+                    delete [] pNewSDLPaletteBck->colors;
+                }
                 delete pNewSDLPalette;
-
+                delete pNewSDLPaletteBck;
                 throw;
             }
 
             deleteSDLPalette();
             this->pSDLPalette = pNewSDLPalette;
+            this->pSDLPaletteBck = pNewSDLPaletteBck;
         }
 
         inline int getNumColors() const {
@@ -136,14 +168,20 @@ class Palette
     private:
 
         void deleteSDLPalette() {
-            if(pSDLPalette != NULL)
+            if(pSDLPalette != NULL) {
                 delete [] pSDLPalette->colors;
-
+            }
+            if(pSDLPaletteBck != NULL) {
+            	delete [] pSDLPaletteBck->colors;
+            }
             delete pSDLPalette;
+            delete pSDLPaletteBck;
             pSDLPalette = NULL;
+            pSDLPaletteBck = NULL;
         }
 
         SDL_Palette* pSDLPalette;
+        SDL_Palette* pSDLPaletteBck;
 };
 
 #endif // PALETTE_H

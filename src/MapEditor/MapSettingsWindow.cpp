@@ -60,7 +60,7 @@ MapSettingsWindow::MapSettingsWindow(MapEditor* pMapEditor, int color)
 
     mainVBox.addWidget(VSpacer::create(8));
 
-    mainVBox.addWidget(&centralVBox, 360);
+    mainVBox.addWidget(&centralVBox, 370);
 
     centralVBox.addWidget(&pictureHBox, 38);
 
@@ -147,7 +147,7 @@ MapSettingsWindow::MapSettingsWindow(MapEditor* pMapEditor, int color)
 
     briefingPictureVBox.addWidget(&briefingPictureDropDownBox);
 
-    centralVBox.addWidget(VSpacer::create(15));
+    centralVBox.addWidget(VSpacer::create(10));
 
     gameFinishingConditionsLabel.setText(_("Conditions for finishing the game") + ":");
     gameFinishingConditionsLabel.setTextColor(color);
@@ -186,7 +186,7 @@ MapSettingsWindow::MapSettingsWindow(MapEditor* pMapEditor, int color)
     winFlags2HBox.addWidget(&winFlagsAIPlayerNoObjectsLeftCheckbox, 284);
 
 
-    centralVBox.addWidget(VSpacer::create(15));
+    centralVBox.addWidget(VSpacer::create(10));
 
     gameWinningConditionsLabel.setText(_("Conditions for winning the game (in case it is finished)") + ":");
     gameWinningConditionsLabel.setTextColor(color);
@@ -219,7 +219,7 @@ MapSettingsWindow::MapSettingsWindow(MapEditor* pMapEditor, int color)
     loseFlagsAIPlayerNoObjectsLeftCheckbox.setChecked(mapInfo.loseFlags & WINLOSEFLAGS_AI_NO_BUILDINGS);
     loseFlags2HBox.addWidget(&loseFlagsAIPlayerNoObjectsLeftCheckbox, 284);
 
-    centralVBox.addWidget(VSpacer::create(15));
+    centralVBox.addWidget(VSpacer::create(10));
 
     centralVBox.addWidget(&techLevelHBox);
     techLevelLabel.setText(_("Tech Level") + ":");
@@ -240,7 +240,7 @@ MapSettingsWindow::MapSettingsWindow(MapEditor* pMapEditor, int color)
     techLevelDropDownBox.setVisible( (pMapEditor->getMapVersion() >= 2) );
     techLevelHBox.addWidget(&techLevelDropDownBox);
 
-    centralVBox.addWidget(VSpacer::create(15));
+    centralVBox.addWidget(VSpacer::create(10));
 
     authorLabel.setText(_("Author:"));
     authorLabel.setTextColor(color);
@@ -262,9 +262,47 @@ MapSettingsWindow::MapSettingsWindow(MapEditor* pMapEditor, int color)
     licenseHBox.addWidget(HSpacer::create(140));
     centralVBox.addWidget(&licenseHBox);
 
+    centralVBox.addWidget(VSpacer::create(10));
+
+    startDayLabel.setText(_("Starting Day:"));
+    startDayLabel.setTextColor(color);
+    nightDayHBox.addWidget(&startDayLabel);
+    startDayTextBox.setMinMax(1, 950);
+    startDayTextBox.setMaximumTextLength(3);
+    startDayTextBox.setValue(mapInfo.startDay);
+    startDayTextBox.setTextColor(color);
+  //  startDayTextBox.setOnValueChange(std::bind(&NewMapWindow::onMapPropertiesChanged,this));
+    nightDayHBox.addWidget(&startDayTextBox);
+
+    dayScalingLabel.setText(_("Day Scaling:"));
+    dayScalingLabel.setTextColor(color);
+    nightDayHBox.addWidget(&dayScalingLabel);
+    dayScalingTextBox.setMinMax(9, 15);
+    dayScalingTextBox.setMaximumTextLength(2);
+    dayScalingTextBox.setValue(mapInfo.dayScaling);
+    dayScalingTextBox.setTextColor(color);
+    nightDayHBox.addWidget(&dayScalingTextBox);
+
+    dayPhaseLabel.setText(_("Day Phase:"));
+    dayPhaseLabel.setTextColor(color);
+    nightDayHBox.addWidget(&dayPhaseLabel);
+    dayPhaseDropDown.setColor(color);
+    dayPhaseDropDown.setNumVisibleEntries(4);
+    dayPhaseDropDown.addEntry(_("Morning"),1);
+    dayPhaseDropDown.addEntry(_("Day"),2);
+    dayPhaseDropDown.addEntry(_("Eve"),3);
+    dayPhaseDropDown.addEntry(_("Night"),4);
+    dayPhaseDropDown.setSelectedItem(mapInfo.dayPhase-1);
+    nightDayHBox.addWidget(&dayPhaseDropDown);
+
+
+    centralVBox.addWidget(&nightDayHBox);
+
+
+
     centralVBox.addWidget(Spacer::create(), 100.0);
 
-    mainVBox.addWidget(VSpacer::create(5));
+    mainVBox.addWidget(VSpacer::create(10));
 
     mainVBox.addWidget(&buttonHBox);
 
@@ -314,6 +352,10 @@ void MapSettingsWindow::onOK() {
     mapInfo.techLevel = techLevelDropDownBox.getSelectedEntryIntData();
     mapInfo.author = authorTextBox.getText();
     mapInfo.license = licenseTextBox.getText();
+
+    mapInfo.startDay =  startDayTextBox.getValue();
+    mapInfo.dayScaling =  dayScalingTextBox.getValue();
+    mapInfo.dayPhase =  dayPhaseDropDown.getSelectedEntryIntData();
 
     pMapEditor->startOperation();
 

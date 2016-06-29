@@ -2,8 +2,8 @@ AC_INIT(dunelegacy, 0.96.3, http://dunelegacy.sourceforge.net)
 
 AC_CANONICAL_SYSTEM
 
-AM_INIT_AUTOMAKE
-
+dnl AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([subdir-objects])
 AC_CONFIG_MACRO_DIR([m4])
 
 AC_PROG_CXX
@@ -44,7 +44,7 @@ AC_ARG_ENABLE([debug],
             [])
 
 if test "$enable_debug" = "yes" ; then
-	CXXFLAGS="$CXXFLAGS -g"
+	CXXFLAGS="$CXXFLAGS -g -O0 -DDEBUG"
 fi
 
 dnl Check for SDL library

@@ -121,5 +121,5 @@ bool Deviator::canAttack(const ObjectBase* object) const
 }
 
 void Deviator::playAttackSound() {
-	soundPlayer->playSoundAt(Sound_Rocket,location);
+	soundPlayer->playSoundAt(Sound_GasRocket,location);
 }

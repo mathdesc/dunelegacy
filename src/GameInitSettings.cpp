@@ -94,7 +94,8 @@ GameInitSettings::GameInitSettings(InputStream& stream) {
 	gameOptions.rocketTurretsNeedPower = stream.readBool();
 	gameOptions.sandwormsRespawn = stream.readBool();
 	gameOptions.killedSandwormsDropSpice = stream.readBool();
-
+	gameOptions.daynight = stream.readBool();
+	gameOptions.dayscale = stream.readUint8();
 
 	Uint32 numHouseInfo = stream.readUint32();
 	for(Uint32 i=0;i<numHouseInfo;i++) {
@@ -126,6 +127,9 @@ void GameInitSettings::save(OutputStream& stream) const {
 	stream.writeBool(gameOptions.rocketTurretsNeedPower);
 	stream.writeBool(gameOptions.sandwormsRespawn);
 	stream.writeBool(gameOptions.killedSandwormsDropSpice);
+	stream.writeBool(gameOptions.daynight);
+	stream.writeUint8(gameOptions.dayscale);
+
 
 	stream.writeUint32(houseInfoList.size());
 	HouseInfoList::const_iterator iter;

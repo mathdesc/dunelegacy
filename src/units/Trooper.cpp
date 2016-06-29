@@ -53,7 +53,7 @@ Trooper::~Trooper() {
 
 bool Trooper::canAttack(const ObjectBase* object) const {
 	if ((object != NULL)
-		&& ((object->getOwner()->getTeam() != owner->getTeam()) || object->getItemID() == Unit_Sandworm)
+		&& ((object->getOwner()->getTeam() != owner->getTeam()) || (object->getItemID() == Unit_Sandworm && getOwner()->getHouseID()!= HOUSE_FREMEN))
 		&& object->isVisible(getOwner()->getTeam()))
 	{
 		return true;

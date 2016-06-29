@@ -401,12 +401,28 @@ void House::decrementStructures(int itemID, const Coord& location) {
 
 
 
-void House::noteDamageLocation(ObjectBase* pObject, int damage, Uint32 damagerID) {
+void House::noteDamageLocation(ObjectBase* pObject, int damage, Uint32 damagerID, House* damagerOwner ) {
     std::list<std::shared_ptr<Player> >::iterator iter;
     for(iter = players.begin(); iter != players.end(); ++iter) {
         (*iter)->onDamage(pObject, damage, damagerID);
     }
     ///  TODO : Add a callback in a vector to recall the location and mark it red spot on the radar map
+    // House* attacker
+    // timer = 15s
+    // CoordRecall = (x,y)
+    // DamageDealt = 100
+
+
+    if(pObject->getOwner() == pLocalHouse && pObject->getOwner() != damagerOwner && pObject->isAStructure()) {
+        currentGame->addToNewsTicker(_("@DUNE.ENG|81#Your Base is under attack"));
+    	if (pObject->getHealth() < pObject->getMaxHealth() / 2 )
+    		soundPlayer->playVoice(WarningBaseIsUnderAttack, pLocalHouse->getHouseID());
+    	else
+    		soundPlayer->playVoice(BaseIsUnderAttack, pLocalHouse->getHouseID());
+    }
+
+
+    /* TODO  For structure follower (guards) ask to ask damager */
 }
 
 

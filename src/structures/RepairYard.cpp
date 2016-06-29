@@ -93,6 +93,7 @@ bool RepairYard::deployRepairUnit(Carryall* pCarryall) {
 
     if (repairUnit && (repairUnit.getObjPointer() != NULL)) {
     	unBook();
+    	soundPlayer->playSoundAt(Sound_Steam,this->location);
     	repairing = false;
     	firstAnimFrame = 2;
     	lastAnimFrame = 5;
@@ -185,6 +186,7 @@ void RepairYard::updateStructureSpecificStuff() {
                 ((GroundUnit*)pRepairUnit)->bookCarrier(pCarryall);
                 pRepairUnit->setFellow(NULL);
                 pRepairUnit->setDestination(pRepairUnit->getGuardPoint());
+                soundPlayer->playSoundAt(Sound_Steam,this->location);
             } else {
                 deployRepairUnit();
             }

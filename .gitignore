@@ -3,6 +3,8 @@
 *.Po
 *.swp
 src/.deps/*
+.deps
+.dirstamp
 src/dunelegacy
 doc/
 .settings/

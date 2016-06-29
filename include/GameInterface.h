@@ -26,6 +26,7 @@
 #include <GUI/PictureLabel.h>
 #include <GUI/dune/ChatManager.h>
 #include <GUI/dune/NewsTicker.h>
+#include <GUI/dune/DaysCounter.h>
 
 #include <RadarView.h>
 
@@ -85,6 +86,12 @@ public:
 
 
 	/**
+	        Returns the day counter
+	        \return the day counter
+		*/
+	DaysCounter& getDaysCounter() {return days;}
+
+	/**
 		This method updates the object interface
 	*/
 	virtual void updateObjectInterface();
@@ -103,7 +110,7 @@ private:
 	PictureButton		optionsButton;         ///< Button for accessing the ingame menu
 	PictureButton		mentatButton;          ///< Button for accessing the mentat menu
 	PictureLabel		topBar;                 ///< The background of the top bar
-
+	DaysCounter			days;					///< The counter of nb of days
 	PictureLabel		sideBar;                ///< The background of the side bar
 
 	RadarView           radarView;              ///< This is the minimap/radar in the side bar

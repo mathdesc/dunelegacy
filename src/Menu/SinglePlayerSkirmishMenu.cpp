@@ -21,13 +21,14 @@
 
 #include <FileClasses/GFXManager.h>
 #include <FileClasses/TextManager.h>
+#include <GUI/dune/GameOptionsWindow.h>
 
 #include <GameInitSettings.h>
 #include <sand.h>
 
 static const int houseOrder[] = { HOUSE_ATREIDES, HOUSE_ORDOS, HOUSE_HARKONNEN, HOUSE_MERCENARY, HOUSE_FREMEN, HOUSE_SARDAUKAR };
 
-SinglePlayerSkirmishMenu::SinglePlayerSkirmishMenu() : MenuBase()
+SinglePlayerSkirmishMenu::SinglePlayerSkirmishMenu() : MenuBase(), currentGameOptions(settings.gameOptions)
 {
     currentHouseChoiceScrollPos = 0;
     selectedButton = 1;
@@ -64,7 +65,13 @@ SinglePlayerSkirmishMenu::SinglePlayerSkirmishMenu() : MenuBase()
 	menuButtonsVBox.addWidget(&startButton);
 	startButton.setActive();
 
-	menuButtonsVBox.addWidget(VSpacer::create(79));
+	menuButtonsVBox.addWidget(VSpacer::create(25));
+
+    gameOptionsButton.setText(_("Game Options"));
+    gameOptionsButton.setOnClick(std::bind(&SinglePlayerSkirmishMenu::onGameOptions, this));
+    menuButtonsVBox.addWidget(&gameOptionsButton, 25);
+
+	menuButtonsVBox.addWidget(VSpacer::create(25));
 
 	backButton.setText(_("Back"));
 	backButton.setOnClick(std::bind(&SinglePlayerSkirmishMenu::onCancel, this));
@@ -153,8 +160,24 @@ SinglePlayerSkirmishMenu::~SinglePlayerSkirmishMenu()
 	;
 }
 
+
+void SinglePlayerSkirmishMenu::onChildWindowClose(Window* pChildWindow) {
+
+
+    GameOptionsWindow* pGameOptionsWindow = dynamic_cast<GameOptionsWindow*>(pChildWindow);
+    if(pGameOptionsWindow != NULL) {
+        currentGameOptions = pGameOptionsWindow->getGameOptions();
+    }
+}
+
+
 void SinglePlayerSkirmishMenu::onDifficulty()
 {
+}
+
+void SinglePlayerSkirmishMenu::onGameOptions()
+{
+    openWindow(GameOptionsWindow::create(currentGameOptions));
 }
 
 
@@ -162,7 +185,8 @@ void SinglePlayerSkirmishMenu::onStart()
 {
     HOUSETYPE houseChoice = (HOUSETYPE) houseOrder[currentHouseChoiceScrollPos + selectedButton];
 
-	GameInitSettings init(houseChoice, mission, settings.gameOptions);
+    GameInitSettings init(houseChoice,mission,currentGameOptions);
+
 
     for(int houseID = 0; houseID < NUM_HOUSES; houseID++) {
 	    if(houseID == houseChoice) {

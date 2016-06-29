@@ -32,6 +32,7 @@
 #include <misc/Scaler.h>
 
 #include <stdexcept>
+#include <unistd.h>
 
 using std::shared_ptr;
 
@@ -195,7 +196,16 @@ GFXManager::GFXManager() {
     objPic[ObjPic_FrigateShadow][HOUSE_HARKONNEN][1] = Scaler::defaultDoubleTiledSurface(objPic[ObjPic_FrigateShadow][HOUSE_HARKONNEN][0], 8, 1, false);
     objPic[ObjPic_FrigateShadow][HOUSE_HARKONNEN][2] = Scaler::defaultTripleTiledSurface(objPic[ObjPic_FrigateShadow][HOUSE_HARKONNEN][0], 8, 1, false);
 
-	objPic[ObjPic_Ornithopter][HOUSE_HARKONNEN][0] = units->getPictureArray(8,3,ORNITHOPTER_ROW(51),ORNITHOPTER_ROW(52),ORNITHOPTER_ROW(53));
+    objPic[ObjPic_Ornithopter][HOUSE_HARKONNEN][0] = units->getPictureArray(8,3,ORNITHOPTER_ROW(51),ORNITHOPTER_ROW(52),ORNITHOPTER_ROW(53));
+    // Make orni more recognizable
+    Uint8 colorMap[256];
+    for(int i = 0; i < 256; i++) {
+        colorMap[i] = i;
+    }
+    colorMap[15] = COLOR_HARKONNEN;
+    colorMap[126] = COLOR_HARKONNEN;
+    colorMap[128] = COLOR_HARKONNEN;
+    mapColor(objPic[ObjPic_Ornithopter][HOUSE_HARKONNEN][0] ,colorMap);
     objPic[ObjPic_Ornithopter][HOUSE_HARKONNEN][1] = Scaler::defaultDoubleTiledSurface(objPic[ObjPic_Ornithopter][HOUSE_HARKONNEN][0], 8, 3, false);
     objPic[ObjPic_Ornithopter][HOUSE_HARKONNEN][2] = Scaler::defaultTripleTiledSurface(objPic[ObjPic_Ornithopter][HOUSE_HARKONNEN][0], 8, 3, false);
 
@@ -539,6 +549,7 @@ GFXManager::GFXManager() {
 
 
 	uiGraphic[UI_CursorSalveAttack_Zoomlevel0][HOUSE_HARKONNEN] = mouse->getPicture(6);
+	replaceColor(uiGraphic[UI_CursorSalveAttack_Zoomlevel0][HOUSE_HARKONNEN],COLOR_COLORCYCLE,COLOR_HARKONNEN);
 	SDL_SetColorKey(uiGraphic[UI_CursorSalveAttack_Zoomlevel0][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, 0);
 	uiGraphic[UI_CursorSalveAttack_Zoomlevel1][HOUSE_HARKONNEN] = Scaler::defaultDoubleTiledSurface(uiGraphic[UI_CursorSalveAttack_Zoomlevel0][HOUSE_HARKONNEN], 1, 1, false);
 	SDL_SetColorKey(uiGraphic[UI_CursorAttack_Zoomlevel1][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, 0);
@@ -563,6 +574,24 @@ GFXManager::GFXManager() {
 
 	uiGraphic[UI_CreditsDigits][HOUSE_HARKONNEN] = shapes->getPictureArray(10,1,2|TILE_NORMAL,3|TILE_NORMAL,4|TILE_NORMAL,5|TILE_NORMAL,6|TILE_NORMAL,
 																				7|TILE_NORMAL,8|TILE_NORMAL,9|TILE_NORMAL,10|TILE_NORMAL,11|TILE_NORMAL);
+	uiGraphic[UI_DaysDigits][HOUSE_HARKONNEN] = shapes->getPictureArray(10,1,2|TILE_NORMAL,3|TILE_NORMAL,4|TILE_NORMAL,5|TILE_NORMAL,6|TILE_NORMAL,
+																					7|TILE_NORMAL,8|TILE_NORMAL,9|TILE_NORMAL,10|TILE_NORMAL,11|TILE_NORMAL);
+	uiGraphic[UI_DaysFlashingDigits][HOUSE_HARKONNEN] = shapes->getPictureArray(10,1,2|TILE_NORMAL,3|TILE_NORMAL,4|TILE_NORMAL,5|TILE_NORMAL,6|TILE_NORMAL,
+																					7|TILE_NORMAL,8|TILE_NORMAL,9|TILE_NORMAL,10|TILE_NORMAL,11|TILE_NORMAL);
+
+	SDL_Color c = {222,157,24,0};
+
+	replaceColor(uiGraphic[UI_DaysDigits][HOUSE_HARKONNEN], SDL_MapRGB(screen->format, c.r,c.g,c.b), 0);
+	invertColors(uiGraphic[UI_DaysDigits][HOUSE_HARKONNEN]);
+	replaceNotColor(uiGraphic[UI_DaysDigits][HOUSE_HARKONNEN], 0, COLOR_WHITE);
+	SDL_SetColorKey(uiGraphic[UI_DaysDigits][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, 0);
+
+	replaceColor(uiGraphic[UI_DaysFlashingDigits][HOUSE_HARKONNEN], SDL_MapRGB(screen->format, c.r,c.g,c.b), 0);
+	invertColors(uiGraphic[UI_DaysFlashingDigits][HOUSE_HARKONNEN]);
+	replaceNotColor(uiGraphic[UI_DaysFlashingDigits][HOUSE_HARKONNEN], 0, COLOR_WINDTRAP_COLORCYCLE);
+	SDL_SetColorKey(uiGraphic[UI_DaysFlashingDigits][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, 0);
+
+
 	uiGraphic[UI_SideBar][HOUSE_HARKONNEN] = PicFactory->createSideBar(false);
 	uiGraphic[UI_Indicator][HOUSE_HARKONNEN] = units1->getPictureArray(3,1,8|TILE_NORMAL,9|TILE_NORMAL,10|TILE_NORMAL);
 	SDL_SetColorKey(uiGraphic[UI_Indicator][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, 0);
@@ -575,6 +604,17 @@ GFXManager::GFXManager() {
 	uiGraphic[UI_GreyPlace_Zoomlevel0][HOUSE_HARKONNEN] = PicFactory->createPlacingGrid(16, COLOR_LIGHTGREY);
 	uiGraphic[UI_GreyPlace_Zoomlevel1][HOUSE_HARKONNEN] = PicFactory->createPlacingGrid(32, COLOR_LIGHTGREY);
     uiGraphic[UI_GreyPlace_Zoomlevel2][HOUSE_HARKONNEN] = PicFactory->createPlacingGrid(48, COLOR_LIGHTGREY);
+
+	uiGraphic[UI_InvalidPlace4_Zoomlevel0][HOUSE_HARKONNEN] = PicFactory->createPlacingGrid(16*4, COLOR_LIGHTRED);
+	uiGraphic[UI_InvalidPlace4_Zoomlevel1][HOUSE_HARKONNEN] = PicFactory->createPlacingGrid(32*4, COLOR_LIGHTRED);
+    uiGraphic[UI_InvalidPlace4_Zoomlevel2][HOUSE_HARKONNEN] = PicFactory->createPlacingGrid(48*4, COLOR_LIGHTRED);
+	uiGraphic[UI_ValidPlace4_Zoomlevel0][HOUSE_HARKONNEN] = PicFactory->createPlacingGrid(16*4, COLOR_LIGHTGREEN);
+	uiGraphic[UI_ValidPlace4_Zoomlevel1][HOUSE_HARKONNEN] = PicFactory->createPlacingGrid(32*4, COLOR_LIGHTGREEN);
+    uiGraphic[UI_ValidPlace4_Zoomlevel2][HOUSE_HARKONNEN] = PicFactory->createPlacingGrid(48*4, COLOR_LIGHTGREEN);
+	uiGraphic[UI_GreyPlace4_Zoomlevel0][HOUSE_HARKONNEN] = PicFactory->createPlacingGrid(16*4, COLOR_LIGHTGREY);
+	uiGraphic[UI_GreyPlace4_Zoomlevel1][HOUSE_HARKONNEN] = PicFactory->createPlacingGrid(32*4, COLOR_LIGHTGREY);
+    uiGraphic[UI_GreyPlace4_Zoomlevel2][HOUSE_HARKONNEN] = PicFactory->createPlacingGrid(48*4, COLOR_LIGHTGREY);
+
 	uiGraphic[UI_MenuBackground][HOUSE_HARKONNEN] = PicFactory->createMainBackground();
 	uiGraphic[UI_Background][HOUSE_HARKONNEN] = PicFactory->createBackground();
 	uiGraphic[UI_GameStatsBackground][HOUSE_HARKONNEN] = PicFactory->createGameStatsBackground(HOUSE_HARKONNEN);
@@ -640,11 +680,61 @@ GFXManager::GFXManager() {
 	uiGraphic[UI_GameMenu][HOUSE_HARKONNEN] = PicFactory->createMenu(uiGraphic[UI_DuneLegacy][HOUSE_HARKONNEN],158);
 	PicFactory->drawFrame(uiGraphic[UI_DuneLegacy][HOUSE_HARKONNEN],PictureFactory::SimpleFrame);
 
+
+	SDL_Surface *base, *top, * planet;
+	uiGraphic[UI_PlanetScape][HOUSE_HARKONNEN] =  SDL_LoadBMP_RW(pFileManager->openFile("PlanetScape.bmp"),true);
+	base = uiGraphic[UI_PlanetScape][HOUSE_HARKONNEN];
+	SDL_SetColorKey(base, SDL_SRCCOLORKEY | SDL_RLEACCEL, COLOR_WINDTRAP_COLORCYCLE);
+
+	// Planet at Day time
+	top = uiGraphic[UI_PlanetDay][HOUSE_HARKONNEN] =  SDL_LoadBMP_RW(pFileManager->openFile("PlanetDay.bmp"),true);
+	SDL_SetColorKey(top, SDL_SRCCOLORKEY | SDL_RLEACCEL, COLOR_WINDTRAP_COLORCYCLE);
+	planet = combinePictures(base,top,0,0,false,false);
+	planet = combinePictures(planet,base,0,0,false,false);
+	uiGraphic[UI_PlanetDay][HOUSE_HARKONNEN] = planet;
+	PicFactory->drawFrame(uiGraphic[UI_PlanetDay][HOUSE_HARKONNEN],PictureFactory::SimpleFrame);
+	SDL_SetColorKey(uiGraphic[UI_PlanetDay][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, 0);
+
+	// Planet at morning time
+	top = SDL_LoadBMP_RW(pFileManager->openFile("PlanetMorning.bmp"),true);
+	SDL_SetColorKey(top, SDL_SRCCOLORKEY | SDL_RLEACCEL, COLOR_WINDTRAP_COLORCYCLE);
+	planet = combinePictures(base,top,0,0,false,false);
+	planet = combinePictures(planet,base,0,0,false,false);
+	uiGraphic[UI_PlanetMorning][HOUSE_HARKONNEN] = planet;
+	PicFactory->drawFrame(uiGraphic[UI_PlanetMorning][HOUSE_HARKONNEN],PictureFactory::SimpleFrame);
+	SDL_SetColorKey(uiGraphic[UI_PlanetMorning][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, 0);
+
+	// Planet at eve time
+	top = SDL_LoadBMP_RW(pFileManager->openFile("PlanetEve.bmp"),true);
+	SDL_SetColorKey(top, SDL_SRCCOLORKEY | SDL_RLEACCEL, COLOR_WINDTRAP_COLORCYCLE);
+	planet = combinePictures(base,top,0,0,false,false);
+	planet = combinePictures(planet,base,0,0,false,false);
+	uiGraphic[UI_PlanetEve][HOUSE_HARKONNEN] = planet;
+	PicFactory->drawFrame(uiGraphic[UI_PlanetEve][HOUSE_HARKONNEN],PictureFactory::SimpleFrame);
+	SDL_SetColorKey(uiGraphic[UI_PlanetEve][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, 0);
+
+	// Planet at night time
+	top = SDL_LoadBMP_RW(pFileManager->openFile("PlanetNight.bmp"),true);
+	SDL_SetColorKey(top, SDL_SRCCOLORKEY | SDL_RLEACCEL, COLOR_WINDTRAP_COLORCYCLE);
+	planet = combinePictures(base,top,0,0,false,false);
+	planet = combinePictures(planet,base,0,0,false,false);
+	uiGraphic[UI_PlanetNight][HOUSE_HARKONNEN] = planet;
+	PicFactory->drawFrame(uiGraphic[UI_PlanetNight][HOUSE_HARKONNEN],PictureFactory::SimpleFrame);
+	SDL_SetColorKey(uiGraphic[UI_PlanetNight][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, 0);
+
+
+
 	uiGraphic[UI_PlanetBackground][HOUSE_HARKONNEN] = LoadCPS_RW(pFileManager->openFile("BIGPLAN.CPS"),true);
 	PicFactory->drawFrame(uiGraphic[UI_PlanetBackground][HOUSE_HARKONNEN],PictureFactory::SimpleFrame);
 	uiGraphic[UI_MenuButtonBorder][HOUSE_HARKONNEN] = PicFactory->createFrame(PictureFactory::DecorationFrame1,190,123,false);
 
+
 	PicFactory->drawFrame(uiGraphic[UI_DuneLegacy][HOUSE_HARKONNEN],PictureFactory::SimpleFrame);
+
+//    SDL_Surface* pTmp1 = scaleSurface(LoadWSA_RW(pFileManager->openFile("WORM.WSA"), 0, true), 0.5, true);
+//    uiGraphic[UI_Sandworm][HOUSE_HARKONNEN] = getSubPicture(pTmp1, 40-18, 6-12, 83, 91);
+//    SDL_FreeSurface(pTmp1);
+
 
 	uiGraphic[UI_MentatBackground][HOUSE_HARKONNEN] = Scaler::defaultDoubleSurface(LoadCPS_RW(pFileManager->openFile("MENTATH.CPS"),true),true);
 	uiGraphic[UI_MentatBackground][HOUSE_ATREIDES] = Scaler::defaultDoubleSurface(LoadCPS_RW(pFileManager->openFile("MENTATA.CPS"),true),true);
@@ -865,6 +955,7 @@ GFXManager::GFXManager() {
     uiGraphic[UI_MapEditor_Carryall][HOUSE_HARKONNEN] = getSubFrame(objPic[ObjPic_Carryall][HOUSE_HARKONNEN][0],0,0,8,2);
     uiGraphic[UI_MapEditor_Ornithopter][HOUSE_HARKONNEN] = getSubFrame(objPic[ObjPic_Ornithopter][HOUSE_HARKONNEN][0],0,0,8,3);
 
+
     uiGraphic[UI_MapEditor_Pen1x1][HOUSE_HARKONNEN] = SDL_LoadBMP_RW(pFileManager->openFile("MapEditorPen1x1.bmp"),true);
 	SDL_SetColorKey(uiGraphic[UI_MapEditor_Pen1x1][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, 0);
     uiGraphic[UI_MapEditor_Pen3x3][HOUSE_HARKONNEN] = SDL_LoadBMP_RW(pFileManager->openFile("MapEditorPen3x3.bmp"),true);
@@ -958,6 +1049,13 @@ GFXManager::GFXManager() {
 
 	pTransparent150Surface = SDL_CreateRGBSurface(SDL_HWSURFACE,128,128,32,0,0,0,0);
     SDL_SetAlpha(pTransparent150Surface, SDL_SRCALPHA, 150);
+
+    pTransparentXSurface = SDL_CreateRGBSurface(SDL_HWSURFACE,128,128,8,0,0,0,0);
+    /*SDL_Color nd = { 0, 0, 0, 0};
+	SDL_SetColors(pTransparentXSurface, &nd, 0, 255);
+    SDL_SetColorKey(pTransparentXSurface, pTransparentXSurface->flags & (SDL_SRCCOLORKEY | SDL_RLEACCEL), 255);*/
+    SDL_SetAlpha(pTransparentXSurface, SDL_SRCALPHA, 40);
+
 }
 
 GFXManager::~GFXManager() {

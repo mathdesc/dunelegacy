@@ -76,6 +76,14 @@ public:
 			return (x == op.x) && (y == op.y);
 	}
 
+	/** operator for comparing two Points.
+		\param op the other operator
+		\return	true if both coordinates are equal, false otherwise
+	*/
+	inline bool operator!=(const Point& op) const {
+			return (x != op.x) || (y != op.y);
+	}
+
 	/// The x coordinate
 	Sint32 x;
 

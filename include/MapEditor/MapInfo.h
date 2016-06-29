@@ -25,9 +25,9 @@
 class MapInfo {
 public:
     MapInfo(int mapSeed = INVALID, std::string author = "", std::string license = "", std::string losePicture = "LOSTVEHC.WSA",
-            std::string winPicture = "WIN2.WSA", std::string briefPicture = "SARDUKAR.WSA", int techLevel = INVALID)
+            std::string winPicture = "WIN2.WSA", std::string briefPicture = "SARDUKAR.WSA", int techLevel = INVALID, int startDay = 1, int dayScaling = GAMEDAYSCALE_DEFAULT, int dayPhase = 2)
     : mapSeed(mapSeed), author(author), license(license), losePicture(losePicture),
-      winPicture(winPicture), briefPicture(briefPicture), techLevel(techLevel) {
+      winPicture(winPicture), briefPicture(briefPicture), techLevel(techLevel), startDay(startDay), dayScaling(dayScaling), dayPhase(dayPhase) {
         timeout = 0;
         cursorPos = Coord(10,10);
         tacticalPos = Coord(10,10);
@@ -47,6 +47,9 @@ public:
     int techLevel;
     int loseFlags;
     int winFlags;
+    int startDay;
+    int dayScaling;
+    int dayPhase;
 
 };
 

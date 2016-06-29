@@ -93,6 +93,7 @@ std::vector<std::string> FileManager::getSearchPath() {
 std::vector<std::string> FileManager::getNeededFiles() {
     std::vector<std::string> fileList;
 
+    fileList.push_back("LEGACY_CUSTOM.PAK");
     fileList.push_back("LEGACY.PAK");
     fileList.push_back("OPENSD2.PAK");
     fileList.push_back("DUNE.PAK");

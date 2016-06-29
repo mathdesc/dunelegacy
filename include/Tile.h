@@ -298,6 +298,7 @@ public:
 	void blitSelectionRects(int xPos, int yPos);
 
 
+	void drawLight(Uint32 color) ;
 	void drawFindTarget(ObjectBase* obj, Uint32 color);
     /**
         This method draws the rally point for structure

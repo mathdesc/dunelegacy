@@ -732,13 +732,13 @@ std::string getTeamTypeNameByID(TeamType teamType) {
 */
 float getDeviateWeakness(HOUSETYPE house) {
     switch(house) {
-	    case HOUSE_HARKONNEN:   return 0.78f;
-        case HOUSE_ATREIDES:    return 0.30f;
-	    case HOUSE_ORDOS:       return 0.50f;
-	    case HOUSE_FREMEN:      return 0.08f;
-	    case HOUSE_SARDAUKAR:   return 0.04f;
-	    case HOUSE_MERCENARY:   return 0.50f;
-	    default:                return 0.00f;
+	    case HOUSE_HARKONNEN:   return 0.0200f;
+        case HOUSE_ATREIDES:    return 0.0100f;
+	    case HOUSE_ORDOS:       return 0.0150f;
+	    case HOUSE_FREMEN:      return 0.0080f;
+	    case HOUSE_SARDAUKAR:   return 0.0050f;
+	    case HOUSE_MERCENARY:   return 0.0150f;
+	    default:                return 0.0000f;
     }
 }
 

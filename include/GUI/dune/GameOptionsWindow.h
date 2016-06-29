@@ -60,7 +60,12 @@ private:
     void onGameSpeedPlus();
     void updateGameSpeedBar();
 
+    void onDayScaleMinus();
+    void onDayScalePlus();
+    void updateDayScaleBar();
+
     int currentGameSpeed;
+    Uint8 currentDayScale;
     SettingsClass::GameOptionsClass gameOptions;
 
 	VBox vbox;					                    ///< vertical box
@@ -76,10 +81,15 @@ private:
 	Checkbox rocketTurretsNeedPowerCheckbox;        ///< If checked rocket turrets are dysfunctional on power shortage
 	Checkbox sandwormsRespawnCheckbox;              ///< If checked killed sandworms respawn after some time
 	Checkbox killedSandwormsDropSpiceCheckbox;      ///< If checked killed sandworms drop some spice
+	Checkbox daynight;    							///< If checked game will cycle night and days
 	HBox            gameSpeedHBox;                  ///< The HBox containing the game speed selection
 	PictureButton	gameSpeedPlus;                  ///< The button for increasing the game speed
 	PictureButton	gameSpeedMinus;                 ///< The button for decreasing the game speed
 	TextProgressBar gameSpeedBar;                   ///< The bar showing the current game speed
+	HBox            dayScaleHBox;	                ///< The HBox containing the day cycling scaler  selection
+	PictureButton	dayScalePlus;                   ///< The button for increasing the day cycling scaler
+	PictureButton	dayScaleMinus;                  ///< The button for decreasing the day cycling scaler
+	TextProgressBar dayScaleBar;                    ///< The bar showing the current game day cycle scaling
 	TextButton okbutton;                    	    ///< the ok button
 };
 

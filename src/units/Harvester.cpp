@@ -360,7 +360,7 @@ void Harvester::handleDamage(int damage, Uint32 damagerID, House* damagerOwner)
     if (!damager) return;
 
 
-    bool mask_retaliate =  target && target.getObjPointer()->isAUnit() && target.getObjPointer()->isActive() &&
+    bool mask_retaliate =  target && target.getObjPointer() && target.getObjPointer()->isAUnit() && target.getObjPointer()->isActive() &&
     						damager->getObjectID() != target.getObjPointer()->getObjectID() &&
 							blockDistance((target.getObjPointer())->getClosestPoint(location),damager->getClosestPoint(location)) >= 3.0f;
 
@@ -456,7 +456,7 @@ void Harvester::setReturned()
 	currentGameMap->removeObjectFromMap(getObjectID());
 
 	((Refinery*)oldTarget.getObjPointer())->assignHarvester(this);
-
+	soundPlayer->playSoundAt(Sound_Steam, location);
 	returningToRefinery = false;
 	moving = false;
 	respondable = false;

@@ -24,7 +24,7 @@
 
 
 GameOptionsWindow::GameOptionsWindow(SettingsClass::GameOptionsClass& initialGameOptions)
- : Window(50,50,400,380) {
+ : Window(50,50,400,460) {
 
     gameOptions = initialGameOptions;
 
@@ -95,7 +95,43 @@ GameOptionsWindow::GameOptionsWindow(SettingsClass::GameOptionsClass& initialGam
     vbox2.addWidget(&killedSandwormsDropSpiceCheckbox);
     vbox2.addWidget(VSpacer::create(4));
 
+    daynight.setText(_("Night & Day cycling"));
+    daynight.setTooltipText(_("Game will simulated night & day cycling registering number of days on mission."));
+    daynight.setChecked(gameOptions.daynight);
+    vbox2.addWidget(&daynight);
+    vbox2.addWidget(VSpacer::create(4));
+
     SDL_Surface *surf,*surfPressed;
+
+
+    surf = pGFXManager->getUIGraphic(UI_Minus);
+	surfPressed = pGFXManager->getUIGraphic(UI_Minus_Pressed);
+	dayScaleMinus.setSurfaces(surf,false,surfPressed,false);
+	dayScaleMinus.setTooltipText(_("When Cycling Night & Day, the less this scaler is the shorter the cycle will be. Min is approx. 52s)."));
+	dayScaleMinus.setOnClick(std::bind(&GameOptionsWindow::onDayScaleMinus, this));
+	dayScaleHBox.addWidget(HSpacer::create(2));
+	dayScaleHBox.addWidget(&dayScaleMinus);
+	dayScaleHBox.addWidget(HSpacer::create(2));
+
+	if (!daynight.isChecked())
+		dayScaleBar.setText(_("Night & Day Scaling")+" : "+std::to_string(currentDayScale));
+	else
+		dayScaleBar.setText(_("- Disabled - Check Night & Day cycling first."));
+    dayScaleHBox.addWidget(&dayScaleBar);
+    currentDayScale = gameOptions.dayscale;
+    updateDayScaleBar();
+    surf = pGFXManager->getUIGraphic(UI_Plus);
+	surfPressed = pGFXManager->getUIGraphic(UI_Plus_Pressed);
+	dayScalePlus.setSurfaces(surf,false,surfPressed,false);
+	dayScalePlus.setTooltipText(_("When Cycling Night & Day, the greater this scaler is the longer the cycle will be. Max is approx. 30min30s)."));
+	dayScalePlus.setOnClick(std::bind(&GameOptionsWindow::onDayScalePlus, this));
+	dayScaleHBox.addWidget(HSpacer::create(2));
+	dayScaleHBox.addWidget(&dayScalePlus);
+	dayScaleHBox.addWidget(HSpacer::create(2));
+    vbox2.addWidget(&dayScaleHBox, 20);
+    vbox2.addWidget(VSpacer::create(4));
+
+
     surf = pGFXManager->getUIGraphic(UI_Minus);
 	surfPressed = pGFXManager->getUIGraphic(UI_Minus_Pressed);
     gameSpeedMinus.setSurfaces(surf,false,surfPressed,false);
@@ -151,12 +187,44 @@ void GameOptionsWindow::onOK() {
     gameOptions.rocketTurretsNeedPower = rocketTurretsNeedPowerCheckbox.isChecked();
     gameOptions.sandwormsRespawn = sandwormsRespawnCheckbox.isChecked();
     gameOptions.killedSandwormsDropSpice = killedSandwormsDropSpiceCheckbox.isChecked();
+    gameOptions.daynight = daynight.isChecked();
+    gameOptions.dayscale = currentDayScale;
 
     Window* pParentWindow = dynamic_cast<Window*>(getParent());
     if(pParentWindow != NULL) {
         pParentWindow->closeChildWindow();
     }
 }
+
+void GameOptionsWindow::onDayScaleMinus() {
+    if(currentDayScale > GAMEDAYSCALE_MIN && dayScaleBar.isActive()) {
+    	currentDayScale--;
+    }
+        updateDayScaleBar();
+}
+
+void GameOptionsWindow::onDayScalePlus() {
+    if(currentDayScale < GAMEDAYSCALE_MAX && dayScaleBar.isActive()) {
+    	currentDayScale++;
+
+    }
+    updateDayScaleBar();
+}
+
+void GameOptionsWindow::updateDayScaleBar() {
+
+	if (!daynight.isChecked()) {
+		dayScaleBar.setInactive();
+		dayScaleBar.setText(_("- Disabled - Check Night & Day cycling first."));
+		dayScaleBar.setProgress((100*(currentDayScale-GAMEDAYSCALE_MIN))/(GAMEDAYSCALE_MAX-GAMEDAYSCALE_MIN));
+	}
+	else {
+		dayScaleBar.setActive();
+		dayScaleBar.setText(_("Night & Day Scaling")+" : "+std::to_string(currentDayScale));
+		dayScaleBar.setProgress((100*(currentDayScale-GAMEDAYSCALE_MIN))/(GAMEDAYSCALE_MAX-GAMEDAYSCALE_MIN));
+	}
+}
+
 
 void GameOptionsWindow::onGameSpeedMinus() {
     if(currentGameSpeed < GAMESPEED_MAX) {

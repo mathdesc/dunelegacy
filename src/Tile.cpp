@@ -462,6 +462,63 @@ void Tile::blitAirUnits(int xPos, int yPos) {
 	}
 }
 
+void Tile::drawLight(Uint32 color) {
+	int x,y;
+
+		x  = screenborder->world2screenX((this->getLocation().x*TILESIZE));
+		y  = screenborder->world2screenY((this->getLocation().y*TILESIZE));
+
+
+		int zoomedTileSize = world2zoomedWorld(TILESIZE);
+		//int fogTile = pTile->getFogTile(pLocalHouse->getHouseID());
+		//int fogTile = Terrain_HiddenFull;
+		int fogTile = Terrain_HiddenFull;
+
+
+		 SDL_Rect source = { fogTile*zoomedTileSize, 0,
+							zoomedTileSize, zoomedTileSize };
+		SDL_Rect drawLocation = {   x, y,
+									zoomedTileSize, zoomedTileSize };
+
+		SDL_Rect mini = {0, 0, 1, 1};
+
+		SDL_Rect drawLoc = {drawLocation.x, drawLocation.y, 0, 0};
+		SDL_Surface** hiddenSurf = pGFXManager->getObjPic(ObjPic_Terrain_Hidden);
+
+		SDL_Surface* fogSurf = pGFXManager->getTransparent150Surface();
+
+		if(!SDL_MUSTLOCK(screen) || (SDL_LockSurface(screen) == 0)) {
+			SDL_LockSurface(hiddenSurf[currentZoomlevel]);
+
+		for(int i=0;i<zoomedTileSize; i++) {
+			for(int j=0;j<zoomedTileSize; j++) {
+				if(getPixel(hiddenSurf[currentZoomlevel],source.x+i,source.y+j) == 12 ) {
+					drawLoc.x = drawLocation.x + i;
+					drawLoc.y = drawLocation.y + j;
+					//fogSurf = mapSurfaceColorRange(fogSurf, 12, color);
+					SDL_BlitSurface(fogSurf,&mini,screen,&drawLoc);
+				}
+			}
+		}
+
+				//SDL_BlitSurface(fogSurf,&source2,screen,&drawLoc);
+
+
+
+			SDL_UnlockSurface(hiddenSurf[currentZoomlevel]);
+		}
+
+
+		if(SDL_MUSTLOCK(screen)) {
+			SDL_UnlockSurface(screen);
+		}
+
+
+
+}
+
+
+
 void Tile::drawFindTarget(ObjectBase* obj, Uint32 color) {
 
 	// XXX
@@ -470,6 +527,7 @@ void Tile::drawFindTarget(ObjectBase* obj, Uint32 color) {
 
 
 	int x,y;
+
 
 	x  = screenborder->world2screenX((obj->getLocation().x*TILESIZE));
 	y  = screenborder->world2screenY((obj->getLocation().y*TILESIZE));

@@ -25,13 +25,18 @@
 #include <vector>
 #include <map>
 #include <misc/memory.h>
+#include <FileClasses/POFile.h>
+#include <globals.h>
+
 
 #include <algorithm>
+
 
 #define MISSION_DESCRIPTION		0
 #define MISSION_WIN				1
 #define MISSION_LOSE			2
 #define MISSION_ADVICE			3
+
 
 
 class TextManager {
@@ -124,5 +129,11 @@ private:
 
     mutable std::map<std::string, std::string> localizedString;            ///< The mapping between English text and localized text
 };
+
+
+#ifdef _
+#undef _
+#endif
+#define _(msgid) pTextManager->getLocalized(msgid)
 
 #endif //TEXTMANAGER_H

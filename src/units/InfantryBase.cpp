@@ -499,7 +499,7 @@ void InfantryBase::squash() {
 }
 
 void InfantryBase::playConfirmSound() {
-	soundPlayer->playSound((Sound_enum) getRandomOf(2,MovingOut,InfantryOut));
+	soundPlayer->playSound((Sound_enum) getRandomOf(4,MovingOut,InfantryOut,Acknowledged,Affirmative));
 }
 
 void InfantryBase::playSelectSound() {
