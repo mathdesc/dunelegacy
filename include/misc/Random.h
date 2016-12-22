@@ -154,6 +154,7 @@ public:
         return ret;
     }
 
+
 private:
 	Uint32 seed;
 };

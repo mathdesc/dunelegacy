@@ -388,6 +388,7 @@ void OptionsMenu::determineAvailableScreenResolutions() {
     availScreenRes.clear();
 
 	SDL_Rect** pResolutions = SDL_ListModes(NULL , SDL_HWSURFACE | SDL_FULLSCREEN);
+	pResolutions = NULL;
 
 	if(pResolutions == NULL || pResolutions == (SDL_Rect**) -1) {
 		// Not possible or not available

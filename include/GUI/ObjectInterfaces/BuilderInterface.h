@@ -43,6 +43,19 @@ public:
 
 protected:
 	BuilderInterface(int objectID) : DefaultStructureInterface(objectID) {
+		SDL_Surface* surf, *surfPressed;
+
+		surf = pGFXManager->getUIGraphic(UI_Repair);
+		surfPressed = pGFXManager->getUIGraphic(UI_Repair_Pressed);
+
+		builderAIButton.setSurfaces(surf, false, surfPressed,false);
+		builderAIButton.setToggleButton(true);
+		builderAIButton.setVisible(true);			// TODO make this a tech-option
+		builderAIButton.setTooltipText(_("Automate Construction (Hotkey: a)"));
+		builderAIButton.setOnClick(std::bind(&BuilderInterface::OnAutomate, this));
+
+
+
 		upgradeButton.setText(_("Upgrade"));
 		upgradeButton.setTextColor(houseColor[pLocalHouse->getHouseID()]+3);
 		upgradeButton.setVisible(false);
@@ -52,8 +65,9 @@ protected:
 		upgradeProgressBar.setText(_("Upgrade"));
 		upgradeProgressBar.setTextColor(houseColor[pLocalHouse->getHouseID()]+3);
 		upgradeProgressBar.setVisible(false);
-		topBox.addWidget(&upgradeButton,Point(18,2),Point(83,18));
-		topBox.addWidget(&upgradeProgressBar,Point(18,2),Point(83,18));
+		topBox.addWidget(&upgradeButton,Point(18,2),Point(80,18));
+		topBox.addWidget(&upgradeProgressBar,Point(18,2),Point(80,18));
+		topBox.addWidget(&builderAIButton,Point(10+80+(surf->w/2),2),Point(surf->w,surf->h));
 
 		mainHBox.addWidget(Spacer::create());
 
@@ -65,6 +79,13 @@ protected:
 		mainHBox.addWidget(Spacer::create());
 	}
 
+	void OnAutomate() {
+		ObjectBase* pObject = currentGame->getObjectManager().getObject(objectID);
+		BuilderBase* pBuilder = dynamic_cast<BuilderBase*>(pObject);
+		if(pBuilder != NULL && !pBuilder->isUpgrading()) {
+			pBuilder->handleAutomateClick();
+		}
+	}
 
 	void onUpgrade() {
 		ObjectBase* pObject = currentGame->getObjectManager().getObject(objectID);
@@ -124,6 +145,10 @@ protected:
 				upgradeButton.setVisible(false);
 				repairButton.setToggleState(pBuilder->isRepairing());
 			}
+
+			builderAIButton.setToggleState(pBuilder->hasBuilderAI());
+
+
 		}
 
 		return true;
@@ -134,6 +159,7 @@ protected:
 	TextButton		upgradeButton;
 	TextProgressBar	upgradeProgressBar;
 	BuilderList*	pBuilderList;
+	PictureButton	builderAIButton;
 };
 
 #endif // BUILDERINTERFACE_H

@@ -99,6 +99,11 @@ public:
     */
 	void doRepair();
 
+    /**
+        Stop repairing this structure.
+    */
+	void stopRepair();
+
 	/**
         Updates this object.
         \return true if this object still exists, false if it was destroyed

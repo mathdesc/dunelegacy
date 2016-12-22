@@ -35,6 +35,10 @@ public:
 		backgroundcolor = 0;
 		alignment = (Alignment_Enum) (Alignment_Left | Alignment_VCenter);
 		pSurface = NULL;
+		tooltipText = "";
+		tooltipSurface = NULL;
+		tooltipLastMouseMotion = 0;
+		bHover = false;
 		enableResizing(true,true);
 	}
 
@@ -108,6 +112,41 @@ public:
 		\return the text of this button
 	*/
 	inline std::string getText() const { return text; };
+
+	/**
+		Sets a tooltip text. This text is shown when the mouse remains a short time over this button.
+		\param	text	The text for this tooltip
+	*/
+	inline void setTooltipText(std::string text) {
+		tooltipText = text;
+
+		if(tooltipSurface != NULL) {
+			SDL_FreeSurface(tooltipSurface);
+			tooltipSurface = NULL;
+		}
+
+		if(tooltipText != "") {
+			tooltipSurface = GUIStyle::getInstance().createToolTip(tooltipText);
+		}
+	}
+
+	/**
+		Returns the current tooltip text.
+		\return	the current tooltip text
+	*/
+	inline std::string getTooltipText() {
+		return tooltipText;
+	}
+
+
+	void handleMouseMovement(Sint32 x, Sint32 y, bool insideOverlay) {
+		if((x < 0) || (x >= getSize().x) || (y < 0) || (y >= getSize().y)) {
+			bHover = false;
+		} else if(isEnabled() && !insideOverlay) {
+			bHover = true;
+			tooltipLastMouseMotion = SDL_GetTicks();
+		}
+	}
 
 	/**
 		This method resized the label to width and height. This method should only
@@ -270,6 +309,32 @@ public:
 		SDL_BlitSurface(pSurface, NULL, screen, &dest);
 	};
 
+	void drawOverlay(SDL_Surface* screen, Point Pos) {
+		if(isVisible() && isEnabled() && (bHover == true)) {
+			if(tooltipSurface != NULL) {
+				if((SDL_GetTicks() - tooltipLastMouseMotion) > 750) {
+					int x,y;
+					SDL_GetMouseState(&x,&y);
+					SDL_Rect dest = { x, y - tooltipSurface->h, tooltipSurface->w, tooltipSurface->h };
+					if(dest.x + dest.w >= screen->w) {
+					    // do not draw tooltip outside screen
+	                    dest.x = screen->w - dest.w;
+					}
+
+					if(dest.y < 0) {
+					    // do not draw tooltip outside screen
+	                    dest.y = 0;
+					} else if(dest.y + dest.h >= screen->h) {
+					    // do not draw tooltip outside screen
+	                    dest.y = screen->h - dest.h;
+					}
+
+					SDL_BlitSurface(tooltipSurface,NULL,screen,&dest);
+				}
+			}
+		}
+	}
+
 	/**
 		This static method creates a dynamic label object with Text as the label text.
 		The idea behind this method is to simply create a new text label on the fly and
@@ -296,6 +361,11 @@ private:
 	std::string text;			///< the text of this label
 	SDL_Surface* pSurface;		///< the surface of this label
 	Alignment_Enum alignment;	///< the alignment of this label
+	bool bHover;				///< true = currently mouse hover, false = currently no mouse hover
+
+	std::string tooltipText;			///< the tooltip text
+	SDL_Surface* tooltipSurface;		///< the tooltip surface
+	Uint32 tooltipLastMouseMotion;		///< the last time the mouse was moved
 };
 
 #endif // LABEL_H

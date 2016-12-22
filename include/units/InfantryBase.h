@@ -31,6 +31,8 @@ public:
 
 	void save(OutputStream& stream) const;
 
+
+	virtual void handleDamage(int damage, Uint32 damagerID, House* damagerOwner);
     /**
 		This method is called when an unit is ordered to capture
 		\param	xPos	the x position on the map

@@ -467,7 +467,7 @@ const ObjectBase* Sandworm::findTarget() const {
                  closestTarget = tempUnit;
                  currentGame->addUrgentMessageToNewsTicker("SandWorm activity reported !");
             }
-            // find lighter unit (adds a penalty to promote farer yet heavier targets) yet wouldnot enfage fremen light troups
+            // find lighter unit (adds a penalty to promote farer yet heavier targets) yet would not engage fremen light troups
             bool fre_inf = (tempUnit->isInfantry() && tempUnit->getOriginalHouseID() == HOUSE_FREMEN);
             if (canAttack(tempUnit) &&  (!(tempUnit->isTracked())  && (tempUnit->isMoving())) && !fre_inf &&
                        		(blockDistance(location, tempUnit->getLocation()) < closestDistance)) {
@@ -477,7 +477,14 @@ const ObjectBase* Sandworm::findTarget() const {
             }
 		}
 	} else {
-		closestTarget = ObjectBase::findTarget();
+    	// XXX : We may have an old target that is ready to attack us
+    	const ObjectBase * tmp = ObjectBase::getNearerTarget(getWeaponRange());
+        if(tmp != NULL && tmp->getTarget() == this && tmp->getTarget()->targetInWeaponRange()) {
+        	closestTarget = tmp;
+        }
+        else {
+        	closestTarget = ObjectBase::findTarget();
+        }
 	}
 
 	return closestTarget;

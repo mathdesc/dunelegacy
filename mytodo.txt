@@ -47,11 +47,6 @@ Current
 	- Prevent harvester to go back to spice field if it's under the threat of a sworm (find a new spot)
 	- evaluate spice field threats
 	- new function to find spice not only based on shortest distance
-	
-2. Find target generally find the nearest target (even if not offensive)
-	- particular case of the launcher which try to shoot down caryall instead of tanks/structures
-	- partciular case of the orni, fooling behind caryall instead of tanks/structures
-
 
 
 3. Minor House are imba, I want to extend major house capabilities and give specificities to minor house, as such:

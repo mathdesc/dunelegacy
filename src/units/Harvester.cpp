@@ -1,5 +1,5 @@
 /*
- *  This file is part of Dune Legacy.
+*  This file is part of Dune Legacy.
  *
  *  Dune Legacy is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -53,10 +53,10 @@ Harvester::Harvester(House* newOwner) : TrackedUnit(newOwner)
     spice = 0.0f;
     harvestingMode = false;
 	returningToRefinery = false;
-	spiceCheckCounter = 0;
+	spiceCheckCounter = 100;
 	currentMaxSpeed = 2.6f;
-
     attackMode = GUARD;
+
 }
 
 Harvester::Harvester(InputStream& stream) : TrackedUnit(stream)
@@ -68,6 +68,9 @@ Harvester::Harvester(InputStream& stream) : TrackedUnit(stream)
     spice = stream.readFloat();
     spiceCheckCounter = stream.readUint32();
     currentMaxSpeed = stream.readFloat();
+    prospectionSamples = stream.readUint32CoordPairVector();
+    // TODO : save/load preference and Add a button to set preference on UnitInterface
+
 }
 
 void Harvester::init()
@@ -82,6 +85,10 @@ void Harvester::init()
 
 	numImagesX = NUM_ANGLES;
 	numImagesY = 1;
+	preference = DENSITY;
+	prospectionSamples.reserve(10);
+	famine = 0;
+
 }
 
 Harvester::~Harvester()
@@ -97,6 +104,7 @@ void Harvester::save(OutputStream& stream) const
     stream.writeFloat(spice);
     stream.writeUint32(spiceCheckCounter);
     stream.writeFloat(currentMaxSpeed);
+    stream.writeUint32CoordPairVector(prospectionSamples);
 }
 
 void Harvester::blitToScreen()
@@ -187,6 +195,45 @@ Refinery* Harvester::findRefinery() {
 	return bestRefinery;
 }
 
+Coord Harvester::startProspection(const Coord & zone) {
+	Tile * pTile = currentGameMap->tileExists(zone) ? currentGameMap->getTile(zone) : NULL;
+
+	if (pTile == NULL) return Coord::Invalid();
+
+	Coord spicelocation= zone;
+	spiceCheckCounter = 100;
+
+	return currentGameMap->findSpice(spicelocation, zone, this) ? spicelocation : Coord::Invalid();
+}
+
+
+bool Harvester::findSpice(const Coord & zone, Coord &destination, bool noPropection) {
+
+	Coord olddest = destination;
+	destination = noPropection ? Coord::Invalid(): startProspection(zone);
+	if (destination.isInvalid() || destination == zone) {
+		// Prospection is a failure, look for ViewRange spice
+		for (int i = zone.x - this->getViewRange(); i <= zone.x + this->getViewRange(); i++)
+			for (int j = zone.y - this->getViewRange(); j <= zone.y + this->getViewRange(); j++)
+				if (	currentGameMap->tileExists(i, j) &&
+						currentGameMap->getTile(i,j)->hasSpice() &&
+						(!currentGameMap->getTile(i,j)->hasAGroundObject() || currentGameMap->getTile(i,j)->getGroundObject()->getDestination() != Coord(i,j) )
+					)
+					{
+						destination = Coord(i,j);
+						addProspectionSample(destination,currentGameMap->getTile(destination)->getExtractionSpeed());
+					}
+	}
+
+	if (destination.isValid() )
+		return true;
+	else {
+		destination = olddest;
+		return false;
+	}
+
+}
+
 void Harvester::checkPos()
 {
 	TrackedUnit::checkPos();
@@ -196,14 +243,19 @@ void Harvester::checkPos()
 	}
 
 	if(active)	{
+		if (isSelected()) {
+			/*  err_relax_print("Harvester::checkPos Harvester %d #samples:%d spiceunder:%f(spice?%s)\n",getObjectID(),getProspectionSamples().size(),
+					  currentGameMap->getTile(location)->getSpiceRemaining(),
+					  currentGameMap->getTile(location)->hasSpice() ? "yes" : "no");*/
+		}
 		if (returningToRefinery) {
-			if (oldTarget && (oldTarget.getObjPointer() != NULL) && (oldTarget.getObjPointer()->getItemID() == Structure_Refinery)) {
+			if (fellow && (fellow.getObjPointer() != NULL) && (fellow.getObjPointer()->getItemID() == Structure_Refinery)) {
 				//find a refinery to return to
-				Coord closestPoint = oldTarget.getObjPointer()->getClosestPoint(location);
+				Coord closestPoint = fellow.getObjPointer()->getClosestPoint(location);
 
 				if(!moving && !justStoppedMoving && blockDistance(location, closestPoint) <= 1.5f)	{
 					awaitingPickup = false;
-					if (((Refinery*)oldTarget.getObjPointer())->isFree())
+					if (((Refinery*)fellow.getObjPointer())->isFree())
 						setReturned();
 				} else if(!awaitingPickup && blockDistance(location, closestPoint) >= 5.0f) {
 					requestCarryall();
@@ -218,35 +270,33 @@ void Harvester::checkPos()
 		} else if (harvestingMode && !hasBookedCarrier() && (blockDistance(location, destination) > 10.0f)) {
 			requestCarryall();
         } else if(respondable && !harvestingMode && attackMode != STOP) {
-            if(spiceCheckCounter == 0) {
-                if(currentGameMap->findSpice(destination, guardPoint)) {
-                    harvestingMode = true;
-                    guardPoint = destination;
-                } else {
-                    harvestingMode = false;
-                }
+            if(spiceCheckCounter <= 0) {
+            	if (destination == location) {
+					if(findSpice(guardPoint, destination)) {
+						harvestingMode = true;
+						setGuardPoint(destination);
+					} else if (getProspectionSamplesIsEmpty()) {
+						if (currentGameMap->getTile(location)->hasSpice()) {
+							// harvest the last patch around
+							harvestingMode = true;
+						}
+						else {
+							// last patch harvested , nothing all around
+							doReturn();
+							spiceCheckCounter = 0;
+						}
+					}
+            	}
                 spiceCheckCounter = 100;
             } else {
+            	// XXX : should be in a prospection attackmode displayed on the interface like a filled rectangle that depletes to "stop" attackmode
                 spiceCheckCounter--;
             }
 		}
 	}
 }
 
-void Harvester::deploy(const Coord& newLocation)
-{
-	if(currentGameMap->tileExists(newLocation)) {
-		UnitBase::deploy(newLocation);
-		if(spice == 0.0f) {
-			if((attackMode != STOP) && currentGameMap->findSpice(destination, guardPoint)) {
-				harvestingMode = true;
-				guardPoint = destination;
-			} else {
-				harvestingMode = false;
-			}
-		}
-	}
-}
+
 
 void Harvester::destroy()
 {
@@ -326,7 +376,7 @@ void Harvester::drawSelectionBox()
 	SDL_BlitSurface(selectionBox, NULL, screen, &dest);
 
 	for(int i=1;i<=currentZoomlevel+1;i++) {
-        drawRect(screen, dest.x+1, dest.y-1, dest.x+1 + ((int)((getHealth()/(float)getMaxHealth())*(selectionBox->w-3))),dest.y-2, getHealthColor());
+        drawRect(screen, dest.x+1, dest.y-1, dest.x+1 + ((int)((getHealth()/(float)getMaxHealth())*(selectionBox->w-3))),dest.y-2, bFollow ? COLOR_WINDTRAP_COLORCYCLE : getHealthColor());
 	}
 
 	if((getOwner() == pLocalHouse || debug) && (spice > 0.0f)) {
@@ -382,17 +432,71 @@ void Harvester::doReturn()
 {
 	returningToRefinery = true;
 	harvestingMode = false;
+	oldspice = 0.0f;
 
 	if(getAttackMode() == STOP) {
         setGuardPoint(Coord::Invalid());
 	}
 }
-void Harvester::doDeploy(Coord location)
+
+void Harvester::deploy(const Coord& newLocation)
+{
+	if(currentGameMap->tileExists(newLocation)) {
+		UnitBase::deploy(newLocation);
+
+		if (this->getFellow() !=NULL) {
+			this->swapOldNewFellow();
+			if (this->getOldFellow() != NULL &&
+					(this->getOldFellow()->getItemID() == Structure_Refinery || this->getOldFellow()->getItemID() == Unit_Carryall)
+				) {
+				this->setOldFellow(NULL);
+			}
+
+		}
+		err_print("Harvester::deploy Harvester %d f:%d of:%d \n",this->getObjectID(),
+							(this->getFellow() !=NULL ? this->getFellow()->getObjectID() :  -1),
+							(this->getOldFellow() != NULL ? this->getOldFellow()->getObjectID() : -1));
+		// xxx manual exit
+		//if(spice == 0.0f) {
+			if((attackMode != STOP) && !getProspectionSamplesIsEmpty()) {
+				harvestingMode = true;
+				destination  = getPreference() == DISTANCE ? this->getProspectionSampleBestDistance().first : this->getProspectionSampleBestDensity().first;
+				setGuardPoint(destination);
+				spiceCheckCounter = 0;
+			} else if ((attackMode != STOP) && findSpice(guardPoint, destination)) {
+				harvestingMode = true;
+				setGuardPoint(destination);
+				spiceCheckCounter = 100;
+			} else {
+				harvestingMode = false;
+				if (attackMode != STOP) {
+					famine++;
+					if (spiceCheckCounter == 0) {
+						if (findSpice(guardPoint, destination)) {
+							famine = 0;
+							harvestingMode = true;
+							setGuardPoint(destination);
+							spiceCheckCounter = 100;
+						}
+					}
+					if (famine > 3) {
+						doSetAttackMode(STOP);
+						famine=0;
+					}
+				}
+			}
+		//}
+	}
+}
+
+/*void Harvester::doDeploy(Coord location)
 {
 	if(currentGameMap->tileExists(location)) {
 		UnitBase::deploy(location);
-
-			if( currentGameMap->findSpice(destination, guardPoint)) {
+		//if (getFellow()->getItemID() == Structure_Refinery)
+		//	setFellow(NULL);
+			// adding attmode !=STOP to mirror above
+			if((attackMode != STOP)  && currentGameMap->findSpice(destination, guardPoint, this)) {
 				harvestingMode = true;
 				guardPoint = destination;
 				attackMode = GUARD;
@@ -402,7 +506,7 @@ void Harvester::doDeploy(Coord location)
 
 	}
 
-}
+}*/
 
 
 void Harvester::setAmountOfSpice(float newSpice)
@@ -416,25 +520,52 @@ void Harvester::setDestination(int newX, int newY)
 {
 	TrackedUnit::setDestination(newX, newY);
 
-	harvestingMode =  (attackMode != STOP) && (currentGameMap->tileExists(newX, newY) && currentGameMap->getTile(newX,newY)->hasSpice());
+	harvestingMode =  (attackMode != STOP) && (currentGameMap->tileExists(newX, newY) && (currentGameMap->getTile(newX,newY)->hasSpice() || hasProspectionSamples(destination)));
 }
 
-void Harvester::setFellow(const ObjectBase* newTarget) {
+void Harvester::setGuardPoint(int newX, int newY) {
 
-	if(returningToRefinery && oldTarget && (oldTarget.getObjPointer()!= NULL)
-		&& (oldTarget.getObjPointer()->getItemID() == Structure_Refinery))
+	TrackedUnit::setGuardPoint(newX, newY);
+
+	if (guardPoint.isValid()) {
+        if(currentGameMap->getTile(newX, newY)->hasSpice()) {
+            if(attackMode == STOP) {
+                attackMode = GUARD;
+            }
+        } else {
+        	if (attackMode != STOP) {
+        		// We should set stop harvesting operation if :
+        		// - were forced except onto prospection site (manual removal ie safe rock ground on worm signs)
+        		// - were are idling without any prospected site from where to harvest
+        		if ((wasForced() && !getProspectionSamplesIsEmpty()  && !this->hasProspectionSamples(guardPoint)) ||
+        				(getProspectionSamplesIsEmpty() && location==destination && isIdle())) {
+        			// XXX : hacky workaround piling harvester : they come on the same spot and tends to enter stop mode
+        			if (!((currentGameMap->getTile(guardPoint)->hasAGroundObject() &&
+        					currentGameMap->getTile(guardPoint)->getGroundObject()->getDestination() == guardPoint ))
+        				)
+        				attackMode = STOP;
+        		}
+            }
+        }
+	}
+}
+
+void Harvester::setFellow(const ObjectBase* newFellow) {
+
+	if(returningToRefinery && fellow && (fellow.getObjPointer()!= NULL)
+		&& (fellow.getObjPointer()->getItemID() == Structure_Refinery))
 	{
-		((Refinery*)oldTarget.getObjPointer())->unBook();
+		((Refinery*)fellow.getObjPointer())->unBook();
 		returningToRefinery = false;
 	}
 
-	TrackedUnit::setFellow(newTarget);
+	TrackedUnit::setFellow(newFellow);
 
-	if(oldTarget && (oldTarget.getObjPointer() != NULL)
-		&& (oldTarget.getObjPointer()->getOwner() == getOwner())
-		&& (oldTarget.getObjPointer()->getItemID() == Structure_Refinery))
+	if(fellow && (fellow.getObjPointer() != NULL)
+		&& (fellow.getObjPointer()->getOwner() == getOwner())
+		&& (fellow.getObjPointer()->getItemID() == Structure_Refinery))
 	{
-		((Refinery*)oldTarget.getObjPointer())->book();
+		((Refinery*)fellow.getObjPointer())->book();
 		returningToRefinery = true;
 	}
 }
@@ -443,75 +574,126 @@ void Harvester::setFellow(const ObjectBase* newTarget) {
 void Harvester::setTarget(const ObjectBase* newTarget)
 {
 
-	TrackedUnit::setTarget(newTarget);
+	if (canAttack(newTarget))
+		TrackedUnit::setTarget(newTarget);
 
 }
 
 void Harvester::setReturned()
 {
-	if(selected) {
-		removeFromSelectionLists();
-    }
 
-	currentGameMap->removeObjectFromMap(getObjectID());
+	if (fellow && getFellow()->getItemID() == Structure_Refinery) {
+		if(selected) {
+			removeFromSelectionLists();
+		}
 
-	((Refinery*)oldTarget.getObjPointer())->assignHarvester(this);
-	soundPlayer->playSoundAt(Sound_Steam, location);
-	returningToRefinery = false;
-	moving = false;
-	respondable = false;
-	setActive(false);
+		currentGameMap->removeObjectFromMap(getObjectID());
 
-	setLocation(INVALID_POS, INVALID_POS);
-	setVisible(VIS_ALL, false);
+
+		((Refinery*)getFellow())->assignHarvester(this);
+
+		/*if ((!fellow || getFellow() != this) && getOldFellow() == NULL) {
+				setOldFellow(getFellow());
+		}*/
+		soundPlayer->playSoundAt(Sound_Steam, location);
+		returningToRefinery = false;
+		moving = false;
+		respondable = false;
+		setActive(false);
+		oldspice = 0.0f;
+
+		setLocation(INVALID_POS, INVALID_POS);
+		setVisible(VIS_ALL, false);
+	}
+
 }
 
 void Harvester::move()
 {
 	UnitBase::move();
 
-	if(active && !moving && !justStoppedMoving) {
-		if(harvestingMode) {
+		///XXX : Harvest on the go should be made a tech option (instead of plain true)
+		// It can harvest on the go with a lower extraction sleep or deepharvest on destination
+		if (attackMode != STOP &&((true && active && harvestingMode) || (active && !moving && !justStoppedMoving))) {
 
-			if(location == destination) {
-				if(spice < HARVESTERMAXSPICE) {
+			if(spice >= HARVESTERMAXSPICE) doReturn();
+			else {
+				// Harvest Spice along
+				Tile* tile = currentGameMap->getTile(location);
+				int beforeTileType = tile->getType();
+				oldspice  = tile->getSpiceRemaining();
+				spice += tile->harvestSpice(tile->getSpiceExtractionSpeed(false,location == destination ? true : false));
+				int afterTileType = tile->getType();
 
-				    Tile* tile = currentGameMap->getTile(location);
-
-					if(tile->hasSpice()) {
-
-					    int beforeTileType = tile->getType();
-					    spice += tile->harvestSpice();
-					    int afterTileType = tile->getType();
-
-                        if(beforeTileType != afterTileType) {
-                            currentGameMap->spiceRemoved(location);
-                            if(!currentGameMap->findSpice(destination, location)) {
-                                doReturn();
-                            } else {
-                                doMove2Pos(destination, false);
-                            }
-                        }
-					} else if (!currentGameMap->findSpice(destination, location)) {
-						doReturn();
-					} else {
-					    doMove2Pos(destination, false);
+				// we are just start idling, no spice is there (no harvesting anymore), but have samples of extraction sites
+				if (isIdle() && !getProspectionSamplesIsEmpty() && !currentGameMap->getTile(location)->hasSpice()) {
+					// if a PS was located there, now there is no more spice, so remove it anyway
+					if (hasProspectionSamples(location))
+						this->removeProspectionSample(location);
+					harvestingMode = false;
+					if (!getProspectionSamplesIsEmpty()) {
+						// yet we still have work to do
+						harvestingMode = true;
+						setGuardPoint(destination);
+						if (!wasForced())
+							doMove2Pos(getPreference() == DISTANCE ? 	this->getProspectionSampleBestDistance().first :
+																		this->getProspectionSampleBestDensity().first,false);
 					}
-				} else {
-					doReturn();
+					return;
 				}
+
+				// We were forced to move there so add a prospection sample if spice is found
+				if (wasForced() && location == destination && spice > 0 && oldspice > spice ) {
+					tile = currentGameMap->getTile(location);
+					addProspectionSample(location,tile != NULL ? tile->getExtractionSpeed() : 0);
+					spiceCheckCounter = 50;
+				}
+
+				if(beforeTileType != afterTileType) {
+					currentGameMap->spiceRemoved(location);
+					// We are at destination point
+					if (location == destination) {
+						if(!findSpice(guardPoint, destination)) {
+							spiceCheckCounter = 100;
+							if (getProspectionSamplesIsEmpty() && tile->getSpiceRemaining() == 0)
+								doReturn();
+							if (!getProspectionSamplesIsEmpty())
+								doMove2Pos(getPreference() == DISTANCE ? 	this->getProspectionSampleBestDistance().first :
+																			this->getProspectionSampleBestDensity().first,false);
+						} else {
+							if (!getProspectionSamplesIsEmpty()) {
+								/*std::pair<Coord,int> shortest_site = getProspectionSampleBestDistance();
+								std::pair<Coord,int> densest_site = getProspectionSampleBestDensity();
+								Coord spiceCoord = getPreference() == DISTANCE ? shortest_site.first : densest_site.first;
+								Tile * pTile = currentGameMap->tileExists(spiceCoord) ? currentGameMap->getTile(spiceCoord) : NULL;
+								dbg_print("Harvester::move NbSamples(%d) %s(%d,%d) distance:%f spice:%d(@ %d)\n",getProspectionSamplesNumber(),
+										getPreference() == DISTANCE ? "shorter":"denser",
+										spiceCoord.x,spiceCoord.y,
+										distanceFrom(spiceCoord,location),
+										pTile !=NULL ? pTile->getSpiceRemaining(): -1,
+										getPreference() == DISTANCE ? shortest_site.second : densest_site.second);
+								doMove2Pos(destination,false);*/
+								doMove2Pos(getPreference() == DISTANCE ? 	this->getProspectionSampleBestDistance().first :
+																			this->getProspectionSampleBestDensity().first,false);
+							}
+						}
+					}
+				}
+
 			}
+		} else {
+			oldspice = 0.0f;
 		}
-	}
+
 }
 
 bool Harvester::isIdle() const {
-	return !isHarvesting() && !returningToRefinery && !moving && respondable && !target && attackMode ==STOP;
+	return !isHarvesting() && !returningToRefinery && !moving && respondable && !target && attackMode !=STOP;
 }
 
 
 bool Harvester::isHarvesting() const {
-    return harvestingMode && (blockDistance(location, destination) <= DIAGONALCOST) && currentGameMap->tileExists(location) && currentGameMap->getTile(location)->hasSpice();
+    return harvestingMode && /*(blockDistance(location, destination) <= DIAGONALCOST) &&*/ oldspice > 0.0f && currentGameMap->tileExists(location) && currentGameMap->getTile(location)->hasSpice();
 }
 
 bool Harvester::canAttack(const ObjectBase* object) const
@@ -540,7 +722,7 @@ float Harvester::getMaxSpeed()  {
     float dist = distanceFrom(location.x*TILESIZE + TILESIZE/2, location.y*TILESIZE + TILESIZE/2,
                                 destination.x*TILESIZE + TILESIZE/2, destination.y*TILESIZE + TILESIZE/2);
 
-    if((target) && dist < 256.0f) {
+    if((target || fellow) && dist < 256.0f) {
 		currentMaxSpeed = (((2.0f - currentGame->objectData.data[itemID][originalHouseID].maxspeed)/256.0f) * (256.0f - dist)) + currentGame->objectData.data[itemID][originalHouseID].maxspeed;
 
     } else {

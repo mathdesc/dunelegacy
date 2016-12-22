@@ -36,6 +36,50 @@ public:
 		this->y = y;
 	}
 
+	/** Copy constructor */
+	Coord(const Coord &c)  {
+			this->x = c.x;
+			this->y = c.y;
+	}
+
+#if 0
+	 /** Move constructor */
+	Coord (Coord&& c) noexcept : x(c.x), y(c.y) {
+		this->x = c.x;
+		this->y = c.y;
+        c.x = 0;
+        c.y = 0;
+    }
+
+	/** Move assignment operator */
+	Coord& operator= (Coord&& other) noexcept {
+		if (this != &other) {
+			this->x = 0;
+			this->y = 0;
+			this->x = other.x;
+			this->y = other.y;
+			other.x = 0;
+			other.y = 0;
+		}
+		return *this;
+	}
+
+	/** Copy assignment operator */
+	Coord& operator= (const Coord& c) noexcept
+	{
+		Coord tmp(c);         // re-use copy-constructor
+		*this = std::move_if_noexcept(tmp); // re-use move-assignment
+		return *this;
+	}
+
+#else
+
+	Coord(Coord&&) = default;
+	Coord& operator=(Coord&&) = default;
+	Coord& operator=(const Coord& c) = default;
+
+#endif
+
 	inline bool operator==(const Coord& c) const {
         return (x == c.x && y == c.y);
 	}
@@ -113,12 +157,14 @@ public:
 		return isValid();
 	};
 
+
+
     inline Coord swapCoord() {
-    	Coord ret = *this;
+    	//Coord ret = *this;
     	int tmp = x;
     	x = y;
     	y = tmp;
-		return ret;
+		return *this;
 	};
 
 public:

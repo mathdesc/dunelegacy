@@ -32,7 +32,7 @@ class House;
 class Bullet
 {
 public:
-	Bullet(Uint32 shooterID, Coord* newLocation, Coord* newDestination, Uint32 bulletID, int damage, bool air);
+	Bullet(Uint32 shooterID, Coord* newLocation, Coord* newDestination, Uint32 bulletID, int damage, bool air, int precisionOffset = 0);
 	Bullet(InputStream& stream);
 	void init();
 	~Bullet();

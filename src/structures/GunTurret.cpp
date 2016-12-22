@@ -61,3 +61,18 @@ bool GunTurret::canAttack(const ObjectBase* object) const {
 
 GunTurret::~GunTurret() {
 }
+
+void GunTurret::updateStructureSpecificStuff() {
+	if (target && target.getObjPointer() != NULL  && getTarget()->isActive() && getTarget()->isAFlyingUnit()) {
+		if (oldtarget && oldtarget.getObjPointer() != NULL  && getOldTarget()->isActive() && !getOldTarget()->isAFlyingUnit()) {
+			setTarget(getOldTarget());
+			setOldTarget(NULL);
+		}
+		else {
+			setTarget(findTarget());
+		}
+	}
+	TurretBase::updateStructureSpecificStuff();
+}
+
+

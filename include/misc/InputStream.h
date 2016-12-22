@@ -138,6 +138,37 @@ public:
 	}
 
 	/**
+		Reads a vector of paired Coord,Uint32 written by writeUint32CoordPairVector().
+		\return	the read vector
+	*/
+	std::vector<std::pair<Coord,Uint32>> readUint32CoordPairVector() {
+		std::vector<std::pair<Coord,Uint32>> vector;
+		Uint32 size = readUint32();
+		fprintf(stderr,"readUint32CoordPairVector read %d PS\n",size);
+		for(unsigned int i=0; i < size; i++) {
+			vector.push_back(std::pair<Coord,Uint32>(readCoord(),readUint32()));
+			fprintf(stderr,"readUint32CoordPairVector idx:%d  (%d-%d,%d) \n",i,vector[i].first.x,vector[i].first.y,vector[i].second);
+		}
+		return vector;
+	}
+
+
+	/**
+		Reads a vector of Coord written by writeUint32CoordVector().
+		\return	the read vector
+	*/
+	std::vector<Coord> readUint32CoordVector() {
+		std::vector<Coord> vector;
+		Uint32 size = readUint32();
+		fprintf(stderr,"readUint32CoordVector read %d PS\n",size);
+		for(unsigned int i=0; i < size; i++) {
+			vector.push_back(readCoord());
+			fprintf(stderr,"readUint32CoordVector idx:%d  (%d-%d,%d) \n",i,vector[i].x,vector[i].y);
+		}
+		return vector;
+	}
+
+	/**
 		Reads a vector of Uint32 written by writeUint32Vector().
 		\return	the read vector
 	*/

@@ -21,6 +21,7 @@
 
 #include <stdexcept>
 #include <math.h>
+#include <misc/strictmath.h>
 
 
 Uint32 getPixel(SDL_Surface *surface, int x, int y) {
@@ -86,6 +87,7 @@ void putPixel(SDL_Surface *surface, int x, int y, Uint32 color) {
 
 void drawLineNoLock(SDL_Surface *surface, int x0, int y0, int x1, int y1, Uint32 color) {
 
+#if 0
 		int i;
 		double x = x1 - x0;
 		double y = y1 - y0;
@@ -101,9 +103,24 @@ void drawLineNoLock(SDL_Surface *surface, int x0, int y0, int x1, int y1, Uint32
 			y += addy;
 
 		}
+#else
+		int dx =  abs(x1-x0), sx = x0<x1 ? 1 : -1;
+		int dy = -abs(y1-y0), sy = y0<y1 ? 1 : -1;
+		int err = dx+dy, e2; /* error value e_xy */
+
+		for(;;){  /* loop */
+		  putPixel(surface,x0,y0,color);
+		  if (x0==x1 && y0==y1) break;
+		  e2 = 2*err;
+		  if (e2 >= dy) { err += dy; x0 += sx; } /* e_xy+e_x > 0 */
+		  if (e2 <= dx) { err += dx; y0 += sy; } /* e_xy+e_y < 0 */
+		}
+#endif
 }
 
 void drawLine(SDL_Surface *surface, int x0, int y0, int x1, int y1, Uint32 color) {
+
+#if 0
 	if(!SDL_MUSTLOCK(surface) || (SDL_LockSurface(surface) == 0)) {
 		int i;
 		double x = x1 - x0;
@@ -125,6 +142,36 @@ void drawLine(SDL_Surface *surface, int x0, int y0, int x1, int y1, Uint32 color
 					SDL_UnlockSurface(surface);
 		}
 	}
+#else
+	if(!SDL_MUSTLOCK(surface) || (SDL_LockSurface(surface) == 0)) {
+
+
+		int dx =  abs(x1-x0), sx = x0<x1 ? 1 : -1;
+		int dy = -abs(y1-y0), sy = y0<y1 ? 1 : -1;
+		int err = dx+dy, e2; /* error value e_xy */
+
+		for(;;){  /* loop */
+		  putPixel(surface,x0,y0,color);
+		  if (x0==x1 && y0==y1) break;
+		  e2 = 2*err;
+		  if (e2 >= dy) { err += dy; x0 += sx; } /* e_xy+e_x > 0 */
+		  if (e2 <= dx) { err += dx; y0 += sy; } /* e_xy+e_y < 0 */
+		}
+
+
+		if (SDL_MUSTLOCK(surface)) {
+			SDL_UnlockSurface(surface);
+		}
+	}
+#endif
+}
+
+
+void drawArrowLine(SDL_Surface *surface, int x0, int y0, int x1, int y1, Uint32 colorline,Uint32 colorarrow, int arrowsize) {
+
+	 drawLine(surface,  x0,  y0,  x1,  y1,  colorline);
+	 drawArrow(screen,  x0,  y0,  x1,  y1,  arrowsize, colorarrow);
+
 }
 
 
@@ -216,6 +263,145 @@ void drawRect(SDL_Surface *surface, int x1, int y1, int x2, int y2, Uint32 color
 		}
 	}
 }
+
+
+void drawCircle (SDL_Surface *surface, int x, int y ,int radius, Uint32 color, bool fill) {
+
+#if 0
+	if(!SDL_MUSTLOCK(surface) || (SDL_LockSurface(surface) == 0)) {
+
+		float x2, y2;
+		float angle = 0.0;
+		float angle_stepsize = 0.025;
+
+		// go through all angles from 0 to 2 * PI radians
+		while (angle < 2 * strictmath::pi)
+		{
+			// calculate x, y from a vector with known length and angle
+			x2 = radius * cos (angle);
+			y2 = radius * sin (angle);
+
+			putPixel (surface, ceilf(((float)x)+x2) , ceilf(((float)y)+y2) , color);
+			angle += angle_stepsize;
+		}
+
+		if(SDL_MUSTLOCK(surface)) {
+			SDL_UnlockSurface(surface);
+		}
+	}
+#else
+	if(!SDL_MUSTLOCK(surface) || (SDL_LockSurface(surface) == 0)) {
+		int _x = radius;
+		int _y = 0;
+		int err = 0;
+
+		while (_x >= _y)
+		{
+			putPixel(surface, x + _x, y + _y, color);
+			putPixel(surface, x + _y, y + _x, color);
+			putPixel(surface, x - _y, y + _x, color);
+			putPixel(surface, x - _x, y + _y, color);
+			putPixel(surface, x - _x, y - _y, color);
+			putPixel(surface, x - _y, y - _x, color);
+			putPixel(surface, x + _y, y - _x, color);
+			putPixel(surface, x + _x, y - _y, color);
+
+			_y += 1;
+			err += 1 + 2*_y;
+			if (2*(err-_x) + 1 > 0)
+			{
+				_x -= 1;
+				err += 1 - 2*_x;
+			}
+		}
+
+
+		if (fill) {
+
+			int r2 = radius * radius;
+			int area = r2 << 2;
+			int rr = radius << 1;
+
+			for (int i = 0; i < area; i++)
+			{
+			    int tx = (i % rr) - radius;
+			    int ty = (i / rr) - radius;
+
+			    if (tx * tx + ty * ty <= r2)
+			        putPixel(surface,x + tx, y + ty, color);
+			}
+		}
+
+		if(SDL_MUSTLOCK(surface)) {
+			SDL_UnlockSurface(surface);
+		}
+	}
+#endif
+}
+
+void drawArrow(SDL_Surface *surface,int x0,int y0, int x1, int y1,int z, Uint32 color) {
+
+	int a = ceilf((2*z) / sqrt(3));
+
+
+	// downrightward arrow
+	if (x0 < x1 && y0 < y1)
+	drawTrigon(surface, x1 ,y1-a, x1, y1, x1-a, y1, color);
+	// downleftward arrow
+	if (x0 > x1 && y0 < y1)
+	drawTrigon(surface, x1 ,y1-a, x1, y1, x1+a, y1, color);
+	// uprightward arrow
+	if (x0 < x1 && y0 > y1)
+	drawTrigon(surface, x1-a ,y1, x1, y1, x1, y1+a, color);
+	// upleftward arrow
+	if (x0 > x1 && y0 > y1)
+	drawTrigon(surface, x1+a ,y1, x1, y1, x1, y1+a, color);
+
+	// rightward arrow -->
+	if (x0 < x1 && y0 == y1)
+		drawTrigon(surface, x1-a ,y1-a, x1, y1, x1-a, y1+a, color);
+	// leftward arrow <--
+	if (x0 > x1 && y0 == y1)
+		drawTrigon(surface, x1+a ,y1-a, x1, y1, x1+a, y1+a, color);
+	// downward arrow
+	if (x0 == x1 && y0 < y1)
+		drawTrigon(surface, x1+a ,y1-a, x1, y1, x1-a, y1-a, color);
+	// upward arrow
+	if (x0 == x1 && y0 > y1)
+		drawTrigon(surface, x1+a ,y1+a, x1, y1, x1-a, y1+a, color);
+}
+
+
+void drawTrigon(SDL_Surface *surface, int x1, int y1, int x2, int y2, int x3, int y3, Uint32 color) {
+
+	if (x1 == x2) {
+		drawVLine(surface, x1, y1, y2, color);
+	} else if (y1 == y2) {
+		drawHLine(surface, x1, y1, x2, color);
+	} else {
+		drawLine(surface, x1, y1, x2, y2, color);
+	}
+
+	if (x2 == x3) {
+		drawVLine(surface, x2, y2, y3, color);
+	} else if (y2 == y3) {
+		drawHLine(surface, x2, y2, x3, color);
+	} else {
+		drawLine(surface, x2, y2, x3, y3, color);
+	}
+
+	if (x3 == x1) {
+		drawVLine(surface, x3, y3, y1, color);
+	} else if (y3 == y1) {
+		drawHLine(surface, x3, y3, x1, color);
+	} else {
+		drawLine(surface, x3, y3, x1, y1, color);
+	}
+
+
+}
+
+
 
 SDL_Color inverse(const SDL_Color& color) {
   SDL_Color inverse;
@@ -625,6 +811,9 @@ SDL_Surface* createShadowSurface(SDL_Surface* source) {
 
 	return retPic;
 }
+
+
+
 
 
 SDL_Surface* mapSurfaceColorRange(SDL_Surface* source, int srcColor, int destColor, bool bFreeSource) {

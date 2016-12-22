@@ -93,6 +93,9 @@ ObjectBase::ObjectBase(House* newOwner) : originalHouseID(newOwner->getHouseID()
 
 	forced = false;
     setTarget(NULL);
+    setFellow(NULL);
+    setOldTarget(NULL);
+    setOldFellow(NULL);
 	targetFriendly = false;
 	attackMode = GUARD;
 
@@ -133,7 +136,7 @@ ObjectBase::ObjectBase(InputStream& stream) {
 
 	forced = stream.readBool();
 	target.load(stream);
-	oldTarget.load(stream);
+	fellow.load(stream);
 	targetFriendly = stream.readBool();
 	attackMode = (ATTACKMODE) stream.readUint32();
 
@@ -194,7 +197,7 @@ void ObjectBase::save(OutputStream& stream) const {
 
 	stream.writeBool(forced);
     target.save(stream);
-    oldTarget.save(stream);
+    fellow.save(stream);
 	stream.writeBool(targetFriendly);
     stream.writeUint32(attackMode);
 
@@ -251,6 +254,8 @@ ObjectInterface* ObjectBase::getInterfaceContainer() {
 }
 
 void ObjectBase::removeFromSelectionLists() {
+
+
 
 	// FIXME : insure remove coordList when its a player controlled unit
 	currentGame->getSelectedList().remove(getObjectID());
@@ -333,9 +338,22 @@ void ObjectBase::setVisible(int team, bool status) {
 void ObjectBase::setFellow(const ObjectBase* newFellow) {
 
 	if (newFellow == NULL)
-		oldTarget.pointTo(NONE);
+		fellow.pointTo(NONE);
 	else
-		oldTarget.pointTo(const_cast<ObjectBase*>(newFellow));
+		fellow.pointTo(const_cast<ObjectBase*>(newFellow));
+}
+
+void ObjectBase::setOldFellow(const ObjectBase* newFellow) {
+
+	if (newFellow == NULL)
+		oldfellow.pointTo(NONE);
+	else
+		oldfellow.pointTo(const_cast<ObjectBase*>(newFellow));
+}
+
+void ObjectBase::setOldTarget(const ObjectBase* oldTarget) {
+	oldtarget.pointTo(const_cast<ObjectBase*>(oldTarget));
+	//targetFriendly = (target && (target.getObjPointer()->getOwner()->getTeam() == owner->getTeam()) && (getItemID() != Unit_Sandworm) && (target.getObjPointer()->getItemID() != Unit_Sandworm));
 }
 
 
@@ -421,9 +439,12 @@ const StructureBase* ObjectBase::findClosestTargetStructure() const {
         if(canAttack(tempStructure)) {
 			Coord closestPoint = tempStructure->getClosestPoint(getLocation());
 			float structureDistance = blockDistance(getLocation(), closestPoint);
-			bool attacker_mask = tempStructure->isActive() && tempStructure->hasATarget() && tempStructure->getTarget() != NULL && tempStructure->getTarget() ==  this && tempStructure->canAttack(this) && tempStructure->targetInWeaponRange() ;
+			bool attacker_mask = tempStructure->isActive() && tempStructure->hasATarget() && tempStructure->getTarget() != NULL
+					&& tempStructure->getTarget() ==  this && tempStructure->canAttack(this) && tempStructure->targetInWeaponRange() ;
+			bool attacker_mask2 = tempStructure->isActive() && tempStructure->hasAOldTarget() && tempStructure->getOldTarget() != NULL
+					&& tempStructure->getOldTarget() ==  this && tempStructure->canAttack(this) && tempStructure->oldtargetInWeaponRange() ;
 
-			if (attacker_mask)
+			if (attacker_mask || attacker_mask2)
 				return tempStructure;
 
 			if(tempStructure->getItemID() == Structure_Wall) {
@@ -453,11 +474,15 @@ const UnitBase* ObjectBase::findClosestTargetUnit() const {
 			float unitDistance = blockDistance(getLocation(), closestPoint);
 			Uint32 titemID = tempUnit->getItemID();
 			bool priority_mask = (itemID == Unit_Ornithopter && tempUnit->isActive()) && (titemID == Unit_MCV || titemID == Unit_Ornithopter || titemID == Unit_Harvester || titemID == Unit_Launcher || titemID == Unit_Troopers) ;
-			bool attacker_mask = tempUnit->isActive() && tempUnit->hasATarget() && tempUnit->getTarget() != NULL && tempUnit->getTarget() ==  this && tempUnit->canAttack(this) && tempUnit->targetInWeaponRange() ;
+			bool attacker_mask = tempUnit->isActive() && !tempUnit->isDestoyed() && tempUnit->hasATarget() && tempUnit->getTarget() != NULL &&
+					tempUnit->getTarget() ==  this && tempUnit->canAttack(this) && tempUnit->targetInWeaponRange() ;
+			bool attacker_mask2 = tempUnit->isActive() && !tempUnit->isDestoyed() && tempUnit->hasAOldTarget() && tempUnit->getOldTarget() != NULL &&
+								tempUnit->getOldTarget() ==  this && tempUnit->canAttack(this) && tempUnit->oldtargetInWeaponRange() ;
 
-			if (attacker_mask)
+			if (attacker_mask || attacker_mask2)
 				return tempUnit;
-														// FIXME : carryall should be regular target hard to shoot be reagular, instead unit should abandon this target if in danger
+														// FIXME : carryall should be regular target hard to shoot but regular,
+														//instead unit should abandon this target if in danger
 			if(tempUnit->getItemID() == Unit_Sandworm || tempUnit->getItemID() == Unit_Carryall) {
 				unitDistance += 4000.0f; //so that worms are targeted last
 			}
@@ -477,6 +502,11 @@ const UnitBase* ObjectBase::findClosestTargetUnit() const {
 	return closestUnit;
 }
 
+
+
+
+
+
 const ObjectBase* ObjectBase::findClosestTarget() const {
 
 	ObjectBase	*closestObject = NULL;
@@ -489,9 +519,12 @@ const ObjectBase* ObjectBase::findClosestTarget() const {
         if(canAttack(tempStructure)) {
 			Coord closestPoint = tempStructure->getClosestPoint(getLocation());
 			float structureDistance = blockDistance(getLocation(), closestPoint);
-			bool attacker_mask = tempStructure->isActive() && tempStructure->hasATarget() && tempStructure->getTarget() != NULL && tempStructure->getTarget() ==  this && tempStructure->canAttack(this) && tempStructure->targetInWeaponRange() ;
+			bool attacker_mask = tempStructure->isActive() && tempStructure->hasATarget() && tempStructure->getTarget() != NULL &&
+					tempStructure->getTarget() ==  this && tempStructure->canAttack(this) && tempStructure->targetInWeaponRange() ;
+			bool attacker_mask2 = tempStructure->isActive() && tempStructure->hasAOldTarget() && tempStructure->getOldTarget() != NULL
+								&& tempStructure->getOldTarget() ==  this && tempStructure->canAttack(this) && tempStructure->oldtargetInWeaponRange() ;
 
-			if (attacker_mask)
+			if (attacker_mask || attacker_mask2 )
 				return tempStructure;
 
 			if(tempStructure->getItemID() == Structure_Wall) {
@@ -512,11 +545,12 @@ const ObjectBase* ObjectBase::findClosestTarget() const {
 		if(canAttack(tempUnit)) {
 			Coord closestPoint = tempUnit->getClosestPoint(getLocation());
 			float unitDistance = blockDistance(getLocation(), closestPoint);
-			Uint32 titemID = tempUnit->getItemID();
-			bool priority_mask = (itemID == Unit_Ornithopter && tempUnit->isActive()) && (titemID == Unit_MCV || titemID == Unit_Ornithopter || titemID == Unit_Harvester) ;
-			bool attacker_mask = tempUnit->isActive() && tempUnit->hasATarget() && tempUnit->getTarget() != NULL && tempUnit->getTarget() ==  this && tempUnit->canAttack(this) && tempUnit->targetInWeaponRange() ;
+			bool attacker_mask = tempUnit->isActive() && !tempUnit->isDestoyed() && tempUnit->hasATarget() && tempUnit->getTarget() != NULL &&
+					tempUnit->getTarget() ==  this && tempUnit->canAttack(this) && tempUnit->targetInWeaponRange() ;
+			bool attacker_mask2 = tempUnit->isActive() && tempUnit->hasAOldTarget() && tempUnit->getOldTarget() != NULL &&
+											tempUnit->getOldTarget() ==  this && tempUnit->canAttack(this) && tempUnit->oldtargetInWeaponRange() ;
 
-			if (attacker_mask || priority_mask)
+			if (attacker_mask || attacker_mask2 )
 				return tempUnit;
 
 			if(unitDistance < closestDistance) {
@@ -531,14 +565,15 @@ const ObjectBase* ObjectBase::findClosestTarget() const {
 
 
 const ObjectBase* ObjectBase::findTarget() const {
- 	ObjectBase	*tempTarget,
-				*closestTarget = NULL;
+ 	ObjectBase	*tempTarget, *closestTarget2, *closestTarget;
+
+ 	closestTarget = closestTarget2 = NULL;
 
 	int	checkRange = 0;
 	int	xPos = location.x;
 	int	yPos = location.y;
 	int tTID;
-	bool prevent_wall, no_caryall, base_logic;
+
 
 	float closestDistance = INFINITY;
 	float avg_Distance = 0.0f;
@@ -567,10 +602,12 @@ const ObjectBase* ObjectBase::findTarget() const {
 
         case HUNT: {
             // check whole map
-            const ObjectBase* closestUnit = findClosestTargetUnit();
+        	// TODO Optimize this : keep a cache of relative distance from caller object
+           /* const ObjectBase* closestUnit = findClosestTargetUnit();
             if (closestUnit == NULL)
             	 return findClosestTarget();
-            else return closestUnit;
+            else return closestUnit;*/
+        	checkRange =  currentGameMap->getSizeX();
         } break;
 
         case STOP:
@@ -597,42 +634,43 @@ const ObjectBase* ObjectBase::findTarget() const {
 
 			if(currentGameMap->getTile(xCheck,yCheck)->hasAnObject()) {
 				tempTarget = currentGameMap->getTile(xCheck,yCheck)->getObject();
-				  if (canAttack(tempTarget)) {
+				  if (canAttack(tempTarget))
+				  {
 					float targetDistance = blockDistance(location, tempTarget->getLocation());
 					tTID = tempTarget->getItemID();
 
-					prevent_wall = ( (tTID != Structure_Wall) );
-					no_caryall = ( (tTID != Unit_Carryall) );
+				//	prevent_wall = ( (tTID != Structure_Wall) );
+				//	no_caryall = ( (tTID != Unit_Carryall) );
 
 
 					if (tTID == Structure_Wall || tTID == Unit_Carryall )
 						targetDistance *= 10;
 
+					bool fre_inf = (tempTarget->isInfantry() && tempTarget->getOriginalHouseID() == HOUSE_FREMEN);
 
 					if( isAUnit() ) {
-						agg_Distance += targetDistance ;
-						avg_Distance = (float)agg_Distance / count;
+						if  ( itemID != Unit_Sandworm || (itemID == Unit_Sandworm && ((UnitBase*)tempTarget)->isMoving() && !fre_inf)) {
+							agg_Distance += targetDistance ;
+							avg_Distance = (float)agg_Distance / ++count;
 
-						// Retaliate on personnel attacker first
-						if ( (tempTarget->getTarget() == this && targetDistance <= avg_Distance)) {
+							// Retaliate on personnel attacker first
+							if ( (tempTarget->getTarget() == this && targetDistance <= avg_Distance)) {
+									closestTarget = tempTarget;
+									closestDistance = targetDistance;
+									// This vengence is in plain sight, target is found, period
+									if (targetDistance <= getWeaponRange())
+										return closestTarget;
+							}
+
+							if (targetDistance < closestDistance) {
 								closestTarget = tempTarget;
 								closestDistance = targetDistance;
-							//	if (this->isSelected()) err_print("ObjectBase::findTarget retaliate on %d\n",closestTarget->getObjectID());
-								// This vengence is in plain sight, target is found, period
-								if (targetDistance <= getViewRange())
-									return closestTarget;
-
-						}
-
-						if (targetDistance < closestDistance) {
-							closestTarget = tempTarget;
-							closestDistance = targetDistance;
+							}
 						}
 					} else {
 
 						float targetDistance = blockDistance(location, tempTarget->getLocation());
 						if (targetDistance < closestDistance) {
-
 							closestTarget = tempTarget;
 							closestDistance = targetDistance;
 						}
@@ -814,7 +852,72 @@ ObjectBase* ObjectBase::loadObject(InputStream& stream, int itemID, Uint32 objec
 }
 
 bool ObjectBase::targetInWeaponRange() const {
+	if (!target || target.getObjPointer() == NULL)	return false;
     Coord coord = (target.getObjPointer())->getClosestPoint(location);
     float dist = blockDistance(location,coord);
-    return ( dist <= currentGame->objectData.data[itemID][originalHouseID].weaponrange);
+    return ( dist <= getWeaponRange());
 }
+
+bool ObjectBase::oldtargetInWeaponRange() const {
+	if (!oldtarget || oldtarget.getObjPointer() == NULL)	return false;
+    Coord coord = (oldtarget.getObjPointer())->getClosestPoint(location);
+    float dist = blockDistance(location,coord);
+    return ( dist <= getWeaponRange());
+}
+
+bool ObjectBase::targetInAreaGuardRange() const {
+	if (!target || target.getObjPointer() == NULL)	return false;
+    Coord coord = (target.getObjPointer())->getClosestPoint(location);
+    float dist = blockDistance(location,coord);
+    return ( dist <= getAreaGuardRange());
+}
+
+bool ObjectBase::oldtargetInAreaGuardRange() const {
+	if (!oldtarget || oldtarget.getObjPointer() == NULL)	return false;
+    Coord coord = (oldtarget.getObjPointer())->getClosestPoint(location);
+    float dist = blockDistance(location,coord);
+    return ( dist <= getAreaGuardRange());
+}
+
+
+
+bool ObjectBase::trueFunction() const {
+	return true;
+}
+
+const ObjectBase* ObjectBase::getNearerTarget(bool inWeaponRange, bool inAreaGuardRange) const {
+	const ObjectBase * tmp = NULL , *tmp_old = NULL;
+	Coord tmp_Target_Location, tmp_OldTarget_Location;
+	tmp_Target_Location = tmp_OldTarget_Location = Coord().Invalid();
+	float closeTargetDistance, closeOldTargetDistance  ;
+
+
+
+	std::function<bool(void)> f_TargetInWeaponRange = inWeaponRange ? std::bind(&ObjectBase::targetInWeaponRange, this) : std::bind(&ObjectBase::trueFunction,this);
+	std::function<bool(void)> f_OldTargetInWeaponRange = inWeaponRange ? std::bind(&ObjectBase::oldtargetInWeaponRange, this) : std::bind(&ObjectBase::trueFunction,this);
+	std::function<bool(void)> f_TargetinAreaGuardRange = inAreaGuardRange ? std::bind(&ObjectBase::targetInAreaGuardRange, this) : std::bind(&ObjectBase::trueFunction,this);
+	std::function<bool(void)> f_OldTargetinAreaGuardRange = inAreaGuardRange ? std::bind(&ObjectBase::oldtargetInAreaGuardRange, this) : std::bind(&ObjectBase::trueFunction,this);
+
+	if (target && getTarget() != NULL && getTarget()->isActive() &&
+			(!getTarget()->isAUnit()  || (getTarget()->isAUnit() && !((UnitBase*)getTarget())->isDestoyed()) ) &&
+			f_TargetinAreaGuardRange && f_TargetInWeaponRange()  )
+	{
+		tmp = getTarget();
+		tmp_Target_Location =  getTarget()->getClosestPoint(location);
+	} else if (oldtarget && getOldTarget() != NULL && getOldTarget()->isActive() &&
+			(!getOldTarget()->isAUnit()  || (getOldTarget()->isAUnit() && !((UnitBase*)getOldTarget())->isDestoyed()) ) &&
+			f_OldTargetinAreaGuardRange && f_OldTargetInWeaponRange )
+	{
+		tmp_old = getOldTarget();
+		tmp_OldTarget_Location =  getOldTarget()->getClosestPoint(location);
+	}
+
+	tmp_Target_Location != INVALID_POS ?  		closeTargetDistance = blockDistance(location, tmp_Target_Location) :
+												closeTargetDistance = std::numeric_limits<float>::infinity();
+	tmp_OldTarget_Location != INVALID_POS ?  	closeOldTargetDistance = blockDistance(location, tmp_OldTarget_Location) :
+												closeOldTargetDistance = std::numeric_limits<float>::infinity();
+
+	return closeTargetDistance <= closeOldTargetDistance ? tmp : tmp_old;
+}
+
+

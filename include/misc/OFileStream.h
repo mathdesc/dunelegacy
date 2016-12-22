@@ -44,6 +44,7 @@ public:
 	void writeUint64(Uint64 x);
 	void writeBool(bool x);
 	void writeFloat(float x);
+	void writeCoord(Coord c);
 
 private:
 	FILE* fp;

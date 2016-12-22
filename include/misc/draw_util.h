@@ -40,6 +40,11 @@ void drawHLine(SDL_Surface *surface, int x1, int y, int x2, Uint32 color);
 void drawVLine(SDL_Surface *surface, int x, int y1, int y2, Uint32 color);
 
 void drawRect(SDL_Surface *surface, int x1, int y1, int x2, int y2, Uint32 color);
+void drawCircle (SDL_Surface *surface, int x, int y ,int radius, Uint32 color, bool fill = false);
+void drawArrow(SDL_Surface *surface,int x0,int y0, int x1, int y1,int z, Uint32 color);
+void drawTrigon(SDL_Surface *surface, int x1, int y1, int x2, int y2, int x3, int y3, Uint32 color);
+
+void drawArrowLine(SDL_Surface *surface, int x0, int y0, int x1, int y1, Uint32 colorline,Uint32 colorarrow, int arrowsize);
 
 SDL_Color inverse(const SDL_Color& color);
 

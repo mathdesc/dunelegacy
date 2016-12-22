@@ -50,6 +50,8 @@ public:
 	void turnRight();
 	virtual void attack();
 
+	virtual inline BulletID_enum getBulletType() { return (BulletID_enum)bulletType;}
+
 	inline int getTurretAngle() const { return lround(angle); }
 
 protected:

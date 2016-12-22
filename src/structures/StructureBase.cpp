@@ -297,6 +297,10 @@ void StructureBase::doRepair() {
 	repairing = true;
 }
 
+void StructureBase::stopRepair() {
+	repairing = false;
+}
+
 void StructureBase::setDestination(int newX, int newY) {
 	if(currentGameMap->tileExists(newX, newY) || ((newX == INVALID_POS) && (newY == INVALID_POS))) {
 		destination.x = newX;

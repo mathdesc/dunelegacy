@@ -542,6 +542,7 @@ void House::lose(bool bSilent) {
 
 
 void House::freeHarvester(int xPos, int yPos) {
+
 	if(currentGameMap->tileExists(xPos, yPos)
 		&& currentGameMap->getTile(xPos, yPos)->hasAGroundObject()
 		&& (currentGameMap->getTile(xPos, yPos)->getGroundObject()->getItemID() == Structure_Refinery))
@@ -549,13 +550,24 @@ void House::freeHarvester(int xPos, int yPos) {
 		Refinery* refinery = (Refinery*)currentGameMap->getTile(xPos, yPos)->getGroundObject();
 		Coord closestPos = currentGameMap->findClosestEdgePoint(refinery->getLocation() + Coord(2,0), Coord(1,1));
 
+		fprintf(stderr,"House::placeStructure(): FreeHarvester closestPos at (%d,%d) by builder %d\n",closestPos.x,closestPos.y);
+
 		Carryall* carryall = (Carryall*)createUnit(Unit_Carryall);
 		Harvester* harvester = (Harvester*)createUnit(Unit_Harvester);
 		harvester->setAmountOfSpice(5.0f);
 		carryall->setOwned(false);
 		carryall->giveCargo(harvester);
+
+		harvester->setDestination(refinery->getLocation());
 		carryall->deploy(closestPos);
 		carryall->setDropOfferer(true);
+		carryall->setDeployPos(refinery->getLocation());
+		Coord cyard =  Coord::Invalid();
+		cyard = (carryall->findConstYard() != NULL  ?  carryall->findConstYard()->getLocation() : Coord::Invalid()) ;
+        if (cyard.isValid()) {
+        	Coord fallback = currentGameMap->findClosestEdgePoint(cyard + Coord(2,0), Coord(1,1));
+        	carryall->setFallbackPos(fallback);
+        }
 
 		if (closestPos.x == 0)
 			carryall->setAngle(RIGHT);
@@ -673,6 +685,7 @@ StructureBase* House::placeStructure(Uint32 builderID, int itemID, int xPos, int
 
 			// at the beginning of the game the first refinery gets a harvester for free (brought by a carryall)
 			if((itemID == Structure_Refinery) && ( ((currentGame->gameState == START) && (numItem[Unit_Harvester] <= 0)) || (builderID != NONE)) ) {
+				fprintf(stderr,"House::placeStructure(): FreeHarvester given at (%d,%d) by builder %d\n",xPos,yPos, builderID);
 				freeHarvester(xPos, yPos);
 			}
 

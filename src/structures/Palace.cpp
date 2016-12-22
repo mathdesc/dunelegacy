@@ -145,7 +145,8 @@ void Palace::doLaunchDeathhand(int x, int y) {
     }
 
     float randAngle = 2.0f * strictmath::pi * currentGame->randomGen.randFloat();
-    int radius = nuclearday ? currentGame->randomGen.rand(0,10*TILESIZE) : 1;
+    int radius = !nuclearday ? currentGame->randomGen.rand(0,10*TILESIZE) : 0;
+
     int deathOffX = strictmath::sin(randAngle) * radius;
     int deathOffY = strictmath::cos(randAngle) * radius;
 
@@ -153,12 +154,14 @@ void Palace::doLaunchDeathhand(int x, int y) {
     Coord dest( x * TILESIZE + TILESIZE/2 + deathOffX,
                 y * TILESIZE + TILESIZE/2 + deathOffY);
 
-    bulletList.push_back(new Bullet(objectID, &centerPoint, &dest, Bullet_LargeRocket, PALACE_DEATHHAND_WEAPONDAMAGE, false));
+    bulletList.push_back(new Bullet(objectID, &centerPoint, &dest, Bullet_LargeRocket, PALACE_DEATHHAND_WEAPONDAMAGE, false, radius));
     soundPlayer->playSoundAt(Sound_Rocket, getLocation());
 
     if(getOwner() != pLocalHouse) {
         currentGame->addToNewsTicker(_("@DUNE.ENG|81#Missile is approaching"));
         soundPlayer->playVoice(MissileApproaching, pLocalHouse->getHouseID());
+    } else {
+    	soundPlayer->playVoice(MissileLaunched, pLocalHouse->getHouseID());
     }
 
     specialWeaponTimer = getMaxSpecialWeaponTimer();
@@ -227,6 +230,7 @@ bool Palace::callFremen() {
 			pFremen->deploy(Coord(x + i,y + j), false);
 
 			pFremen->doSetAttackMode(HUNT);
+			pFremen->setForced(true);
 			pFremen->setRespondable(false);
 
 			const StructureBase* closestStructure = pFremen->findClosestTargetStructure();
@@ -242,9 +246,11 @@ bool Palace::callFremen() {
 				}
 			}
 
-		    if(pFremen->getOwner() != pLocalHouse || true) {
+		    if(pFremen->getOwner() != pLocalHouse) {
 				currentGame->addToNewsTicker(_("@DUNE.ENG|79#Fremen is approaching"));
 		        soundPlayer->playVoice(FremenApproaching, pLocalHouse->getHouseID());
+			} else {
+				soundPlayer->playVoice(FremenDeployed, pLocalHouse->getHouseID());
 			}
 		}
 
@@ -266,11 +272,14 @@ bool Palace::spawnSaboteur() {
 
 	if(getOwner()->isAI()) {
 		saboteur->doSetAttackMode(HUNT);
+		saboteur->setForced(true);
 	}
 
     if(getOwner() != pLocalHouse) {
 		currentGame->addToNewsTicker(_("@DUNE.ENG|79#Saboteur is approaching"));
         soundPlayer->playVoice(SaboteurApproaching, pLocalHouse->getHouseID());
+	} else {
+		soundPlayer->playVoice(SaboteurDeployed, pLocalHouse->getHouseID());
 	}
 
 	return true;

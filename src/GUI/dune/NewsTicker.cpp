@@ -29,12 +29,16 @@ NewsTicker::NewsTicker() : Widget() {
 	enableResizing(true,false);
 
  	timer = -MESSAGETIME/2;
-	pBackground = pGFXManager->getUIGraphic(UI_MessageBox);
+	pBackground = copySurface(pGFXManager->getUIGraphic(UI_MessageBox));
 
 	resize(pBackground->w,pBackground->h);
 }
 
 NewsTicker::~NewsTicker() {
+
+	if (pBackground != NULL) {
+		SDL_FreeSurface(pBackground);
+	}
 
 }
 
@@ -79,8 +83,9 @@ void NewsTicker::resize(Uint32 _width, Uint32 _height) {
 	{
     	//printf("resize : %i;%i (%i,%i)\t",(int)_width,(int)_height,pBackground->w,pBackground->h);
     	temp = scaleSurface(pBackground,ratiox, ratioy,false);
-    	if (temp == NULL ) printf("ATT! pBack is null !\n");
-    	else pBackground = temp;
+    	/*if (temp == NULL ) printf("ATT! pBack is null !\n");*/
+    	SDL_FreeSurface(pBackground);
+    	/*else */ pBackground = temp;
     	Widget::resize(_width,_height);
 	} else	Widget::resize(pBackground->w,pBackground->h);
 }

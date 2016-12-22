@@ -48,10 +48,13 @@ public:
     }
 	inline void unBook() {
         bookings--;
+        if (bookings < 0) bookings = 0;
         if(bookings == 0) {
             stopAnimate();
         }
     }
+
+
 	inline bool isFree() const { return !extractingSpice; }
 	inline int getNumBookings() const { return bookings; }	//number of units goings there
 	inline const Harvester* getHarvester() const  { return (Harvester*)harvester.getObjPointer(); }
@@ -68,7 +71,7 @@ private:
 
 	bool            extractingSpice;    ///< Currently extracting spice?
 	ObjectPointer   harvester;          ///< The harverster currently in the refinery
-    Uint32          bookings;           ///< How many bookings?
+    int          	bookings;           ///< How many bookings?
 
     bool    firstRun;       ///< On first deploy of a harvester we tell it to the user
 };

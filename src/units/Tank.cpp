@@ -75,11 +75,17 @@ void Tank::blitToScreen() {
     SDL_Rect source2 = { drawnTurretAngle * imageW2, 0, imageW2, pTurretGraphic->h };
     SDL_Rect dest2 = { x - imageW2/2, y - pTurretGraphic->h/2, imageW2, pTurretGraphic->h };
 
+
     SDL_BlitSurface(pTurretGraphic, &source2, screen, &dest2);
 
     if(isBadlyDamaged()) {
         drawSmoke(x, y);
     }
+    if(destroyed) {
+        drawFire(x,y+5);
+    }
+
+
 }
 
 void Tank::destroy() {

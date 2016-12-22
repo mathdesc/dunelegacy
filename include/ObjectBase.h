@@ -25,7 +25,7 @@
 #include <mmath.h>
 
 #include <globals.h>
-
+#include <functional>
 #include <algorithm>
 
 #include <SDL.h>
@@ -96,7 +96,9 @@ public:
 	void setObjectID(int newObjectID);
 
 	virtual void setFellow(const ObjectBase* newFellow);
+	void setOldFellow(const ObjectBase* newFellow);
 	virtual void setTarget(const ObjectBase* newTarget);
+	virtual void setOldTarget(const ObjectBase* oldTarget);
 	void setVisible(int team, bool status);
 
 	/**
@@ -137,7 +139,8 @@ public:
 	inline bool canSalveAttack() const { return canSalveAttackStuff; }
 	inline bool canCapture() const { return canCaptureStuff; }
 	inline bool hasATarget() const { return (target); }
-	inline bool hasAFellow() const { return (oldTarget); }
+	inline bool hasAOldTarget() const { return (oldtarget); }
+	inline bool hasAFellow() const { return (fellow); }
 	inline bool hasObjectID(Uint32 id) const { return (objectID == id); }
 	inline bool isActive() const { return active; }
 	inline bool isAFlyingUnit() const { return aFlyingUnit; }
@@ -172,10 +175,14 @@ public:
 	inline float getRealY() const { return realY; }
 	inline const Coord& getLocation() const { return location; }
 	inline const Coord& getDestination() const { return destination; }
-	inline ObjectBase* getoldTarget() { return oldTarget.getObjPointer(); }
-	inline const ObjectBase* getoldTarget() const { return oldTarget.getObjPointer(); }
+	inline ObjectBase* getFellow() { return fellow.getObjPointer(); }
+	inline const ObjectBase* getFellow() const { return fellow.getObjPointer(); }
+	inline ObjectBase* getOldFellow() { return oldfellow.getObjPointer(); }
+	inline const ObjectBase* getOldFellow() const { return oldfellow.getObjPointer(); }
 	inline ObjectBase* getTarget() { return target.getObjPointer(); }
 	inline const ObjectBase* getTarget() const { return target.getObjPointer(); }
+	inline ObjectBase* getOldTarget() { return oldtarget.getObjPointer(); }
+	inline const ObjectBase* getOldTarget() const { return oldtarget.getObjPointer(); }
 
 	inline int getOriginalHouseID() const { return originalHouseID; }
 	virtual void setOriginalHouseID(int i) { originalHouseID = i; }
@@ -192,8 +199,20 @@ public:
 	static ObjectBase* createObject(int itemID,House* Owner, Uint32 objectID = NONE);
 	static ObjectBase* loadObject(InputStream& stream, int itemID, Uint32 objectID);
 
+	/*
+	bool targetInWeaponRange(const std::function<int(void)> getRangeFunction) const;
+	bool oldtargetInWeaponRange(const std::function<int(void)> getRangeFunction) const;
+	const ObjectBase* getNearerTarget(const std::function<int(void)> getRangeFunction) const;
+	*/
 
 	bool targetInWeaponRange() const;
+	bool oldtargetInWeaponRange() const;
+	bool targetInAreaGuardRange() const ;
+	bool oldtargetInAreaGuardRange() const ;
+
+	const ObjectBase* getNearerTarget(bool inWeaponRange = false, bool inAreaGuardRange = false) const;
+
+	bool trueFunction() const;
 
 protected:
 
@@ -236,7 +255,9 @@ protected:
     bool            forced;         ///< Is this unit/structure forced to do what it currently does or did the micro-AI decide to do that?
     bool            targetFriendly; ///< Is the current target a friendly unit/structure to follow/move to instead to attack?
 	ObjectPointer   target;         ///< The target to attack or move to
-	ObjectPointer	oldTarget;      ///< A copy pointer of the target to attack or move to
+	ObjectPointer	oldtarget;      ///< A copy pointer of the target to attack or move to
+	ObjectPointer   fellow;			///< The fellow object to move to/follow (i.e leader)
+	ObjectPointer	oldfellow;      ///< A copy pointer of the fellow to fellow or move to
 	ATTACKMODE      attackMode;     ///< The attack mode of this unit/structure
 
     bool    visible[NUM_HOUSES];   ///< To which houses is this unit visible?

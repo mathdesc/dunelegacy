@@ -29,6 +29,8 @@ class Tile;
 
 #define MAX_SALVE 10
 #define BASE_SALVO_TIMER 65
+#define FIND_TARGET_TIMER_RESET 100
+#define FIND_OLDTARGET_TIMER_RESET FIND_TARGET_TIMER_RESET*100
 
 class UnitBase : public ObjectBase
 {
@@ -175,7 +177,7 @@ public:
 	/**
 		This method is called when an unit should cancel giving order (stop moving/following)
 	*/
-	void doCancel();
+	virtual void doCancel();
     virtual void handleDamage(int damage, Uint32 damagerID, House* damagerOwner);
 
 	virtual void doRepair() { };
@@ -211,8 +213,13 @@ public:
 	void setAngle(int newAngle);
 
 	virtual void setTarget(const ObjectBase* newTarget);
+	virtual void setOldTarget(const ObjectBase* oldTarget);
+	virtual void swapOldNewTarget();
 	virtual ObjectBase* getFellow();
+	virtual ObjectBase* getOldFellow();
 	virtual void setFellow(const ObjectBase* newFellow);
+	virtual void setOldFellow(const ObjectBase* newFellow);
+	virtual void swapOldNewFellow();
 
 	void setGettingRepaired();
 
@@ -226,7 +233,7 @@ public:
 
 	inline void setLeader(bool lead) { isGroupLeader = lead ; }
 
-	inline bool isFollowing() { return (bFollow && oldTarget && oldTarget.getObjPointer() !=NULL);}
+	inline bool isFollowing() { return (bFollow && fellow && fellow.getObjPointer() !=NULL);}
 
     inline void setDestination(int newX, int newY) {
         if((destination.x != newX) || (destination.y != newY)) {
@@ -249,6 +256,8 @@ public:
 
 	virtual bool hasBumpyMovementOnRock() const { return false; }
 
+	int getWeight();
+
 	/**
         Returns how fast a unit can move over the specified terrain type.
         \param  terrainType the type to consider
@@ -269,15 +278,20 @@ public:
         noCloserPointCount = 0;
     }
 
+	inline bool isDestoyed() const { return destroyed; }
+
 	inline bool isTracked() const { return tracked; }
 
 	inline bool isTurreted() const { return turreted; }
 
 	inline bool isLeader() const { return isGroupLeader; }
 
-	inline bool isMoving() const { return moving; }
+	inline bool isMoving() const { return moving || justStoppedMoving; }
 
 	inline bool isSalving() const { return salving; }
+
+	inline virtual bool isIdle() const { return respondable && !target && !moving && !justStoppedMoving && attackMode !=STOP &&
+			destination==location && idle && !goingToRepairYard ; }
 
 	inline bool wasDeviated() const { return (owner->getHouseID() != originalHouseID); }
 
@@ -294,6 +308,8 @@ public:
 
 	inline float getRegulatedSpeed() 			const { return regulatedSpeed; }
 	inline void  setRegulatedSpeed(float speed) 	  { regulatedSpeed = speed;}
+
+	virtual inline BulletID_enum getBulletType() { return (BulletID_enum)bulletType;}
 
 protected:
 
@@ -328,11 +344,13 @@ protected:
 
 	bool SearchPathWithAStar();
 
+	void drawFire(int x, int y);
     void drawSmoke(int x, int y);
 
 	// constant for all units of the same type
     bool    tracked;                ///< Does this unit have tracks?
 	bool    turreted;               ///< Does this unit have a turret?
+	bool 	destroyed;				///< Does this unit is already destroyed ?
     int     numWeapons;             ///< How many weapons do we have?
     int 	salveWeapon;
     int     bulletType;             ///< Type of bullet to shot with
@@ -342,21 +360,23 @@ protected:
 	Coord	attackPos;              ///< The position to attack
     bool	goingToRepairYard;      ///< Are we currently going to a repair yard?
 	bool    pickedUp;               ///< Were we picked up by a carryall?
-    bool    bFollow;                ///< Do we currently follow some other unit (specified by oldTarget)?
+    bool    bFollow;                ///< Do we currently follow some other unit (specified by ObjectBase::fellow)?
 
     bool	isGroupLeader;			///< Is this unit a group leader of unit selection
     bool    moving;                 ///< Are we currently moving?
     bool    turning;                ///< Are we currently turning?
     bool    justStoppedMoving;      ///< Do we have just stopped moving?
-    bool	salving;				///< Do the unit is in a salving mode
+    bool	salving;				///< If the unit is in a salving mode
+    bool	idle;					///< If the unit is idle
     float	regulatedSpeed;			///< Do the unit is under speed regulation (i.e formation moves) [0,++]
     float	xSpeed;                 ///< Speed in x direction
     float	ySpeed;                 ///< Speed in y direction
     float   bumpyOffsetX;           ///< The bumpy offset in x direction which is already included in realX
     float   bumpyOffsetY;           ///< The bumpy offset in y direction which is already included in realY
 
-    float	targetDistance;         ///< Distance to the destination
-    Sint8   targetAngle;            ///< Angle to the destination
+    float	targetDistance;         ///< Distance to the target
+    float   oldtargetDistance;		///< Distance to the oldtarget
+    Sint8   targetAngle;            ///< Angle to the target
 
     // path finding
     Uint8   noCloserPointCount;     ///< How often have we tried to dinf a path?
@@ -372,6 +392,8 @@ protected:
 	Sint32	salveWeaponTimer[MAX_SALVE]; ///< When can the salve weapons shot again?
 	Sint32	salveWeaponDelaybase;	///< What is the delay between each salving weapons shot (init time)
 	Sint32	salveWeaponDelay;		///< What is the delay between each salving weapons shot
+	Sint32  oldTargetTimer;			///< When can we forgot the previous target ?
+	Sint32  destroyedCountdown;		///< This is the final countdown
 
     // deviation
 	Sint32          deviationTimer; ///< When to revert back to the original owner?

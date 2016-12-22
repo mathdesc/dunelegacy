@@ -49,7 +49,8 @@ public:
 	void destroy();
 
 	void deployUnit(Uint32 unitID);
-
+	void doCancel();
+	void giveDeliveryOrders(UnitBase* newUnit, Coord unitDest, Coord deploy, Coord fallback);
 	void giveCargo(UnitBase* newUnit);
 
 	void save(OutputStream& stream) const;
@@ -58,7 +59,7 @@ public:
 	void setTarget(const ObjectBase* newTarget);
 
 
-	inline bool isIdle() const { return idle; }
+	inline bool isIdle() const {return respondable && !fellow  && !hasCargo() && attackMode != STOP && idle;}
 
 	bool hasCargo() const {
         return !pickedUpUnitList.empty();
@@ -67,6 +68,7 @@ public:
 	inline void book() { booked = true; }
 
 	inline void setOwned(bool b) { owned = b; }
+	inline bool getOwned() { return owned ; }
 
 	inline void setDropOfferer(bool status) {
 	    aDropOfferer = status;
@@ -86,9 +88,12 @@ public:
 	bool canPass(int xPos, int yPos) const;
 
 	float   currentMaxSpeed;    ///< The current maximum allowed speed
+	ConstructionYard* findConstYard();
+
+	std::vector<Coord> getFlyPoints() { return (flyPoints);}
 
 protected:
-	void findConstYard();
+	bool getFlyPlan();
     void releaseFellow();
     void engageFollow();
 	void engageTarget();
@@ -111,9 +116,9 @@ protected:
 	Coord 	fallBackPos;	///< The fallback spot in case of retreat
 
 	Uint8   curFlyPoint;        ///< The current flyPoint
-	Coord	flyPoints[8];       ///< Array of flight points
+	std::vector<Coord>	flyPoints;       ///< Array of flight points
 	Coord	constYardPoint;     ///< The position of the construction yard to fly around
-	Coord	deployPos = Coord::Invalid();			///< The last deployed unit position
+	Coord	deployPos ;			///< The last deployed unit position
 };
 
 #endif // CARRYALL_H

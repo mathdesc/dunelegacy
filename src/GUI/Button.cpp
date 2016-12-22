@@ -36,6 +36,7 @@ Button::Button() : Widget() {
 	bFreeUnpressedSurface = false;
 	bFreePressedSurface = false;
 	bFreeActiveSurface = false;
+	tooltipLastMouseMotion = 0;
 }
 
 Button::~Button() {

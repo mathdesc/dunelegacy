@@ -171,8 +171,8 @@ void SFXManager::loadEnglishVoice() {
 		lngVoice[UnitDeployed*NUM_HOUSES+VoiceNum] = concat3Chunks(HouseNameChunk, Unit, Deployed);
 		Mix_FreeChunk(Unit);
 
-		// "... vehicule deployed"
-		lngVoice[VehiculeDeployed*NUM_HOUSES+VoiceNum] = concat3Chunks(HouseNameChunk, Vehicle, Deployed);
+		// "... vehicle deployed"
+		lngVoice[VehicleDeployed*NUM_HOUSES+VoiceNum] = concat3Chunks(HouseNameChunk, Vehicle, Deployed);
 		Mix_FreeChunk(Deployed);
 
 		// "Your mission is complete"
@@ -232,9 +232,14 @@ void SFXManager::loadEnglishVoice() {
         Mix_Chunk* West = getChunkFromFile(HouseString + "WEST.VOC");
         Mix_Chunk* South = getChunkFromFile(HouseString + "SOUTH.VOC");
         Mix_Chunk* FremenChunk = getChunkFromFile(HouseString + "FREMEN.VOC");
+        Mix_Chunk* Deployed2 = getChunkFromFile(HouseString + "DEPLOY.VOC");
+        Mix_Chunk* Launched = getChunkFromFile(HouseString + "LAUNCH.VOC");
         lngVoice[FremenApproaching*NUM_HOUSES+VoiceNum] = concat2Chunks(FremenChunk, ApproachingChunk);
         lngVoice[SaboteurApproaching*NUM_HOUSES+VoiceNum] = concat2Chunks(SabotChunk, ApproachingChunk);
         lngVoice[MissileApproaching*NUM_HOUSES+VoiceNum] = concat2Chunks(MissileChunk, ApproachingChunk);
+		lngVoice[FremenDeployed*NUM_HOUSES+VoiceNum] = concat2Chunks(FremenChunk, Deployed2);
+		lngVoice[SaboteurDeployed*NUM_HOUSES+VoiceNum] = concat2Chunks(SabotChunk, Deployed2);
+		lngVoice[MissileLaunched*NUM_HOUSES+VoiceNum] = concat2Chunks(MissileChunk, Launched);
         lngVoice[EnemyApproachingNorth*NUM_HOUSES+VoiceNum] = concat4Chunks(WarningChunk, Enemy, ApproachingChunk,North);
         lngVoice[EnemyApproachingEast*NUM_HOUSES+VoiceNum] = concat4Chunks(WarningChunk, Enemy, ApproachingChunk,East);
         lngVoice[EnemyApproachingWest*NUM_HOUSES+VoiceNum] = concat4Chunks(WarningChunk, Enemy, ApproachingChunk,West);
@@ -242,7 +247,9 @@ void SFXManager::loadEnglishVoice() {
         Mix_FreeChunk(FremenChunk);
         Mix_FreeChunk(SabotChunk);
         Mix_FreeChunk(MissileChunk);
+        Mix_FreeChunk(Enemy);
         Mix_FreeChunk(ApproachingChunk);
+        Mix_FreeChunk(Deployed2);
         Mix_FreeChunk(North);
         Mix_FreeChunk(East);
         Mix_FreeChunk(West);
@@ -252,7 +259,6 @@ void SFXManager::loadEnglishVoice() {
         // "Unit launched"
 
         Mix_Chunk* Unit2 = getChunkFromFile(HouseString + "UNIT.VOC");
-        Mix_Chunk* Launched = getChunkFromFile(HouseString + "LAUNCH.VOC");
         lngVoice[UnitLaunched*NUM_HOUSES+VoiceNum] = concat2Chunks(Unit2, Launched);
         Mix_FreeChunk(Unit2);
         Mix_FreeChunk(Launched);

@@ -24,8 +24,6 @@ Done but should be toggleable
 Ability to order a liftoff. Would be imbalanced as it is since carryall are to fast and unhitteable (maybe burden them hard then and make them retreat on heavy anti-air fire) 
  
 
-#30-7 Deviator attack affecting an area, and with higher chance to convert
-In fact deviator damage is buggy, revamp it
 
 #30-5 Rally point indicator (just something to point out where it is; it could be similar to the one on Dune Dynasty)
 And a retreat fonction, based on damage purcentage it can take before retreating (need to do)
@@ -40,11 +38,6 @@ Left corner chevron badge (2x damage, 2x movements, 2x robustness, etc...)
 
 
 
-#32 Optional auto-repair of buildings 
-Already done but choose be made optionnal and dynamically disable/enable
-
-
-
 #35 HQ4X
 https://code.google.com/p/hqx/
 
@@ -54,5 +47,21 @@ Currently, custom games (or multiplayer) can be played only on predesigned scena
 though a random map generator already exists in the level editor. 
 You can generate a map with the level editor, save it and then load it as scenario, 
 but generating a temporary map directly in the custom game screen with a click would be much better
+
+
+#37 Weight property
+Make it properly a unit attribute. Pb is that I don't want to modifiy the unit database directly.
+Repair cost could be calculate proportionnaly to weight & unitcost aggregate
+
+-- DONE --
+
+
+
+#30-7 Deviator attack affecting an area, and with higher chance to convert
+In fact deviator damage is buggy, revamp it
+
+#32 Optional auto-repair of buildings 
+Already done but choose be made optionnal and dynamically disable/enable
+
 
 

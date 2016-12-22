@@ -42,8 +42,8 @@ DaysCounter::DaysCounter(): Widget() {
 		tooltipSurface = NULL;
 
 
-		planet = pGFXManager->getUIGraphic(UI_PlanetDay);
-		back = planet;
+		planet = copySurface(pGFXManager->getUIGraphic(UI_PlanetDay));
+		back = copySurface(planet);
 
 		currentLocation = {0,0,planet->w,planet->h};
 		if (!bToggleState) {
@@ -67,6 +67,18 @@ DaysCounter::~DaysCounter() {
 		delete dbb;
 		dbb = NULL;
 
+		if (next != NULL) {
+				SDL_FreeSurface(next);
+				next = NULL;
+		}
+		if (back != NULL) {
+				SDL_FreeSurface(back);
+				back = NULL;
+		}
+		if (planet != NULL) {
+				SDL_FreeSurface(planet);
+				planet = NULL;
+		}
 		if(tooltipSurface != NULL) {
 			SDL_FreeSurface(tooltipSurface);
 			tooltipSurface = NULL;
@@ -173,41 +185,52 @@ void DaysCounter::setCounterMode(Phase phase) {
 
 void DaysCounter::setPhaseMode(Phase phase) {
 	SDL_Surface *temp;
+	if (next != NULL) {
+		SDL_FreeSurface(next);
+		next = NULL;
+	}
+	if (back != NULL) {
+		SDL_FreeSurface(back);
+		back = NULL;
+	}
 	switch (phase) {
 		case	Morning:
-			next = pGFXManager->getUIGraphic(UI_PlanetMorning);
-			back = next;
-			next = scaleSurface(next,currentscaling,false);
+			temp = copySurface(pGFXManager->getUIGraphic(UI_PlanetMorning));
+			back = copySurface(pGFXManager->getUIGraphic(UI_PlanetMorning));
+			next = scaleSurface(temp,currentscaling,true);
 
 			break;
 		case	Day:
-			next = pGFXManager->getUIGraphic(UI_PlanetDay);
-			back = next;
-			next = scaleSurface(next,currentscaling,false);
+			temp = copySurface(pGFXManager->getUIGraphic(UI_PlanetDay));
+			back = copySurface(pGFXManager->getUIGraphic(UI_PlanetDay));
+			next = scaleSurface(temp,currentscaling,true);
 
 			break;
 		case	Eve:
-			next = pGFXManager->getUIGraphic(UI_PlanetEve);
-			back = next;
-			next = scaleSurface(next,currentscaling,false);
+			temp = copySurface(pGFXManager->getUIGraphic(UI_PlanetEve));
+			back = copySurface(pGFXManager->getUIGraphic(UI_PlanetEve));
+			next = scaleSurface(temp,currentscaling,true);
 
 			break;
 		case	Night:
-			next = pGFXManager->getUIGraphic(UI_PlanetNight);
-			back = next;
-			next = scaleSurface(next,currentscaling,false);
+			temp = copySurface(pGFXManager->getUIGraphic(UI_PlanetNight));
+			back = copySurface(pGFXManager->getUIGraphic(UI_PlanetNight));
+			next = scaleSurface(temp,currentscaling,true);
 			;
 			break;
 		case	PHASE_NONE:
 		default:
-			next = pGFXManager->getUIGraphic(UI_PlanetDay);
-			back = next;
-			next = scaleSurface(next,currentscaling,false);
+			temp = copySurface(pGFXManager->getUIGraphic(UI_PlanetDay));
+			back = copySurface(pGFXManager->getUIGraphic(UI_PlanetDay));
+			next = scaleSurface(temp,currentscaling,true);
 
 			break;
 
 	}
 
+	if (dbb != NULL) {
+		delete dbb;
+	}
 		  dbb = new DedicatedBlendBlitter (next, planet, currentLocation, CYCLE_BENDBLITT_NBSTEPS, DedicatedBlendBlitter::constructorInit::Builtin ,
 						DedicatedBlendBlitter::constructorInit::Builtin, DedicatedBlendBlitter::constructorInit::Random, 256);
 
@@ -269,6 +292,10 @@ void DaysCounter::draw(SDL_Surface* screen, Point position) {
 void DaysCounter::enlarge() {
 	if (isIcon) {
 		currentscaling = 1;
+		if (planet != NULL) {
+				SDL_FreeSurface(planet);
+				planet = NULL;
+		}
 		planet = scaleSurface(back,currentscaling,false);
 		currentLocation = {(screen->w-planet->w)/2,(screen->h-planet->h)/2,planet->w,planet->h};
 		isIcon = false;
@@ -278,6 +305,10 @@ void DaysCounter::enlarge() {
 void DaysCounter::iconify() {
 	if (! isIcon) {
 		currentscaling = 0.15;
+		if (planet != NULL) {
+				SDL_FreeSurface(planet);
+				planet = NULL;
+		}
 		planet = scaleSurface(back,currentscaling,false);
 		currentLocation.w  = planet->w;
 		currentLocation.h = planet->h;
@@ -287,7 +318,7 @@ void DaysCounter::iconify() {
 
 void DaysCounter::updateBlitter(SDL_Surface* screen) {
 		if (dbb != NULL) {
-			SDL_Rect r = dbb->getBlitterDestination();
+			//SDL_Rect r = dbb->getBlitterDestination();
 			if (dbb->nextStep() == 0) {
 				 delete dbb;
 				 dbb = NULL;

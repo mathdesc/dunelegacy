@@ -109,6 +109,19 @@ public:
         writeUint32(tmp);
     }
 
+	void writeCoord(Coord c) {
+        ensureBufferSize(currentPos + sizeof(Uint32));
+        c.x = SDL_SwapLE32(c.x);
+        *((Uint32*) (pBuffer + currentPos)) = c.x;
+        currentPos += sizeof(Uint32);
+        ensureBufferSize(currentPos + sizeof(Uint32));
+        c.y = SDL_SwapLE32(c.y);
+        *((Uint32*) (pBuffer + currentPos)) = c.y;
+        currentPos += sizeof(Uint32);
+	}
+
+
+
 	void ensureBufferSize(size_t minBufferSize) {
         if(minBufferSize < bufferSize) {
             return;

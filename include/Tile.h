@@ -299,7 +299,7 @@ public:
 
 
 	void drawLight(Uint32 color) ;
-	void drawFindTarget(ObjectBase* obj, Uint32 color);
+	void drawOverlay(ObjectBase* obj, Uint32 color, Tile* tile = (Tile*)NULL);
     /**
         This method draws the rally point for structure
         \param structure the object object pointer to draw rally point from
@@ -354,7 +354,9 @@ public:
 	void setType(int newType, bool resetSpice = true);
 	void squash();
 	int getInfantryTeam();
-	float harvestSpice();
+	int getExtractionSpeed () ;
+	float getSpiceExtractionSpeed(bool nobonus = false, bool deepharvest = false) ;
+	float harvestSpice(float extractionspeed);
 	void setSpice(float newSpice);
 
 	/**
@@ -364,6 +366,19 @@ public:
 	Coord getCenterPoint() const {
 	    return Coord( location.x*TILESIZE + (TILESIZE/2), location.y*TILESIZE + (TILESIZE/2) );
 	}
+
+	/**
+        Returns the not so precise center point of this tile
+        \return the center point in world coordinates
+	*/
+	Coord getUnpreciseCenterPoint() const ;
+
+	/**
+		Calculate free of GroundObject surroundings of this tile
+		\return the pair of Coordinates free and and integer representing to tile free surrounding
+	*/
+	std::pair<std::vector<Coord>,int> getFreeTile() ;
+
 
     /*!
 		returns a pointer to an air unit on this tile (if there's one)
@@ -393,6 +408,7 @@ public:
 		@return InfantryBase*  pointer to infantry object
 	*/
 	InfantryBase* getInfantry();
+	bool  isInfantryPacked() ;
 	ObjectBase* getObject();
 	ObjectBase* getObjectAt(int x, int y);
 	ObjectBase* getObjectWithID(Uint32 objectID);

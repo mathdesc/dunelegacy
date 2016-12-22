@@ -141,3 +141,17 @@ void OFileStream::writeFloat(float x)
 	memcpy(&tmp,&x,sizeof(Uint32)); // workaround for a strange optimization in gcc 4.1
 	writeUint32(tmp);
 }
+
+void OFileStream::writeCoord(Coord c)
+{
+	c.x = SDL_SwapLE32(c.x);
+	c.y = SDL_SwapLE32(c.y);
+
+	if(fwrite(&c.x,sizeof(Uint32),1,fp) != 1) {
+		throw OutputStream::error("OFileStream::writeCoord(): An I/O-Error occurred!");
+	}
+	if(fwrite(&c.y,sizeof(Uint32),1,fp) != 1) {
+			throw OutputStream::error("OFileStream::writeCoord(): An I/O-Error occurred!");
+	}
+}
+

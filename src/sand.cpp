@@ -403,6 +403,7 @@ Uint32  getItemIDByName(std::string name) {
 */
 std::string getItemNameByID(Uint32 itemID) {
 	switch(itemID) {
+		case ItemID_Invalid:				return "NONE_ID";			break;
 		case Structure_Barracks:            return "Barracks";		    break;
 		case Structure_ConstructionYard:    return "Const Yard";	    break;
 		case Structure_GunTurret:			return "Turret";		    break;

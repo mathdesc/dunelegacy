@@ -34,6 +34,12 @@
 #include <stdexcept>
 #include <unistd.h>
 
+#undef DUMPPIC
+
+#ifdef DUMPPIC
+#include <sand.h>
+#endif
+
 using std::shared_ptr;
 
 GFXManager::GFXManager() {
@@ -389,6 +395,11 @@ GFXManager::GFXManager() {
     objPic[ObjPic_ExplosionFire][HOUSE_HARKONNEN][1] = Scaler::defaultDoubleTiledSurface(objPic[ObjPic_ExplosionFire][HOUSE_HARKONNEN][0], 18, 1, false);
     objPic[ObjPic_ExplosionFire][HOUSE_HARKONNEN][2] = Scaler::defaultTripleTiledSurface(objPic[ObjPic_ExplosionFire][HOUSE_HARKONNEN][0], 18, 1, false);
 
+    objPic[ObjPic_SmallFire][HOUSE_HARKONNEN][0] = units1->getPictureArray(4,1, 3|TILE_NORMAL,4|TILE_NORMAL,3|TILE_NORMAL,2|TILE_NORMAL);
+    objPic[ObjPic_SmallFire][HOUSE_HARKONNEN][1] = Scaler::defaultDoubleTiledSurface(objPic[ObjPic_SmallFire][HOUSE_HARKONNEN][0], 4, 1, false);
+    objPic[ObjPic_SmallFire][HOUSE_HARKONNEN][2] = Scaler::defaultTripleTiledSurface(objPic[ObjPic_SmallFire][HOUSE_HARKONNEN][0], 4, 1, false);
+
+
     objPic[ObjPic_ExplosionSpiceBloom][HOUSE_HARKONNEN][0] = units1->getPictureArray(3,1,7|TILE_NORMAL,6|TILE_NORMAL,5|TILE_NORMAL);
     objPic[ObjPic_ExplosionSpiceBloom][HOUSE_HARKONNEN][1] = Scaler::defaultDoubleTiledSurface(objPic[ObjPic_ExplosionSpiceBloom][HOUSE_HARKONNEN][0], 3, 1, false);
     objPic[ObjPic_ExplosionSpiceBloom][HOUSE_HARKONNEN][2] = Scaler::defaultTripleTiledSurface(objPic[ObjPic_ExplosionSpiceBloom][HOUSE_HARKONNEN][0], 3, 1, false);
@@ -452,6 +463,15 @@ GFXManager::GFXManager() {
                 }
 		    }
 		}
+#ifdef DUMPPIC
+		if (objPic[i][0][0] != NULL) {
+				SDL_Surface* tmp;
+			    tmp = objPic[i][0][0];
+				std::string path = "/tmp";
+				std::string file = "objPic-"+std::to_string(i)+".bmp";
+				SDL_SaveBMP(tmp, (path + "/"+file).c_str());
+		}
+#endif
 	}
 
 
@@ -514,6 +534,13 @@ GFXManager::GFXManager() {
 				fprintf(stderr,"GFXManager: SDL_DisplayFormat() failed!\n");
 				exit(EXIT_FAILURE);
 			}
+#ifdef DUMPPIC
+			else {
+				std::string path = "/tmp";
+				std::string file = "smallDetailPic-"+std::to_string(i)+".bmp";
+				SDL_SaveBMP(tmp, (path + "/"+file).c_str());
+			}
+#endif
 			SDL_FreeSurface(tmp);
 		}
 	}
@@ -681,46 +708,95 @@ GFXManager::GFXManager() {
 	PicFactory->drawFrame(uiGraphic[UI_DuneLegacy][HOUSE_HARKONNEN],PictureFactory::SimpleFrame);
 
 
-	SDL_Surface *base, *top, * planet;
+	SDL_Surface *base, *top, * planet, *planet2;
+	// Planet at Day time
 	uiGraphic[UI_PlanetScape][HOUSE_HARKONNEN] =  SDL_LoadBMP_RW(pFileManager->openFile("PlanetScape.bmp"),true);
 	base = uiGraphic[UI_PlanetScape][HOUSE_HARKONNEN];
 	SDL_SetColorKey(base, SDL_SRCCOLORKEY | SDL_RLEACCEL, COLOR_WINDTRAP_COLORCYCLE);
 
-	// Planet at Day time
-	top = uiGraphic[UI_PlanetDay][HOUSE_HARKONNEN] =  SDL_LoadBMP_RW(pFileManager->openFile("PlanetDay.bmp"),true);
+	top = SDL_LoadBMP_RW(pFileManager->openFile("PlanetDay.bmp"),true);
 	SDL_SetColorKey(top, SDL_SRCCOLORKEY | SDL_RLEACCEL, COLOR_WINDTRAP_COLORCYCLE);
 	planet = combinePictures(base,top,0,0,false,false);
-	planet = combinePictures(planet,base,0,0,false,false);
-	uiGraphic[UI_PlanetDay][HOUSE_HARKONNEN] = planet;
+	planet2 = combinePictures(planet,base,0,0,false,false);
+	if((uiGraphic[UI_PlanetDay][HOUSE_HARKONNEN] = SDL_DisplayFormat(planet2)) == NULL) {
+						fprintf(stderr,"GFXManager: SDL_DisplayFormat() failed!\n");
+						exit(EXIT_FAILURE);
+	} else {
+		SDL_FreeSurface(planet2);
+		SDL_FreeSurface(planet);
+		SDL_FreeSurface(top);
+		SDL_FreeSurface(base);
+	}
 	PicFactory->drawFrame(uiGraphic[UI_PlanetDay][HOUSE_HARKONNEN],PictureFactory::SimpleFrame);
 	SDL_SetColorKey(uiGraphic[UI_PlanetDay][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, 0);
 
 	// Planet at morning time
+	uiGraphic[UI_PlanetScape][HOUSE_HARKONNEN] =  SDL_LoadBMP_RW(pFileManager->openFile("PlanetScape.bmp"),true);
+	base = uiGraphic[UI_PlanetScape][HOUSE_HARKONNEN];
+	SDL_SetColorKey(base, SDL_SRCCOLORKEY | SDL_RLEACCEL, COLOR_WINDTRAP_COLORCYCLE);
+
 	top = SDL_LoadBMP_RW(pFileManager->openFile("PlanetMorning.bmp"),true);
 	SDL_SetColorKey(top, SDL_SRCCOLORKEY | SDL_RLEACCEL, COLOR_WINDTRAP_COLORCYCLE);
 	planet = combinePictures(base,top,0,0,false,false);
-	planet = combinePictures(planet,base,0,0,false,false);
-	uiGraphic[UI_PlanetMorning][HOUSE_HARKONNEN] = planet;
+	planet2 = combinePictures(planet,base,0,0,false,false);
+	if((uiGraphic[UI_PlanetMorning][HOUSE_HARKONNEN] = SDL_DisplayFormat(planet2)) == NULL) {
+						fprintf(stderr,"GFXManager: SDL_DisplayFormat() failed!\n");
+						exit(EXIT_FAILURE);
+	} else {
+		SDL_FreeSurface(planet2);
+		SDL_FreeSurface(planet);
+		SDL_FreeSurface(top);
+		SDL_FreeSurface(base);
+	}
 	PicFactory->drawFrame(uiGraphic[UI_PlanetMorning][HOUSE_HARKONNEN],PictureFactory::SimpleFrame);
 	SDL_SetColorKey(uiGraphic[UI_PlanetMorning][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, 0);
 
 	// Planet at eve time
+	uiGraphic[UI_PlanetScape][HOUSE_HARKONNEN] =  SDL_LoadBMP_RW(pFileManager->openFile("PlanetScape.bmp"),true);
+	base = uiGraphic[UI_PlanetScape][HOUSE_HARKONNEN];
+	SDL_SetColorKey(base, SDL_SRCCOLORKEY | SDL_RLEACCEL, COLOR_WINDTRAP_COLORCYCLE);
+
 	top = SDL_LoadBMP_RW(pFileManager->openFile("PlanetEve.bmp"),true);
 	SDL_SetColorKey(top, SDL_SRCCOLORKEY | SDL_RLEACCEL, COLOR_WINDTRAP_COLORCYCLE);
 	planet = combinePictures(base,top,0,0,false,false);
-	planet = combinePictures(planet,base,0,0,false,false);
-	uiGraphic[UI_PlanetEve][HOUSE_HARKONNEN] = planet;
+	planet2 = combinePictures(planet,base,0,0,false,false);
+	if((uiGraphic[UI_PlanetEve][HOUSE_HARKONNEN] = SDL_DisplayFormat(planet2)) == NULL) {
+						fprintf(stderr,"GFXManager: SDL_DisplayFormat() failed!\n");
+						exit(EXIT_FAILURE);
+	} else {
+		SDL_FreeSurface(planet2);
+		SDL_FreeSurface(planet);
+		SDL_FreeSurface(top);
+		SDL_FreeSurface(base);
+	}
 	PicFactory->drawFrame(uiGraphic[UI_PlanetEve][HOUSE_HARKONNEN],PictureFactory::SimpleFrame);
 	SDL_SetColorKey(uiGraphic[UI_PlanetEve][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, 0);
 
 	// Planet at night time
+	uiGraphic[UI_PlanetScape][HOUSE_HARKONNEN] =  SDL_LoadBMP_RW(pFileManager->openFile("PlanetScape.bmp"),true);
+	base = uiGraphic[UI_PlanetScape][HOUSE_HARKONNEN];
+	SDL_SetColorKey(base, SDL_SRCCOLORKEY | SDL_RLEACCEL, COLOR_WINDTRAP_COLORCYCLE);
+
 	top = SDL_LoadBMP_RW(pFileManager->openFile("PlanetNight.bmp"),true);
 	SDL_SetColorKey(top, SDL_SRCCOLORKEY | SDL_RLEACCEL, COLOR_WINDTRAP_COLORCYCLE);
 	planet = combinePictures(base,top,0,0,false,false);
-	planet = combinePictures(planet,base,0,0,false,false);
-	uiGraphic[UI_PlanetNight][HOUSE_HARKONNEN] = planet;
+	planet2 = combinePictures(planet,base,0,0,false,false);
+	if((uiGraphic[UI_PlanetNight][HOUSE_HARKONNEN] = SDL_DisplayFormat(planet2)) == NULL) {
+						fprintf(stderr,"GFXManager: SDL_DisplayFormat() failed!\n");
+						exit(EXIT_FAILURE);
+	} else {
+		SDL_FreeSurface(planet2);
+		SDL_FreeSurface(planet);
+		SDL_FreeSurface(top);
+		SDL_FreeSurface(base);
+	}
 	PicFactory->drawFrame(uiGraphic[UI_PlanetNight][HOUSE_HARKONNEN],PictureFactory::SimpleFrame);
 	SDL_SetColorKey(uiGraphic[UI_PlanetNight][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, 0);
+
+
+
+	uiGraphic[UI_PlanetScape][HOUSE_HARKONNEN] =  SDL_LoadBMP_RW(pFileManager->openFile("PlanetScape.bmp"),true);
+	SDL_SetColorKey(uiGraphic[UI_PlanetScape][HOUSE_HARKONNEN], SDL_SRCCOLORKEY | SDL_RLEACCEL, COLOR_WINDTRAP_COLORCYCLE);
 
 
 
@@ -972,6 +1048,13 @@ GFXManager::GFXManager() {
 					fprintf(stderr,"GFXManager: SDL_DisplayFormat() failed!\n");
 					exit(EXIT_FAILURE);
 				}
+#ifdef DUMPPIC
+			else {
+				std::string path = "/tmp";
+				std::string file = "ui-graph-"+std::to_string(i)+".bmp";
+				SDL_SaveBMP(tmp, (path + "/"+file).c_str());
+			}
+#endif
 				SDL_FreeSurface(tmp);
 			}
 		}
@@ -1111,6 +1194,7 @@ GFXManager::~GFXManager() {
 
 	SDL_FreeSurface(pTransparent40Surface);
 	SDL_FreeSurface(pTransparent150Surface);
+	SDL_FreeSurface(pTransparentXSurface);
 }
 
 SDL_Surface** GFXManager::getObjPic(unsigned int id, int house) {

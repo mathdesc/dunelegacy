@@ -27,6 +27,8 @@
 
 #include <players/HumanPlayer.h>
 
+#include <structures/TurretBase.h>
+
 #include <structures/StructureBase.h>
 #include <structures/Refinery.h>
 #include <structures/RepairYard.h>
@@ -86,6 +88,65 @@ void InfantryBase::handleCaptureClick(int xPos, int yPos) {
 		}
 	}
 
+}
+
+void InfantryBase::handleDamage(int damage, Uint32 damagerID, House* damagerOwner) {
+
+	ObjectBase* damager = currentGame->getObjectManager().getObject(damagerID);
+	Tile* pTile = currentGameMap->getTile(location);
+	if (pTile->isDunes() || pTile->isRock())
+		damage *= 0.85;
+	if (pTile->isRock())
+		damage *= 0.75;
+	if (pTile->isMountain() && (!damager || (!damager->isAFlyingUnit() && ( !damager->isAUnit() || (damager->isAUnit() && !((UnitBase*)damager)->isSalving())) ) ) )
+		damage *= 0.55;
+	else if (pTile->isMountain() && damager && !damager->isAFlyingUnit() && damager->isAUnit() && ((UnitBase*)damager)->isSalving() ) {
+		damage *= 0.65;
+	} else if (pTile->isMountain() && damager && damager->isAFlyingUnit()) {
+		damage *= 0.75;
+	}
+
+
+	if (damager != NULL) {
+		int bullet = Bullet_ShellSmall;
+
+		if (damager->isAUnit())
+			bullet = ((UnitBase*)damager)->getBulletType();
+		if (damager->isAStructure() && damager->canAttack()) {
+			StructureBase* pStruct =  ((StructureBase*)damager);
+			int pStructItem = pStruct->getItemID() ;
+			if (pStructItem == Structure_GunTurret || pStructItem == Structure_RocketTurret) {
+				bullet = ((TurretBase*)pStruct)->getBulletType();
+			}
+		}
+
+		switch (bullet) {
+			case Bullet_Rocket:
+			case Bullet_DRocket:
+			case Bullet_TurretRocket:
+				damage *=0.15;
+				break;
+			case Bullet_HomingRocket:
+				damage *=0.30;
+				break;
+			case Bullet_ShellMedium:
+				damage *= 0.25;
+				break;
+			case Bullet_ShellLarge:
+				damage *= 0.15;
+				break;
+			case Bullet_ShellSmall:
+			case Bullet_SmallRocket:
+			case Bullet_Sonic:
+			default :
+				break;
+		}
+
+	}
+
+	if (damage < 1) damage = 1 ;
+
+	ObjectBase::handleDamage( damage,  damagerID,  damagerOwner);
 }
 
 void InfantryBase::doCaptureStructure(Uint32 targetStructureID) {

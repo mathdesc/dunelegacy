@@ -33,7 +33,7 @@
 #include <algorithm>
 
 
-Bullet::Bullet(Uint32 shooterID, Coord* newRealLocation, Coord* newRealDestination, Uint32 bulletID, int damage, bool air)
+Bullet::Bullet(Uint32 shooterID, Coord* newRealLocation, Coord* newRealDestination, Uint32 bulletID, int damage, bool air, int precisionOffset)
 {
     airAttack = air;
 
@@ -87,7 +87,9 @@ Bullet::Bullet(Uint32 shooterID, Coord* newRealLocation, Coord* newRealDestinati
 
 
         float randAngle = 2.0f * strictmath::pi * currentGame->randomGen.randFloat();
-        int radius = currentGame->randomGen.rand(0,TILESIZE/2 + (distance/TILESIZE));
+        int maxrad = TILESIZE/2 + (distance/TILESIZE) + precisionOffset;
+        int radius = currentGame->randomGen.rand(0, maxrad  < 0 ? 0 : maxrad  );
+
 
         destination.x += strictmath::cos(randAngle) * radius;
         destination.y -= strictmath::sin(randAngle) * radius;
@@ -376,6 +378,7 @@ void Bullet::update()
 {
 	if(bulletID == Bullet_Rocket || bulletID == Bullet_DRocket) {
 
+		//TODO : add wind effect for long range missile
         float angleToDestination = destinationAngle(Coord(realX, realY), destination);
 
         float angleDiff = angleToDestination - angle;

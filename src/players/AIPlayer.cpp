@@ -426,7 +426,7 @@ void AIPlayer::build() {
         //if this players structure, and its a heavy factory, build something
         if(pStructure->getOwner() == getHouse()) {
 
-            if((pStructure->isRepairing() == false) && (pStructure->getHealth() < pStructure->getMaxHealth())) {
+            if((pStructure->isRepairing() == false) && (pStructure->getHealth() < pStructure->getMaxHealth()) && (getHouse()->getCredits() > 100) ) {
                 doRepair(pStructure);
             }
 
@@ -449,10 +449,27 @@ void AIPlayer::build() {
                     } break;
 
                     case Structure_LightFactory: {
-                        if(isAllowedToArm() && getHouse()->hasHeavyFactory() == false) {
+                        if(isAllowedToArm() && getHouse()->hasHeavyFactory() == true) {
                             if((getHouse()->getCredits() > 1500) && (pBuilder->getProductionQueueSize() < 1) && (pBuilder->getBuildListSize() > 0)) {
-                                doBuildRandom(pBuilder);
+								int numTanks = getHouse()->getNumItems(Unit_Devastator) + getHouse()->getNumItems(Unit_SiegeTank) + getHouse()->getNumItems(Unit_Tank);
+								int numLauncher = getHouse()->getNumItems(Unit_Launcher) + getHouse()->getNumItems(Unit_Deviator);
+								//int numRanger = numLauncher + getHouse()->getNumItems(Unit_SonicTank);
+								int numLight = getHouse()->getNumItems(Unit_Quad) + getHouse()->getNumItems(Unit_Trike) + getHouse()->getNumItems(Unit_RaiderTrike);
+								//int numInf = getHouse()->getNumItems(Unit_Infantry) + getHouse()->getNumItems(Unit_Troopers) + getHouse()->getNumItems(Unit_Trooper);
+								if ((pBuilder->isAvailableToBuild(Unit_Quad) || pBuilder->isAvailableToBuild(Unit_Trike) || pBuilder->isAvailableToBuild(Unit_RaiderTrike))
+										&& (numLight <= numLauncher + numTanks/5 )) {
+									if (pBuilder->isAvailableToBuild(Unit_Quad))
+										doProduceItem(pBuilder, Unit_Quad);
+									else if (pBuilder->isAvailableToBuild(Unit_Trike))
+										doProduceItem(pBuilder, Unit_Trike);
+									else if (pBuilder->isAvailableToBuild(Unit_RaiderTrike))
+										doProduceItem(pBuilder, Unit_RaiderTrike);
+								}
                             }
+                        } else if (isAllowedToArm()) {
+                        	if((getHouse()->getCredits() > 1500) && (pBuilder->getProductionQueueSize() < 1) && (pBuilder->getBuildListSize() > 0)) {
+								doBuildRandom(pBuilder);
+                        	}
                         }
                     } break;
 
@@ -472,8 +489,12 @@ void AIPlayer::build() {
                             } else if(getHouse()->getCredits() > 1500) {
                                 int numTanks = getHouse()->getNumItems(Unit_Devastator) + getHouse()->getNumItems(Unit_SiegeTank) + getHouse()->getNumItems(Unit_Tank);
                                 int numLauncher = getHouse()->getNumItems(Unit_Launcher) + getHouse()->getNumItems(Unit_Deviator);
+                                int numRanger = numLauncher + getHouse()->getNumItems(Unit_SonicTank);
+                                int numLight = getHouse()->getNumItems(Unit_Quad) + getHouse()->getNumItems(Unit_Trike) + getHouse()->getNumItems(Unit_RaiderTrike);
+                                int numInf = getHouse()->getNumItems(Unit_Infantry) + getHouse()->getNumItems(Unit_Troopers) + getHouse()->getNumItems(Unit_Trooper);
 
-                                if(pBuilder->isAvailableToBuild(Unit_SonicTank)) {
+
+                                if(pBuilder->isAvailableToBuild(Unit_SonicTank) &&  5*numRanger <= numTanks) {
                                     doProduceItem(pBuilder, Unit_SonicTank);
                                 } else if(pBuilder->isAvailableToBuild(Unit_Devastator) && numTanks <= 5*numLauncher && getHouse()->getNumItems(Unit_Devastator) < getHouse()->getNumItems(Unit_SiegeTank)) {
                                     doProduceItem(pBuilder, Unit_Devastator);
@@ -493,9 +514,9 @@ void AIPlayer::build() {
                     } break;
 
                     case Structure_HighTechFactory: {
-                        if(isAllowedToArm() && (getHouse()->getCredits() > 800) && (pBuilder->getProductionQueueSize() < 1)) {
+                        if(isAllowedToArm() && (getHouse()->getCredits() > 800) && (pBuilder->getBuildListSize() > 0) && (pBuilder->getProductionQueueSize() < 1)) {
 
-                            if(getHouse()->getNumItems(Unit_Carryall) < (getHouse()->getNumItems(Unit_Harvester)+1)/2) {
+                            if(getHouse()->getNumItems(Unit_Carryall) < ((getHouse()->getNumItems(Unit_Harvester)+1)/2 + getHouse()->getNumItems(Structure_RepairYard))) {
                                 doProduceItem(pBuilder, Unit_Carryall);
                             } else if(getHouse()->getCredits() > 2500) {
                                 doProduceItem(pBuilder, Unit_Ornithopter);
@@ -598,9 +619,9 @@ void AIPlayer::build() {
                                         itemID = Structure_RepairYard;
                                     } else if(((difficulty == AIPlayer::MEDIUM) || (difficulty == AIPlayer::HARD)) && getHouse()->getNumItems(Structure_Refinery) < 4 && pBuilder->isAvailableToBuild(Structure_Refinery)) {
                                         itemID = Structure_Refinery;
-                                    } else if((difficulty == AIPlayer::HARD) && getHouse()->getNumItems(Structure_Refinery) < 6 && pBuilder->isAvailableToBuild(Structure_Refinery)) {
+                                    } else if((difficulty == AIPlayer::HARD) && getHouse()->getNumItems(Structure_Refinery) <5 && pBuilder->isAvailableToBuild(Structure_Refinery)) {
                                         itemID = Structure_Refinery;
-                                    } else if((difficulty == AIPlayer::VERY_HARD) && getHouse()->getNumItems(Structure_Refinery) < 12 && pBuilder->isAvailableToBuild(Structure_Refinery)) {
+                                    } else if((difficulty == AIPlayer::VERY_HARD) && getHouse()->getNumItems(Structure_Refinery) < 6 && pBuilder->isAvailableToBuild(Structure_Refinery)) {
                                         itemID = Structure_Refinery;
                                     } else if((getHouse()->getNumItems(Structure_HeavyFactory) < 3) && pBuilder->isAvailableToBuild(Structure_HeavyFactory)) {
                                         itemID = Structure_HeavyFactory;

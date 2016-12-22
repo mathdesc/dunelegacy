@@ -39,6 +39,10 @@ protected:
 		mainHBox.addWidget(Spacer::create());
 		mainHBox.addWidget(&repairUnitProgressBar);
 		mainHBox.addWidget(Spacer::create());
+		repairUnitProgressBar.setTooltipText(_("Emergency Exit (Right-Click)"));
+		repairUnitProgressBar.setOnClick(std::bind(&RepairYardInterface::exitUnit, this  ,std::placeholders::_1, std::placeholders::_2));
+
+
 	}
 
 	/**
@@ -69,8 +73,27 @@ protected:
 		return DefaultStructureInterface::update();
 	}
 
+
+	inline void exitUnit(int x, int y) {
+		ObjectBase* pObject = currentGame->getObjectManager().getObject(objectID);
+		if(pObject == NULL) {
+			return ;
+		}
+
+		RepairYard* pRepairYard = dynamic_cast<RepairYard*>(pObject);
+
+		if(pRepairYard != NULL) {
+			UnitBase* pUnit = pRepairYard->getRepairUnit();
+
+			if(pUnit != NULL) {
+				pRepairYard->deployRepairUnit();
+			}
+		}
+	}
+
 private:
 	PictureProgressBar	repairUnitProgressBar;
+
 };
 
 #endif // REPAIRYARDINTERFACE_H

@@ -147,7 +147,7 @@ void CommandManager::executeCommands(Uint32 CycleNumber) const {
 
 	for(iter = cmdlist.begin(); iter != cmdlist.end(); ++iter) {
 
-/*
+#if 0
         fprintf(stderr, "Executing Command (GameCycle %d): PlayerID=%d, Cmd=%d, Params=", CycleNumber, iter->getPlayerID(), iter->getCommandID());
 
         std::vector<Uint32> params = iter->getParameter();
@@ -156,8 +156,8 @@ void CommandManager::executeCommands(Uint32 CycleNumber) const {
             fprintf(stderr, "%d ", *paramiter);
         }
         fprintf(stderr,"\n");
+#endif
 
-*/
 		iter->executeCommand();
 	}
 }

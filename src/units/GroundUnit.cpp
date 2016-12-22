@@ -85,17 +85,17 @@ void GroundUnit::checkPos() {
 		}
 	}
 
-	if(goingToRepairYard) {
-	    if(oldTarget.getObjPointer() == NULL) {
+	if(!isInfantry() && goingToRepairYard) {
+	    if(fellow.getObjPointer() == NULL) {
             goingToRepairYard = false;
             awaitingPickup = false;
             bookedCarrier = NONE;
 
             clearPath();
 	    } else {
-            Coord closestPoint = oldTarget.getObjPointer()->getClosestPoint(location);
+            Coord closestPoint = fellow.getObjPointer()->getClosestPoint(location);
             if (!moving && !justStoppedMoving && (blockDistance(location, closestPoint) <= 1.5f)
-                && ((RepairYard*)oldTarget.getObjPointer())->isFree())
+                && ((RepairYard*)fellow.getObjPointer())->isFree())
             {
                 if (getHealth()*100.0f/getMaxHealth() < 100.0f) {
                     setGettingRepaired();
@@ -118,6 +118,10 @@ void GroundUnit::playSelectSound() {
 
 bool GroundUnit::requestCarryall() {
 
+	if (itemID == Unit_MCV || itemID == Unit_Sandworm ) {
+		return false;
+	}
+
 	if (getOwner()->hasCarryalls())	{
 		Carryall* carryall = NULL;
 		float distance = std::numeric_limits<float>::infinity();
@@ -127,7 +131,7 @@ bool GroundUnit::requestCarryall() {
 	    for(iter = unitList.begin(); iter != unitList.end(); ++iter) {
 			unit = *iter;
 			if ((unit->getOwner() == owner) && (unit->getItemID() == Unit_Carryall)) {
-				if(!((Carryall*)unit)->isBooked()) {
+				if(!((Carryall*)unit)->isBooked() && ((Carryall*)unit)->getAttackMode() != STOP ) {
 					if (distance >  std::min(distance,blockDistance(this->location, unit->getLocation())) ) {
 						bestunit=unit;
 						distance = std::min(distance,blockDistance(this->location, unit->getLocation()));
@@ -142,9 +146,6 @@ bool GroundUnit::requestCarryall() {
 			carryall->setFellow(this);
 			carryall->clearPath();
 			bookCarrier(carryall);
-
-			//setDestination(&location);	//stop moving, and wait for carryall to arrive
-
 			return true;
 	    }
 
@@ -194,7 +195,7 @@ void GroundUnit::handleRepairClick() {
 
 
 void GroundUnit::doRepair() {
-	if(getHealth() < getMaxHealth()) {
+	if( !isInfantry() && getHealth() < getMaxHealth()) {
 		//find a repair yard to return to
 
 		float	closestLeastBookedRepairYardDistance = std::numeric_limits<float>::infinity();

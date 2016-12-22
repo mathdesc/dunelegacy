@@ -274,14 +274,14 @@ void Player::doReturn(const Harvester* pHarvester) {
     }
 }
 
-void Player::doDeploy(const Harvester* pHarvester, Coord location) {
+/*void Player::doDeploy(const Harvester* pHarvester, Coord location) {
     if(pHarvester->getOwner() == getHouse()) {
         const_cast<Harvester*>(pHarvester)->doDeploy(location);
     } else {
         fprintf(stderr,"Player %s tries to deploy a harvester he doesn't own!\n", playername.c_str());
         return;
     }
-}
+}*/
 
 void Player::doCaptureStructure(const InfantryBase* pInfantry, const StructureBase* pTargetStructure) {
     if(pInfantry->getOwner() == getHouse()) {

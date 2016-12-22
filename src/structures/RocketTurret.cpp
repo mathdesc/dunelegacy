@@ -21,11 +21,12 @@
 
 #include <Bullet.h>
 #include <SoundPlayer.h>
-
+#include <sand.h>
 #include <FileClasses/GFXManager.h>
 #include <FileClasses/SFXManager.h>
 #include <House.h>
 #include <Game.h>
+#include <Map.h>
 
 RocketTurret::RocketTurret(House* newOwner) : TurretBase(newOwner) {
     RocketTurret::init();
@@ -56,7 +57,7 @@ RocketTurret::~RocketTurret() {
 
 void RocketTurret::updateStructureSpecificStuff() {
 	if( ( !currentGame->getGameInitSettings().getGameOptions().rocketTurretsNeedPower || getOwner()->hasPower() )
-        || ( ((currentGame->gameType == GAMETYPE_CAMPAIGN) || (currentGame->gameType == GAMETYPE_SKIRMISH)) && getOwner()->isAI()) ) {
+      /*  || ( ((currentGame->gameType == GAMETYPE_CAMPAIGN) || (currentGame->gameType == GAMETYPE_SKIRMISH)) && getOwner()->isAI())*/ ) {
 		TurretBase::updateStructureSpecificStuff();
 	}
 }
@@ -72,26 +73,85 @@ bool RocketTurret::canAttack(const ObjectBase* object) const {
 }
 
 void RocketTurret::attack() {
+
+	// XXX swap so that in case two targets are set, the flying unit always is on the oldtarget slot
+	if (target.getObjPointer() != NULL && getTarget()->isAFlyingUnit() &&
+		oldtarget.getObjPointer() != NULL && !getOldTarget()->isAFlyingUnit()) {
+		ObjectBase * tmp = getOldTarget();
+		setOldTarget(getTarget());
+		setTarget(tmp);
+	}
+
+
 	if((weaponTimer == 0) && (target.getObjPointer() != NULL)) {
 		Coord centerPoint = getCenterPoint();
-		Coord targetCenterPoint = target.getObjPointer()->getClosestCenterPoint(location);
+		Coord targetCenterPoint;
+		int precision = 0;
+		/// TODO : should be made a tech-option : precision firing in FOW
+		Tile *pTile 	=currentGameMap->getTile(target.getObjPointer()->getLocation()) ;
+		bool isFogged 	= pTile->isFogged(owner->getHouseID());
+		bool isExplored = pTile->isExplored(owner->getHouseID());
+		if (true && (isFogged || !isExplored ) ) {
+			targetCenterPoint = pTile->getUnpreciseCenterPoint();
+			precision = ceil(distanceFrom(targetCenterPoint,target.getObjPointer()->getClosestCenterPoint(location)));
+		}
+		else {
+			targetCenterPoint = target.getObjPointer()->getClosestCenterPoint(location);
+		}
 
-		if(distanceFrom(centerPoint, targetCenterPoint) < 3 * TILESIZE) {
+		if (this->isSelected()) err_relax_print("TurretBase::updateStructureSpecificStuff target:%s(%d) oldtarget:%s(%d) \n",
+											getItemNameByID(target.getObjPointer() != NULL ? target.getObjPointer()->getItemID() : ItemID_Invalid).c_str(),
+											target.getObjPointer() != NULL ? target.getObjPointer()->getObjectID() : -1,
+											getItemNameByID(oldtarget.getObjPointer() != NULL ? oldtarget.getObjPointer()->getItemID() : ItemID_Invalid).c_str(),
+											oldtarget.getObjPointer() != NULL ? oldtarget.getObjPointer()->getObjectID() : -1);
+
+		if(distanceFrom(centerPoint, targetCenterPoint) < 3 * TILESIZE &&  !target.getObjPointer()->isAFlyingUnit() ) {
             // we are just shooting a bullet as a gun turret would do
             bulletList.push_back( new Bullet( objectID, &centerPoint, &targetCenterPoint, Bullet_ShellMedium,
                                                    currentGame->objectData.data[Structure_GunTurret][originalHouseID].weapondamage,
-                                                   target.getObjPointer()->isAFlyingUnit() ) );
+                                                   target.getObjPointer()->isAFlyingUnit(), precision ) );
 
             soundPlayer->playSoundAt(Sound_MountedCannon, location);
             weaponTimer = currentGame->objectData.data[Structure_GunTurret][originalHouseID].weaponreloadtime;
-		} else {
+		} else  {
             // we are in normal shooting mode
             bulletList.push_back( new Bullet( objectID, &centerPoint, &targetCenterPoint, bulletType,
                                                    currentGame->objectData.data[itemID][originalHouseID].weapondamage,
-                                                   target.getObjPointer()->isAFlyingUnit() ) );
+                                                   target.getObjPointer()->isAFlyingUnit(), precision ) );
 
             soundPlayer->playSoundAt(attackSound, location);
+
+            // XXX : should be made a tech-option : rturret able to take an opportunistic second shoot from the same angle at a flying oldtarget
+            if (true && oldtarget.getObjPointer() != NULL && oldtarget.getObjPointer()->isActive() &&  oldtarget.getObjPointer()->isAFlyingUnit()) {
+				pTile 		= currentGameMap->getTile(oldtarget.getObjPointer()->getLocation()) ;
+				isFogged  	= pTile->isFogged(owner->getHouseID());
+				isExplored 	= pTile->isExplored(owner->getHouseID());
+				Coord oldtargetCenterPoint;
+				if (true && (isFogged || !isExplored ) ) {
+					oldtargetCenterPoint = pTile->getUnpreciseCenterPoint();
+					precision = ceil(distanceFrom(oldtargetCenterPoint,oldtarget.getObjPointer()->getClosestCenterPoint(location)));
+				}
+				else {
+					oldtargetCenterPoint = oldtarget.getObjPointer()->getClosestCenterPoint(location);
+				}
+				Coord closestPoint = oldtarget.getObjPointer()->getClosestPoint(location);
+				float destAngle = destinationAngle(location, closestPoint);
+				int wantedAngle = lround(8.0f/256.0f*destAngle);
+
+				if(wantedAngle == 8) {
+					wantedAngle = 0;
+				}
+
+				if (drawnAngle == wantedAngle) {
+					 // we are in normal shooting mode
+					bulletList.push_back( new Bullet( objectID, &centerPoint, &oldtargetCenterPoint, bulletType,
+														   currentGame->objectData.data[itemID][originalHouseID].weapondamage,
+														   oldtarget.getObjPointer()->isAFlyingUnit(), precision ) );
+				}
+            }
             weaponTimer = getWeaponReloadTime();
+
+
 		}
 
 	}

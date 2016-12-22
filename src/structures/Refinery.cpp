@@ -52,7 +52,7 @@ Refinery::Refinery(InputStream& stream) : StructureBase(stream) {
 
 	extractingSpice = stream.readBool();
 	harvester.load(stream);
-	bookings = stream.readUint32();
+	bookings = stream.readSint32();
 
 	if(extractingSpice) {
 		firstAnimFrame = 8;
@@ -93,7 +93,7 @@ void Refinery::save(OutputStream& stream) const {
 
     stream.writeBool(extractingSpice);
 	harvester.save(stream);
-	stream.writeUint32(bookings);
+	stream.writeSint32(bookings);
 }
 
 ObjectInterface* Refinery::getInterfaceContainer() {
@@ -119,36 +119,76 @@ bool Refinery::deployHarvester(Carryall* pCarryall) {
 	Harvester* pHarvester = (Harvester*) harvester.getObjPointer();
 
 	if (harvester && (harvester.getObjPointer() != NULL)) {
-		unBook();
-		drawnAngle = 0;
-		extractingSpice = false;
-
-
 		if(firstRun) {
 			if(getOwner() == pLocalHouse) {
 				soundPlayer->playVoice(HarvesterDeployed,getOwner()->getHouseID());
 			}
+			firstRun = false;
+			// Start prospection from refinery zone
+			if (pHarvester->startProspection(location) == Coord::Invalid()) {
+				if(pHarvester->getOwner()->hasRadarOn()) {
+					// TODO : lead harvester to a known spice area
+					// that is from the pool of harvesters to get
+					// it from (.ie by the closure of a graph of all collected samples)
+					// only if radar is on
+				}
+			}
 		}
 
-		firstRun = false;
 
-		if (owner->getStoredCredits() >= owner->getCapacity()) {
-			Coord deployPos = currentGameMap->findDeploySpot(pHarvester, location, location, structureSize);
-			pHarvester->deploy(deployPos);
-			if (pHarvester->getAmountOfSpice() >= HARVESTERMAXSPICE -1)
-				pHarvester->doSetAttackMode(STOP);
-			deployed = true;
-		} else if(pCarryall != NULL) {
-			pCarryall->setFellow(NULL);
-			pCarryall->giveCargo(pHarvester);
-			pCarryall->setDestination(pHarvester->getGuardPoint());
-			pCarryall->setDeployPos(pHarvester->getGuardPoint());
-			pCarryall->setFallbackPos(currentGameMap->findDeploySpot(pHarvester, location, pHarvester->getGuardPoint(), structureSize));
-			deployed = true;
-		} else {
-			Coord deployPos = currentGameMap->findDeploySpot(pHarvester, location, pHarvester->getGuardPoint(), structureSize);
-			pHarvester->deploy(deployPos);
-			deployed = true;
+		 {
+			if (owner->getStoredCredits() >= owner->getCapacity()) {
+				Coord deployPos = currentGameMap->findDeploySpot(pHarvester, location, location, structureSize);
+				pHarvester->deploy(deployPos);
+				if (pHarvester->getAmountOfSpice() >= HARVESTERMAXSPICE -1)
+					pHarvester->doSetAttackMode(STOP);
+				deployed = true;
+			} else if(pCarryall != NULL) {
+				pCarryall->giveCargo(pHarvester);
+				pCarryall->setFellow(NULL);
+				pCarryall->giveDeliveryOrders(pHarvester, pHarvester->getGuardPoint(), pHarvester->getGuardPoint(),
+														currentGameMap->findDeploySpot(pHarvester, location, pHarvester->getGuardPoint(), structureSize));
+				deployed = true;
+			} else {
+				Coord deployPos = currentGameMap->findDeploySpot(pHarvester, location, pHarvester->getGuardPoint(), structureSize);
+				pHarvester->deploy(deployPos);
+				deployed = true;
+			}
+		}
+
+		if (deployed) {
+
+
+			/// XXX
+			/*
+			if (pHarvester->getFellow() !=NULL) {
+				pHarvester->swapOldNewFellow();
+				if (pHarvester->getOldFellow() != NULL &&
+						(pHarvester->getOldFellow()->getItemID() == Structure_Refinery || pHarvester->getOldFellow()->getItemID() == Unit_Carryall
+								|| !pHarvester->getOldFellow()->isActive())
+					) {
+					pHarvester->setOldFellow(NULL);
+				}
+
+			}
+			if (pHarvester->getFellow() !=NULL) {
+				if (pHarvester->getFellow() != NULL &&
+										(pHarvester->getFellow()->getItemID() == Structure_Refinery || pHarvester->getFellow()->getItemID() == Unit_Carryall
+												|| !pHarvester->getFellow()->isActive())
+					) {
+					pHarvester->setFellow(NULL);
+				}
+			}
+			 	*/
+
+
+			err_print("Refinery::deployHarvester Harvester %d f:%d of:%d \n",pHarvester->getObjectID(),
+								(pHarvester->getFellow() !=NULL && pHarvester->getFellow()->getObjectID()) || -1,
+								(pHarvester->getOldFellow() != NULL && pHarvester->getOldFellow()->getObjectID()) || -1);
+			harvester.pointTo(NONE);
+			unBook();
+			drawnAngle = 0;
+			extractingSpice = false;
 		}
 
 		if(bookings == 0) {
@@ -157,7 +197,6 @@ bool Refinery::deployHarvester(Carryall* pCarryall) {
 			startAnimate();
 		}
 
-		harvester.pointTo(NONE);
 	}
 	return deployed;
 }
@@ -196,18 +235,17 @@ void Refinery::updateStructureSpecificStuff() {
 		    	owner->addCredits(pHarvester->extractSpice(extractionSpeed), true);
 		    } else {
 		    	// refuse cargo, we are full !
-		    	soundPlayer->playSoundAt(Sound_Steam,this->location);
 		    	deployHarvester();
 		    }
 		} else if(pHarvester->isAwaitingPickup() == false) {
-		    // find carryall
+		    // find carryall TODO groundunit->requestCarryall instead
 		    Carryall* pCarryall = NULL;
 		    float distance = std::numeric_limits<float>::infinity();
             if((pHarvester->getGuardPoint().isValid()) && getOwner()->hasCarryalls())	{
                 RobustList<UnitBase*>::const_iterator iter;
                 for(iter = unitList.begin(); iter != unitList.end(); ++iter) {
                     UnitBase* unit = *iter;
-                    if ((unit->getOwner() == owner) && (unit->getItemID() == Unit_Carryall) && !((Carryall*)unit)->isBooked()) {
+                    if ((unit->getOwner() == owner) && (unit->getItemID() == Unit_Carryall) && !((Carryall*)unit)->isBooked() && ((Carryall*)unit)->getAttackMode() != STOP ) {
 
                     	if (distance >  std::min(distance,blockDistance(this->location, unit->getLocation())) ) {
                     		distance = std::min(distance,blockDistance(this->location, unit->getLocation()));

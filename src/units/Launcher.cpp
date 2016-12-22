@@ -189,6 +189,7 @@ void Launcher::salveAttack(Coord Pos, Coord Target) {
 			bool isFogged, isExplored;
 			int currentBulletType;
 			Sint32 currentWeaponDamage;
+			int precision = 0;
 
 			if (target && target.getObjPointer() != NULL) {
 				targetCenterPoint = target.getObjPointer()->getClosestCenterPoint(location);
@@ -197,21 +198,47 @@ void Launcher::salveAttack(Coord Pos, Coord Target) {
 			}
 
 			if (target.getObjPointer() != NULL && Target.isValid()) {
-				targetCenterPoint = target.getObjPointer()->getClosestCenterPoint(location);
+				Tile *pTile = currentGameMap->getTile(target.getObjPointer()->getLocation());
+				isFogged 	= pTile->isFogged(owner->getHouseID());
+				isExplored 	= pTile->isExplored(owner->getHouseID());
+				/// TODO : should be made a tech-option : precision firing in FOW
+				if (true && (isFogged || !isExplored )) {
+					targetCenterPoint = pTile->getUnpreciseCenterPoint();
+					precision = ceil(distanceFrom(targetCenterPoint,target.getObjPointer()->getClosestCenterPoint(location)));
+				}
+				else {
+					targetCenterPoint = target.getObjPointer()->getClosestCenterPoint(location);
+				}
 				bAirBullet = target.getObjPointer()->isAFlyingUnit();
 				/* Target is "locked" */
-				isFogged = false;
-				isExplored = true;
+
 			} else if(currentGameMap->tileExists(Target)) {
-				targetCenterPoint = currentGameMap->getTile(Target)->getCenterPoint();
+				Tile *pTile = currentGameMap->getTile(Target);
+				isFogged 	= pTile->isFogged(owner->getHouseID());
+				isExplored 	= pTile->isExplored(owner->getHouseID());
+				/// TODO : should be made a tech-option : precision firing in FOW
+				if (true && (isFogged || !isExplored )) {
+					targetCenterPoint = pTile->getUnpreciseCenterPoint();
+					precision = ceil(distanceFrom(targetCenterPoint, currentGameMap->getTile(Target)->getCenterPoint()));
+				}
+				else {
+					targetCenterPoint = currentGameMap->getTile(Target)->getCenterPoint();
+				}
 				bAirBullet = false;
-				isFogged = currentGameMap->getTile(Target)->isFogged(owner->getHouseID());
-				isExplored = currentGameMap->getTile(Target)->isExplored(owner->getHouseID());
 			} else 	if (currentGameMap->tileExists(Pos)){
-				targetCenterPoint = currentGameMap->getTile(Pos)->getCenterPoint();
+				Tile *pTile = currentGameMap->getTile(Pos);
+				isFogged 	= pTile->isFogged(owner->getHouseID());
+				isExplored 	= pTile->isExplored(owner->getHouseID());
+				/// TODO : should be made a tech-option : precision firing in FOW
+				if (true && (isFogged || !isExplored )) {
+					targetCenterPoint = pTile->getUnpreciseCenterPoint();
+					precision = ceil(distanceFrom(targetCenterPoint, currentGameMap->getTile(Pos)->getCenterPoint()));
+				}
+				else {
+					targetCenterPoint = currentGameMap->getTile(Pos)->getCenterPoint();
+				}
 				bAirBullet = false;
-				isFogged = currentGameMap->getTile(Pos)->isFogged(owner->getHouseID());
-				isExplored = currentGameMap->getTile(Pos)->isExplored(owner->getHouseID());
+
 			} else {
 				dbg_relax_print("Launcher::salveAttack cannot be done !\n");
 				// Give a chance to navigate to the target if we are able to move
@@ -231,13 +258,10 @@ void Launcher::salveAttack(Coord Pos, Coord Target) {
 				/* Damage modifier :
 				 * 	Target is not locked ? (ie. position attack or barrage fire)
 				 * 	Have we gain a stable ground or high point advantage ?
-				 *	Except when target locked decrease damage (to simulate lack of precision) when target is fogged or in unexplored terrain
 				 *	Build take few damage from salvo, salvo consist of a specific ammunition to barrage attack
 				 */
 				if (!(target.getObjPointer() != NULL && Target.isValid())) currentWeaponDamage *= 0.5; else currentWeaponDamage *= 0.75;
 				if ( currentGameMap->getTile(location)->isRock() || currentGameMap->getTile(location)->isDunes() ) currentWeaponDamage *= 1.15 ;
-				if (isFogged) currentWeaponDamage *= .80;
-				if (!isExplored) currentWeaponDamage *= 0.25;
 				if (target.getObjPointer() != NULL  && (target.getObjPointer())->isAStructure()) currentWeaponDamage *= .35;
 				dbg_relax_print("Launcher::salveAttack dmg=%i/%i : air? %s struct?%s locked? %s advg? %s fog? %s expl? %s\n", currentWeaponDamage, baseweapondmg,
 															bAirBullet ? "y" : "n",
@@ -250,7 +274,7 @@ void Launcher::salveAttack(Coord Pos, Coord Target) {
 
 				salveWeaponDelay = SALVO_TIMER_LAUNCHER;
 				primaryWeaponTimer = getWeaponReloadTime();
-				bulletList.push_back( new Bullet( objectID, &centerPoint, &targetCenterPoint, currentBulletType, currentWeaponDamage, bAirBullet) );
+				bulletList.push_back( new Bullet( objectID, &centerPoint, &targetCenterPoint, currentBulletType, currentWeaponDamage, bAirBullet, precision) );
 				playAttackSound();
 
 		}

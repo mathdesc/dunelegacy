@@ -50,9 +50,12 @@ BuilderBase::BuilderBase(House* newOwner) : StructureBase(newOwner) {
 	upgrading = false;
 
 	currentProducedItem = ItemID_Invalid;
+	lastProducedItem = ItemID_Invalid;
 	bCurrentItemOnHold = false;
 	productionProgress = 0.0f;
 	deployTimer = 0;
+
+	builderAI = false;
 }
 
 BuilderBase::BuilderBase(InputStream& stream) : StructureBase(stream) {
@@ -64,6 +67,7 @@ BuilderBase::BuilderBase(InputStream& stream) : StructureBase(stream) {
 
 	bCurrentItemOnHold = stream.readBool();
 	currentProducedItem = stream.readUint32();
+	lastProducedItem = currentProducedItem ;
 	productionProgress = stream.readFloat();
 	deployTimer = stream.readUint32();
 
@@ -80,6 +84,8 @@ BuilderBase::BuilderBase(InputStream& stream) : StructureBase(stream) {
 		tmp.load(stream);
 		buildList.push_back(tmp);
 	}
+
+	builderAI = false;
 }
 
 void BuilderBase::init() {
@@ -385,6 +391,14 @@ bool BuilderBase::update() {
                     if(destination.isValid()) {
                         newUnit->setGuardPoint(destination);
                         newUnit->setDestination(destination);
+                        ObjectBase* blockingObj = currentGameMap->tileExists(destination.x,destination.y) ?
+                                                currentGameMap->getTile(destination.x,destination.y)->getGroundObject() :  NULL ;
+                        if (blockingObj != NULL && newUnit->isAGroundUnit())
+                        	newUnit->setForced(false);
+                        else if (newUnit->isAFlyingUnit())
+                        	newUnit->setForced(true);
+                        else
+                        	newUnit->setForced(true);
                         newUnit->setAngle(lround(8.0f/256.0f*destinationAngle(newUnit->getLocation(), newUnit->getDestination())));
                     }
 
@@ -441,6 +455,12 @@ void BuilderBase::handleUpgradeClick() {
 	currentGame->getCommandManager().addCommand(Command(pLocalPlayer->getPlayerID(), CMD_BUILDER_UPGRADE, objectID));
 }
 
+void BuilderBase::handleAutomateClick() {
+	currentGame->getCommandManager().addCommand(Command(pLocalPlayer->getPlayerID(), CMD_BUILDER_AUTOMATE,objectID));
+}
+
+
+
 void BuilderBase::handleProduceItemClick(Uint32 itemID, bool multipleMode) {
     std::list<BuildItem>::iterator iter;
 	for(iter = buildList.begin(); iter != buildList.end(); ++iter) {
@@ -465,6 +485,20 @@ void BuilderBase::handleSetOnHoldClick(bool OnHold) {
 }
 
 
+bool BuilderBase::doAutomate() {
+    if(upgrading) {
+        return false;
+    } else if(true) {	// TODO make this a tech-option
+    	if (hasBuilderAI())
+    		setBuilderAI(false);
+    	else
+    		setBuilderAI(true);
+		return true;
+	} else {
+        return false;
+	}
+}
+
 bool BuilderBase::doUpgrade() {
     if(upgrading) {
         return false;
@@ -474,6 +508,12 @@ bool BuilderBase::doUpgrade() {
 		return true;
 	} else {
         return false;
+	}
+}
+
+void BuilderBase::redoProduceItem() {
+	if (lastProducedItem != ItemID_Invalid) {
+		doProduceItem(lastProducedItem);
 	}
 }
 
@@ -492,6 +532,7 @@ void BuilderBase::doProduceItem(Uint32 itemID, bool multipleMode) {
 				if(currentProducedItem == ItemID_Invalid) {
 					productionProgress = 0;
 					currentProducedItem = itemID;
+					lastProducedItem = itemID;
 				}
 			}
 			break;
@@ -514,6 +555,7 @@ void BuilderBase::doProduceItemAI(Uint32 itemID, bool multipleMode) {
 				if(currentProducedItem == ItemID_Invalid) {
 					productionProgress = 0;
 					currentProducedItem = itemID;
+					lastProducedItem = itemID;
 				}
 			}
 			break;

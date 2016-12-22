@@ -26,6 +26,7 @@
 
 #include <units/UnitBase.h>
 #include <units/Carryall.h>
+#include <structures/ConstructionYard.h>
 
 #include <misc/memory.h>
 #include <misc/strictmath.h>
@@ -219,7 +220,8 @@ void ReinforcementTrigger::trigger()
 
                 dropCoord += Coord( (int) (r*strictmath::sin(angle)), (int) (-r*strictmath::cos(angle)));
 
-                if(currentGameMap->tileExists(dropCoord) && currentGameMap->getTile(dropCoord)->hasAGroundObject() == false) {
+                if(currentGameMap->tileExists(dropCoord) &&
+                		(currentGameMap->getTile(dropCoord)->hasAGroundObject() == false || currentGameMap->getTile(dropCoord)->isInfantryPacked() == false )) {
                     // found the an empty drop location => drop here
 
                     Carryall* carryall = (Carryall*) dropHouse->createUnit(Unit_Carryall);
@@ -246,6 +248,15 @@ void ReinforcementTrigger::trigger()
                         carryall->setAngle(UP);
 
                     carryall->setDestination(dropCoord);
+                    carryall->setDeployPos(dropCoord);
+                    Coord cyard =  Coord::Invalid();
+                    cyard = (carryall->findConstYard() != NULL  ?  carryall->findConstYard()->getLocation() : Coord::Invalid()) ;
+                    if (cyard.isValid()) {
+                    	Coord fallback = currentGameMap->findClosestEdgePoint(cyard + Coord(2,0), Coord(1,1));
+                    	carryall->setFallbackPos(fallback);
+                    } else {
+                    	carryall->setFallbackPos(closestPos);
+                    }
 
                     break;
                 }

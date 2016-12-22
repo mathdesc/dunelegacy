@@ -63,8 +63,8 @@ void Frigate::init()
 
 Frigate::~Frigate()
 {
-    if(oldTarget.getObjPointer() != NULL && oldTarget.getObjPointer()->getItemID() == Structure_StarPort) {
-        dynamic_cast<StarPort*>(oldTarget.getStructurePointer())->informFrigateDestroyed();
+    if(fellow.getObjPointer() != NULL && fellow.getObjPointer()->getItemID() == Structure_StarPort) {
+        dynamic_cast<StarPort*>(fellow.getStructurePointer())->informFrigateDestroyed();
     }
 }
 
@@ -86,7 +86,7 @@ void Frigate::checkPos()
 	AirUnit::checkPos();
 
     if ((location == destination) && (distanceFrom(realX, realY, destination.x * TILESIZE + (TILESIZE/2), destination.y * TILESIZE + (TILESIZE/2)) < TILESIZE/8) ) {
-        StarPort* pStarport = dynamic_cast<StarPort*>(oldTarget.getStructurePointer());
+        StarPort* pStarport = dynamic_cast<StarPort*>(fellow.getStructurePointer());
 
         if(pStarport != NULL) {
             pStarport->startDeploying();
@@ -105,7 +105,7 @@ bool Frigate::update() {
     }
 
     // check if target is destroyed
-    if((droppedOffCargo == false) && oldTarget && oldTarget.getStructurePointer() == NULL) {
+    if((droppedOffCargo == false) && fellow && fellow.getStructurePointer() == NULL) {
         setDestination(guardPoint);
         droppedOffCargo = true;
     }

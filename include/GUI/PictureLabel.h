@@ -91,6 +91,7 @@ public:
 		SDL_BlitSurface(pSurface,NULL,screen,&dest);
 	}
 
+	inline virtual SDL_Surface* getSurface() { return pSurface;}
 
 private:
 	SDL_Surface* pSurface;		///< Surface that is shown

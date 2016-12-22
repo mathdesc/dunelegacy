@@ -35,7 +35,7 @@ public:
 	inline int getTurretAngle() const { return lround(turretAngle); }
 
 	void setTurretAngle(int newAngle);
-
+	void destroy() ;
 	virtual int getCurrentAttackAngle() const;
 	inline ObjectPointer getCloseTarget() const { return closeTarget.getObjPointer(); }
 

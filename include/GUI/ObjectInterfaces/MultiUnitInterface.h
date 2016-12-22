@@ -37,6 +37,8 @@
 #include <units/Harvester.h>
 #include <units/Devastator.h>
 
+#include <sand.h>
+
 class MultiUnitInterface : public ObjectInterface {
 public:
 	static MultiUnitInterface* create() {
@@ -296,6 +298,9 @@ protected:
 		bool bShowDeploy = false;
 		bool bShowDevastate = false;
 
+		int nbunit = 0;
+		int ItemID = -1;
+
 		std::list<Uint32>::const_iterator iter;
 		for(iter = currentGame->getSelectedList().begin(); iter != currentGame->getSelectedList().end(); ++iter) {
             ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
@@ -321,7 +326,14 @@ protected:
                 	bShowCapture = true;
                 }
 
-
+                nbunit++;
+                if (nbunit == 1) {
+                	ItemID = pUnit->getItemID();
+                } else {
+                	if (ItemID != pUnit->getItemID()) {
+                		ItemID = -1;
+                	}
+                }
                 switch(pUnit->getItemID()) {
                     case Unit_Harvester: {
                         bShowReturn = true;
@@ -340,6 +352,42 @@ protected:
                 }
 
             }
+		}
+
+
+
+		if(nbunit > 1) {
+
+				SDL_Surface* pSurface;
+				if (ItemID != -1 ) {
+					pSurface = copySurface(resolveItemPicture(ItemID));
+					SDL_Surface* pText = pFontManager->createSurfaceWithText(stringify<int>(nbunit), COLOR_WHITE, FONT_STD12);
+
+					SDL_Rect dest = { (pSurface->w - pText->w)/2 , (pSurface->h - pText->h)/2  + 5, pText->w, pText->h };
+
+					SDL_BlitSurface(pText, NULL, pSurface, &dest);
+					SDL_FreeSurface(pText);
+					SDL_BlitSurface(pSurface, &dest, heraldPicture.getSurface(), &dest);
+					SDL_FreeSurface(pSurface);
+				} else {
+
+					pSurface = copySurface(pGFXManager->getTransparent40Surface());
+
+					SDL_Surface* pText = pFontManager->createSurfaceWithText(stringify<int>(nbunit), COLOR_WHITE, FONT_STD12);
+
+					SDL_Rect dest = { (pSurface->w - pText->w)/2 , (pSurface->h - pText->h)/2  + 5, pText->w, pText->h };
+
+					SDL_BlitSurface(pText, NULL, pSurface, &dest);
+					SDL_FreeSurface(pText);
+					SDL_BlitSurface(pSurface, &dest, heraldPicture.getSurface(), &dest);
+					SDL_FreeSurface(pSurface);
+
+				}
+
+
+				multi_unit = nbunit;
+
+
 		}
 
         attackButton.setVisible(bShowAttack);
@@ -381,6 +429,7 @@ protected:
 	TextButton      stopButton;
 	TextButton	    ambushButton;
 	TextButton      huntButton;
+	int 			multi_unit;
 };
 
 #endif //MULTIUNITINTERFACE_H

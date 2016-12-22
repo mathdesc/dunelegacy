@@ -261,7 +261,7 @@ bool StarPort::deployOrderedUnit(Carryall* pCarryall) {
 	} else if (pUnit->isInfantry()) {
 		voice = UnitDeployed;
 	} else if (pUnit->isAUnit() && pUnit->getItemID() != Unit_Harvester) {
-		voice = VehiculeDeployed;
+		voice = VehicleDeployed;
 	} else if (pUnit->isAUnit() && pUnit->getItemID() == Unit_Harvester) {
 		voice = HarvesterDeployed;
 	}
@@ -272,19 +272,16 @@ bool StarPort::deployOrderedUnit(Carryall* pCarryall) {
 			if (pUnit != NULL && ((GroundUnit*)(pUnit))->getCarrier()->getObjectID() == pCarryall->getObjectID()) {
 				pCarryall->giveCargo(pUnit);
 				pCarryall->setFellow(NULL);
-				pUnit->setTarget(NULL); //FIXME : follow ?
+				pUnit->setTarget(NULL);
 				if (destination.isValid()) {
-						pCarryall->setDestination(pUnit->getDestination());
-						pCarryall->setDeployPos(pUnit->getDestination());
-						pCarryall->setFallbackPos(currentGameMap->findDeploySpot(pUnit, location, pUnit->getDestination(), structureSize));
+						pCarryall->giveDeliveryOrders(pUnit, destination, destination,
+								currentGameMap->findDeploySpot(pUnit, location, destination, structureSize));
 						dbg_print(" StarPort::deployOrderedUnit carryall destination(%d,%d) \n", pCarryall->getDestination().x,pCarryall->getDestination().y);
 
 				}
 				else {
 					Coord dp = currentGameMap->findDeploySpot(pUnit, location, location, structureSize);
-					pCarryall->setDestination(dp);
-					pCarryall->setDeployPos(dp);
-					pCarryall->setFallbackPos(dp+structureSize);
+					pCarryall->giveDeliveryOrders(pUnit, dp, dp, currentGameMap->findDeploySpot(pUnit, location, location, structureSize));
 					dbg_print(" StarPort::deployOrderedUnit@Home carryall destination(%d,%d) \n", pCarryall->getDestination().x,pCarryall->getDestination().y);
 				}
 
@@ -301,7 +298,8 @@ bool StarPort::deployOrderedUnit(Carryall* pCarryall) {
 		if (pUnit != NULL) {
 			Coord spot = pUnit->isAFlyingUnit() ? location + Coord(1,1) : currentGameMap->findDeploySpot(pUnit, location, destination, structureSize);
 			pUnit->deploy(spot,true);
-			pUnit->setTarget(NULL); //FIXME : follow ?
+			pCarryall->setFellow(NULL);
+			pUnit->setTarget(NULL);
 			arrivedUnit.pointTo(NONE);
 			unitDeployed = true;
 		}
@@ -398,6 +396,7 @@ void StarPort::updateStructureSpecificStuff() {
 		}
 	} else if(deploying == true) {
 		bool unitDeployed = false;
+		bool unitLifted ;
 
         deployTimer--;
         if(deployTimer == 0) {
@@ -419,7 +418,7 @@ void StarPort::updateStructureSpecificStuff() {
                 }
 
                 for(int i = 0; i < num2Place; i++) {
-
+                	unitLifted = false;
                 	if (arrivedUnit.getObjPointer()  == NULL) {
 						UnitBase* newUnit = getOwner()->createUnit(newUnitItemID);
 
@@ -431,6 +430,11 @@ void StarPort::updateStructureSpecificStuff() {
 
 							// Deploy itself
 							if (!getOwner()->hasCarryalls() || newUnit->isAFlyingUnit() || newUnit->getItemID() == Unit_MCV ) {
+								if (destination.isValid()) {
+									newUnit->setGuardPoint(destination);
+									newUnit->setDestination(destination);
+
+								}
 								newUnit->deploy(deploySpot,true);
 								arrivedUnit.pointTo(NONE);
 								unitDeployed = true;
@@ -438,67 +442,41 @@ void StarPort::updateStructureSpecificStuff() {
 							// Assisted deployment
 							else if ( newUnit->isAGroundUnit() && getOwner()->hasCarryalls()) {
 
-
 								GroundUnit* gUnit = static_cast<GroundUnit*>(newUnit);
 
 								// It's not going to be pickup
 								if (!gUnit->isAwaitingPickup()) {
-								// find carryall
-								Carryall* pCarryall = NULL;
-								float distance = std::numeric_limits<float>::infinity();
-								   RobustList<UnitBase*>::const_iterator iter;
-								   for(iter = unitList.begin(); iter != unitList.end(); ++iter) {
-									   UnitBase* unit = *iter;
-									   if ((unit->getOwner() == owner) && (unit->getItemID() == Unit_Carryall) && !((Carryall*)unit)->isBooked()) {
-
-					                    	if (distance >  std::min(distance,blockDistance(this->location, unit->getLocation())) ) {
-					                    		distance = std::min(distance,blockDistance(this->location, unit->getLocation()));
-					                    		pCarryall = (Carryall*)unit;
-					                    	}
-									   }
-								   }
-
-
-								   // tell carryall to come here, tell unit to book that carryall
-								   if(pCarryall != NULL) {
-									   pCarryall->setFellow(this);
-									  // pCarryall->setDestination(location+Coord(-1,1));
-									   pCarryall->clearPath();
-									   gUnit->bookCarrier(pCarryall);
-									   gUnit->setTarget(NULL);
-									   // Rally point is set
-									   if (destination.isValid()) {
-										   gUnit->setGuardPoint(destination);
-										   gUnit->setDestination(destination);
-										   dbg_print(" StarPort::updateStructureSpecificStuff UnitAwaitingDeploy destination(%d,%d) rallypoint(%d,%d)\n", gUnit->getDestination().x,gUnit->getDestination().y,destination.x,destination.y);
-										   gUnit->setAngle(lround(8.0f/256.0f*destinationAngle(gUnit->getLocation(), gUnit->getDestination())));
-									   } else {
-										   // Rally point is not set deploy locally
-										   gUnit->setGuardPoint(deploySpot);
-										   gUnit->setDestination(deploySpot);
-										   gUnit->setAngle(lround(8.0f/256.0f*destinationAngle(gUnit->getLocation(), gUnit->getDestination())));
-									   }
-
+								   if (destination.isValid()) {
+									   // Rally point is set : go to there
+									   gUnit->setGuardPoint(destination);
+									   gUnit->setDestination(destination);
+									   dbg_print(" StarPort::updateStructureSpecificStuff UnitAwaitingDeploy destination(%d,%d) rallypoint(%d,%d)\n", gUnit->getDestination().x,gUnit->getDestination().y,destination.x,destination.y);
+									   gUnit->setAngle(lround(8.0f/256.0f*destinationAngle(gUnit->getLocation(), gUnit->getDestination())));
 								   } else {
-									   // No Carrier available, Deploy itself
-									   gUnit->deploy(deploySpot,true);
-									   arrivedUnit.pointTo(NONE);
-									   unitDeployed = true;
+									   // Rally point is not set : deploy locally
+									   gUnit->setGuardPoint(deploySpot);
+									   gUnit->setDestination(deploySpot);
+									   gUnit->setAngle(lround(8.0f/256.0f*destinationAngle(gUnit->getLocation(), gUnit->getDestination())));
 								   }
-								}/* else if(gUnit->hasBookedCarrier()) {
-									// Waiting for pickup and a carrier has been Booked
-									// deploy in the surroundings, to speed up deployment
-									gUnit->deploy(location);
-									//(gUnit->getCarrier())->setDestination(location);
-									arrivedUnit.pointTo(NONE);
-									if(getOwner() == pLocalHouse && voice != NULL) {
-											soundPlayer->playVoiceAt(voice,getOwner()->getHouseID(),location);
-									}
-									unitDeployed = false;
-								}*/
+								   gUnit->deploy(deploySpot,true);
+								   arrivedUnit.pointTo(NONE);
+								   unitDeployed = true;
+
+								   // request a carryall
+								   if(destination.isValid() && gUnit->requestCarryall()) {
+									   gUnit->setFellow(gUnit->getCarrier());
+									   ((Carryall*)gUnit->getCarrier())->setDeployPos(gUnit->getDestination());
+									   unitLifted = true;
+								   }
+								}
 							} else {
 								// Unit is not able to be carried
 								// Or we simply don't have any carryall , self deploy
+								if (destination.isValid()) {
+									newUnit->setGuardPoint(destination);
+									newUnit->setDestination(destination);
+
+								}
 								newUnit->deploy(deploySpot,true);
 								arrivedUnit.pointTo(NONE);
 								unitDeployed = true;
@@ -512,10 +490,9 @@ void StarPort::updateStructureSpecificStuff() {
 							}
 
 							if (unitDeployed) {
-
-
-									newUnit->setGuardPoint(deploySpot);
-									newUnit->setDestination(destination.isValid() ? destination : deploySpot);
+								newUnit->setGuardPoint(destination.isValid() ? destination : deploySpot);
+								newUnit->setDestination(destination.isValid() ? destination : deploySpot);
+								newUnit->setForced(unitLifted);
 
 								dbg_print(" StarPort::updateStructureSpecificStuff Unit destination(%d,%d) \n", newUnit->getDestination().x,newUnit->getDestination().y);
 								newUnit->setAngle(lround(8.0f/256.0f*destinationAngle(newUnit->getLocation(), newUnit->getDestination())));

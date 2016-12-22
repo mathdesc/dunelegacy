@@ -60,6 +60,7 @@
 #include <structures/BuilderBase.h>
 #include <structures/Palace.h>
 #include <units/Harvester.h>
+#include <units/Carryall.h>
 #include <units/InfantryBase.h>
 #include <Tile.h>
 #include <sand.h>
@@ -84,7 +85,7 @@ Game::Game() {
     currentCursorMode = CursorMode_Normal;
 
 	chatMode = false;
-	drawFindTarget = false;
+	drawOverlay = false;
 	scrollDownMode = false;
 	scrollLeftMode = false;
 	scrollRightMode = false;
@@ -213,7 +214,7 @@ Game::~Game() {
 		house[i] = NULL;
 	}
 
-	delete FrameTime;
+	delete[] FrameTime;
 	delete currentGameMap;
 	currentGameMap = NULL;
 	delete screenborder;
@@ -500,30 +501,6 @@ void Game::drawScreen()
 						    SDL_Rect drawLocation = {   screenborder->world2screenX(x*TILESIZE), screenborder->world2screenY(y*TILESIZE),
                                                         zoomedTileSize, zoomedTileSize };
 							SDL_BlitSurface(hiddenSurf[currentZoomlevel], &source, screen, &drawLocation);
-						} else {
-
-							{
-
-									/*
-								SDL_Surface* airsurf = pGFXManager->getTransparentXSurface();
-								SDL_Surface* airsurf = pGFXManager->getObjPic(ObjPic_Terrain_Hidden)[currentZoomlevel];
-								SDL_Rect source = { world2zoomedWorld(TILESIZE)*15, 0, zoomedTileSize, zoomedTileSize };
-								SDL_Rect drawLocation = {   screenborder->world2screenX(x*TILESIZE), screenborder->world2screenY(y*TILESIZE),
-															zoomedTileSize, zoomedTileSize };
-								SDL_BlitSurface(airsurf, &source, screen, &drawLocation);
-
-
-								//doDayNightPalatteAnimation(airsurf->format->palette,airsurf);
-								*/
-
-
-
-
-							}
-
-
-
-
 						}
 
 						if(gameInitSettings.getGameOptions().fogOfWar == true) {
@@ -589,12 +566,127 @@ void Game::drawScreen()
 
 
 
-	if (drawFindTarget) {
+	if (drawOverlay) {
 	  std::list<Uint32>::iterator iter;
 		for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
 			ObjectBase *obj = objectManager.getObject(*iter);
 
 			if (obj->isSelected()) {
+
+				/// Draw sight, attack range, etc..
+				if (obj->isAUnit() || (obj->isAStructure() && obj->canAttack())) {
+
+					int checkRange;
+					if (obj->isAUnit()) {
+						switch(obj->getAttackMode()) {
+							case GUARD: {
+								checkRange = obj->getWeaponRange();
+							} break;
+
+							case AREAGUARD: {
+								checkRange = obj->getAreaGuardRange() + obj->getWeaponRange() + 1;
+							} break;
+
+							case AMBUSH: {
+								checkRange = obj->getViewRange() + 1;
+							} break;
+
+							case HUNT:
+							case STOP:
+							default: {
+								checkRange = -1;
+							} break;
+						}
+					} else {
+						checkRange = -1;
+					}
+
+
+					Coord center (	screenborder->world2screenX(obj->getRealX()),
+									screenborder->world2screenY(obj->getRealY()));
+
+
+
+					if (obj->getViewRange() > 0) {
+						drawCircle(screen,center.x,center.y,world2zoomedWorld(obj->getViewRange()*TILESIZE),COLOR_WINDTRAP_COLORCYCLE);
+					}
+					if (checkRange > 0) {
+						drawCircle(screen,center.x,center.y,world2zoomedWorld(checkRange*TILESIZE),COLOR_COLORCYCLE);
+					}
+					if (obj->canAttack() && obj->getWeaponRange() > 0) {
+						drawCircle(screen,center.x,center.y,world2zoomedWorld(obj->getWeaponRange()*TILESIZE),COLOR_RED);
+					}
+				}
+				/// Draw flypoints
+				if (obj->getItemID() == Unit_Carryall) {
+					Carryall* pCarryall = (Carryall*) obj;
+					Coord _center; _center.invalidate();
+					Coord center; center.invalidate();
+					Coord fistcenter; fistcenter.invalidate();
+					for (auto &fp : pCarryall->getFlyPoints()) {
+
+						if (fp.isValid() && currentGameMap->getTile(fp) != NULL) {
+							center = Coord (	screenborder->world2screenX(currentGameMap->getTile(fp)->getCenterPoint().x),
+												screenborder->world2screenY(currentGameMap->getTile(fp)->getCenterPoint().y));
+							Coord objcoord (	screenborder->world2screenX(obj->getRealX()),
+												screenborder->world2screenY(obj->getRealY()));
+							if (fistcenter.isInvalid()) {fistcenter = center;}
+
+							drawCircle(screen,center.x,center.y, world2zoomedWorld(TILESIZE/4),COLOR_SARDAUKAR, true);
+							if (_center.isValid()) {
+								drawArrowLine(screen,_center.x,_center.y,center.x,center.y,COLOR_SARDAUKAR, COLOR_COLORCYCLE,world2zoomedWorld(TILESIZE/8));
+								//drawTrigon(screen, _center.x, _center.y, center.x, center.y, objcoord.x, objcoord.y,  COLOR_COLORCYCLE);
+							}
+							_center = center;
+						}
+					}
+					drawArrowLine(screen,_center.x,_center.y,fistcenter.x,fistcenter.y,COLOR_SARDAUKAR, COLOR_COLORCYCLE,world2zoomedWorld(TILESIZE/8));
+				}
+				/// Draw way points
+				{
+					if (obj->hasATarget() && obj->getTarget() != NULL ) {
+						Coord objcoord; objcoord.invalidate();
+						Coord targetcoord; targetcoord.invalidate();
+						objcoord 	= Coord (	screenborder->world2screenX(obj->getRealX()),
+												screenborder->world2screenY(obj->getRealY()));
+						targetcoord	= Coord (	screenborder->world2screenX(obj->getTarget()->getRealX()),
+												screenborder->world2screenY(obj->getTarget()->getRealY()));
+
+						drawArrowLine(screen,objcoord.x,objcoord.y,targetcoord.x,targetcoord.y,COLOR_RED, COLOR_RED,world2zoomedWorld(TILESIZE/4));
+					}
+					if (obj->hasAFellow() && obj->getFellow() != NULL ) {
+						Coord objcoord; objcoord.invalidate();
+						Coord fellowcoord; fellowcoord.invalidate();
+						objcoord 	= Coord (	screenborder->world2screenX(obj->getRealX()),
+												screenborder->world2screenY(obj->getRealY()));
+						fellowcoord	= Coord (	screenborder->world2screenX(obj->getFellow()->getRealX()),
+												screenborder->world2screenY(obj->getFellow()->getRealY()));
+
+						drawArrowLine(screen,objcoord.x,objcoord.y,fellowcoord.x,fellowcoord.y,COLOR_LIGHTBLUE, COLOR_LIGHTBLUE,world2zoomedWorld(TILESIZE/4));
+					}
+					if (obj->isAUnit() && obj->getDestination() != obj->getLocation()) {
+						Coord objcoord; objcoord.invalidate();
+						Coord destcoord; destcoord.invalidate();
+						objcoord 	= Coord (	screenborder->world2screenX(obj->getRealX()),
+												screenborder->world2screenY(obj->getRealY()));
+
+						destcoord	= Coord (	screenborder->world2screenX(obj->getDestination().x*TILESIZE)+ world2zoomedWorld(TILESIZE)/2,
+												screenborder->world2screenY(obj->getDestination().y*TILESIZE)+ world2zoomedWorld(TILESIZE)/2);
+
+						drawArrowLine(screen,objcoord.x,objcoord.y,destcoord.x,destcoord.y,COLOR_LIGHTBLUE, COLOR_COLORCYCLE,world2zoomedWorld(TILESIZE/4));
+					}
+
+				}
+				/// Draw find Spice
+				if (obj->getItemID() == Unit_Harvester) {
+					Harvester* pHarvester = (Harvester*) obj;
+					for (std::pair<Coord, int> pair : pHarvester->getProspectionSamples()) {
+						(currentGameMap->getTile(pair.first))->drawOverlay(NULL,COLOR_RED, (currentGameMap->getTile(pair.first)) );
+					}
+				}
+
+
+				/// Draw find Target
 				int xPos = obj->getLocation().x;
 				int yPos = obj->getLocation().y;
 				int checkRange;
@@ -669,7 +761,7 @@ void Game::drawScreen()
 										}
 									}
 
-									(currentGameMap->getTile(xCheck,yCheck))->drawFindTarget(tempTarget,COLOR_RED);
+									(currentGameMap->getTile(xCheck,yCheck))->drawOverlay(tempTarget,COLOR_RED);
 								} /* canAttack(tempTarget) */
 
 							}
@@ -708,105 +800,104 @@ void Game::drawScreen()
 			BuilderBase* builder = NULL;
 			if(selectedList.size() == 1) {
 			    builder = dynamic_cast<BuilderBase*>(objectManager.getObject(*selectedList.begin()));
+					Uint32 placeItem = builder->getCurrentProducedItem();
 
-                Uint32 placeItem = builder->getCurrentProducedItem();
-                Coord structuresize = getStructureSize(placeItem);
-
-
-                for (int i = xPos; i < (xPos + structuresize.x); i++) {
-                    for (int j = yPos; j < (yPos + structuresize.y); j++) {
-                        if (currentGameMap->isWithinBuildRange(i, j, builder->getOwner())) {
-                            withinRange = true;			//find out if the structure is close enough to other buildings
-                        }
-                    }
-                }
-
-                SDL_Surface** validPlace = new SDL_Surface*[NUM_ZOOMLEVEL];
-                SDL_Surface** invalidPlace = new SDL_Surface*[NUM_ZOOMLEVEL];
-                /*             graphic = new SDL_Surface*[NUM_ZOOMLEVEL];
-                for(int z = 0; z < NUM_ZOOMLEVEL; z++) {
-                    graphic[z] =  copySurface(tmpSurfaceStack[z]);	//make a copy of the image
-                }*/
-                // Initialize frantically XXX MEM PROFILE
-                SDL_Surface** image = validPlace ; SDL_Surface** tmpimage = validPlace;
-
-				validPlace[0] = pGFXManager->getUIGraphic(UI_ValidPlace_Zoomlevel0);
-				invalidPlace[0] = pGFXManager->getUIGraphic(UI_InvalidPlace_Zoomlevel0);
-
-				validPlace[1] = pGFXManager->getUIGraphic(UI_ValidPlace_Zoomlevel1);
-				invalidPlace[1] = pGFXManager->getUIGraphic(UI_InvalidPlace_Zoomlevel1);
+					if (placeItem != ItemID_Invalid) {
+						Coord structuresize = getStructureSize(placeItem);
 
 
-				validPlace[2] = pGFXManager->getUIGraphic(UI_ValidPlace_Zoomlevel2);
-				invalidPlace[2] = pGFXManager->getUIGraphic(UI_InvalidPlace_Zoomlevel2);
+						for (int i = xPos; i < (xPos + structuresize.x); i++) {
+							for (int j = yPos; j < (yPos + structuresize.y); j++) {
+								if (currentGameMap->isWithinBuildRange(i, j, builder->getOwner())) {
+									withinRange = true;			//find out if the structure is close enough to other buildings
+								}
+							}
+						}
+
+						SDL_Surface** validPlace = new SDL_Surface*[NUM_ZOOMLEVEL];
+						SDL_Surface** invalidPlace = new SDL_Surface*[NUM_ZOOMLEVEL];
+
+						SDL_Surface** image = validPlace ; SDL_Surface** tmpimage = validPlace;
+
+						validPlace[0] = pGFXManager->getUIGraphic(UI_ValidPlace_Zoomlevel0);
+						invalidPlace[0] = pGFXManager->getUIGraphic(UI_InvalidPlace_Zoomlevel0);
+
+						validPlace[1] = pGFXManager->getUIGraphic(UI_ValidPlace_Zoomlevel1);
+						invalidPlace[1] = pGFXManager->getUIGraphic(UI_InvalidPlace_Zoomlevel1);
 
 
-                for(int i = xPos; i < (xPos + structuresize.x); i++) {
-                    for(int j = yPos; j < (yPos + structuresize.y); j++) {
-                        if(!withinRange || !currentGameMap->tileExists(i,j) || !currentGameMap->getTile(i,j)->isRock()
-                            || currentGameMap->getTile(i,j)->isMountain() || currentGameMap->getTile(i,j)->hasAGroundObject()
-                            || (((placeItem == Structure_Slab1) || (placeItem == Structure_Slab4)) && currentGameMap->getTile(i,j)->isConcrete())) {
-                          valid &= false;
-                          break;
-                        } else
-                        valid &= true;
-                    }
-                }
-                dbg_relax_print("Game::drawScreen placing %s building:%d (%d,%d) \n",valid ? "VALID" : "INVALID",placeItem,structuresize.x,structuresize.y);
+						validPlace[2] = pGFXManager->getUIGraphic(UI_ValidPlace_Zoomlevel2);
+						invalidPlace[2] = pGFXManager->getUIGraphic(UI_InvalidPlace_Zoomlevel2);
 
 
-                int imageW , imageH;
-                SDL_Rect source, source2;
-
-                if (placeItem == Structure_Slab1 || placeItem == Structure_Slab4) {
-                	if (valid)
-                		image = validPlace;
-                	else
-                		image = invalidPlace;
-                	imageW = image[currentZoomlevel]->w * structuresize.x;
-                	imageH = image[currentZoomlevel]->h * structuresize.y;
-                	if (placeItem == Structure_Slab4)  {
-                		if (valid){
-                			tmpimage[0] = pGFXManager->getUIGraphic(UI_ValidPlace4_Zoomlevel0);
-                			tmpimage[1] = pGFXManager->getUIGraphic(UI_ValidPlace4_Zoomlevel1);
-                			tmpimage[2] = pGFXManager->getUIGraphic(UI_ValidPlace4_Zoomlevel2);
-                		} else {
-                			tmpimage[0] = pGFXManager->getUIGraphic(UI_InvalidPlace4_Zoomlevel0);
-                			tmpimage[1] = pGFXManager->getUIGraphic(UI_InvalidPlace4_Zoomlevel1);
-                			tmpimage[2] = pGFXManager->getUIGraphic(UI_InvalidPlace4_Zoomlevel2);
-                		}
-						image=tmpimage;
-                	}
-					source = 	{ 0, 0, imageW , imageH };
-					source2 = 	{ 0, 0, imageW , imageH };
-
-                } else {
-                		image = resolveItemObjPicture((int)placeItem, (HOUSETYPE)builder->getOwner()->getHouseID());
-                		Frame frame = getStructureObjPicFrames((int)placeItem);
-                		imageW = image[currentZoomlevel]->w/frame.numImagesX;
-     				  	imageH = image[currentZoomlevel]->h/frame.numImagesY;
-     				    source = { imageW * frame.firstAnimFrame, 0, imageW, imageH };
-     				    source2 = { 0 , 0, imageW, imageH };
-                }
-
-               if (image!= NULL) {
-				  //StructureBase* structure = new Palace();
-				   SDL_Rect drawLocation = { screenborder->world2screenX((int) xPos*TILESIZE), screenborder->world2screenY((int) yPos*TILESIZE), imageW, imageH };
+						for(int i = xPos; i < (xPos + structuresize.x); i++) {
+							for(int j = yPos; j < (yPos + structuresize.y); j++) {
+								if(!withinRange || !currentGameMap->tileExists(i,j) || !currentGameMap->getTile(i,j)->isRock()
+									|| currentGameMap->getTile(i,j)->isMountain() || currentGameMap->getTile(i,j)->hasAGroundObject()
+									|| (((placeItem == Structure_Slab1) || (placeItem == Structure_Slab4))
+											&& currentGameMap->getTile(i,j)->isConcrete())) {
+								  valid &= false;
+								  break;
+								} else
+								valid &= true;
+							}
+						}
+						dbg_relax_print("Game::drawScreen placing %s building:%d (%d,%d) \n",valid ? "VALID" : "INVALID",placeItem,structuresize.x,structuresize.y);
 
 
-				   if(!valid) {
-					 //  image[currentZoomlevel] = mapSurfaceColorRange(image[currentZoomlevel], COLOR_HARKONNEN, COLOR_WINDTRAP_COLORCYCLE);
-					   SDL_BlitSurface(image[currentZoomlevel], &source, screen, &drawLocation);
-					   SDL_Surface* fogSurf = pGFXManager->getTransparent150Surface();
-					   SDL_BlitSurface(fogSurf, &source2, screen, &drawLocation);
-				   } else {
-					   SDL_BlitSurface(image[currentZoomlevel], &source, screen, &drawLocation);
-				   }
-               }
+						int imageW , imageH;
+						SDL_Rect source, source2;
+
+						if (placeItem == Structure_Slab1 || placeItem == Structure_Slab4) {
+							if (valid)
+								image = validPlace;
+							else
+								image = invalidPlace;
+							imageW = image[currentZoomlevel]->w * structuresize.x;
+							imageH = image[currentZoomlevel]->h * structuresize.y;
+							if (placeItem == Structure_Slab4)  {
+								if (valid){
+									tmpimage[0] = pGFXManager->getUIGraphic(UI_ValidPlace4_Zoomlevel0);
+									tmpimage[1] = pGFXManager->getUIGraphic(UI_ValidPlace4_Zoomlevel1);
+									tmpimage[2] = pGFXManager->getUIGraphic(UI_ValidPlace4_Zoomlevel2);
+								} else {
+									tmpimage[0] = pGFXManager->getUIGraphic(UI_InvalidPlace4_Zoomlevel0);
+									tmpimage[1] = pGFXManager->getUIGraphic(UI_InvalidPlace4_Zoomlevel1);
+									tmpimage[2] = pGFXManager->getUIGraphic(UI_InvalidPlace4_Zoomlevel2);
+								}
+								image=tmpimage;
+							}
+							source = 	{ 0, 0, imageW , imageH };
+							source2 = 	{ 0, 0, imageW , imageH };
+
+						} else {
+								image = resolveItemObjPicture((int)placeItem, (HOUSETYPE)builder->getOwner()->getHouseID());
+								Frame frame = getStructureObjPicFrames((int)placeItem);
+								imageW = image[currentZoomlevel]->w/frame.numImagesX;
+								imageH = image[currentZoomlevel]->h/frame.numImagesY;
+								source = { imageW * frame.firstAnimFrame, 0, imageW, imageH };
+								source2 = { 0 , 0, imageW, imageH };
+						}
+
+					   if (image!= NULL) {
+						   SDL_Rect drawLocation = { screenborder->world2screenX((int) xPos*TILESIZE), screenborder->world2screenY((int) yPos*TILESIZE), imageW, imageH };
 
 
-                delete validPlace; delete invalidPlace;
+						   if(!valid) {
+							 //  image[currentZoomlevel] = mapSurfaceColorRange(image[currentZoomlevel], COLOR_HARKONNEN, COLOR_WINDTRAP_COLORCYCLE);
+							   SDL_BlitSurface(image[currentZoomlevel], &source, screen, &drawLocation);
+							   SDL_Surface* fogSurf = pGFXManager->getTransparent150Surface();
+							   SDL_BlitSurface(fogSurf, &source2, screen, &drawLocation);
+						   } else {
+							   SDL_BlitSurface(image[currentZoomlevel], &source, screen, &drawLocation);
+						   }
+					   }
+
+
+					delete validPlace; delete invalidPlace;
+				}
             }
+
 		}
 	}
 
@@ -860,7 +951,7 @@ void Game::drawScreen()
 
 	if(bShowFPS) {
 		char	temp[50];
-		snprintf(temp,50,"fps: %.1f (min:%.1f,max:%.1f,dev:%.1f)", 1000.0f/averageFrameTime,minFrameTime,maxFrameTime,sqrt(varFrameTime));
+		snprintf(temp,50,"fps: %04.1f (min:%04.1f,max:%04.1f,dev:%04.1f)", 1000.0f/averageFrameTime,minFrameTime,maxFrameTime,sqrt(varFrameTime));
 
 		SDL_Surface* fpsSurface = pFontManager->createSurfaceWithText(temp, COLOR_WHITE, FONT_STD12);
 
@@ -1778,7 +1869,6 @@ void Game::runMainLoop() {
             if(pNetworkManager != NULL) {
                 if(bSelectionChanged) {
                     pNetworkManager->sendSelectedList(selectedList);
-
                     bSelectionChanged = false;
                 }
             }
@@ -1856,6 +1946,7 @@ void Game::runMainLoop() {
     // recover the original palette
     palette.invertPalette();
     palette.applyToSurface(screen,SDL_PHYSPAL,1,palette.getSDLPalette()->ncolors-1);
+    // XXX : memcheck reports a source and destination overlap in memcpy
     SDL_SetGamma(1,1,1);
 
 	// Game is finished
@@ -2489,8 +2580,8 @@ void Game::handleChatInput(SDL_KeyboardEvent& keyboardEvent) {
                 if(debug == true) {
                     pInterface->getChatManager().addInfoMessage("You are already in debug mode");
             	    int zoomedTileSize = world2zoomedWorld(TILESIZE);
-            		for(int x = screenborder->getTopLeftTile().x - 1; x <= screenborder->getBottomRightTile().x + 1; x++) {
-            			for (int y = screenborder->getTopLeftTile().y - 1; y <= screenborder->getBottomRightTile().y + 1; y++) {
+            		for(int x = 0 ; x <= currentGameMap->getSizeX(); x++) {
+            			for (int y = 0 ; y <= currentGameMap->getSizeY() ; y++) {
 
             				if((x >= 0) && (x < currentGameMap->getSizeX()) && (y >= 0) && (y < currentGameMap->getSizeY())) {
             					Tile* pTile = currentGameMap->getTile(x, y);
@@ -2582,13 +2673,13 @@ void Game::handleChatInput(SDL_KeyboardEvent& keyboardEvent) {
                     for(iter = affectedGroundAndUndergroundUnits.begin(); iter != affectedGroundAndUndergroundUnits.end() ;++iter) {
                         ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
                         if (/*pObject->getOwner() != pLocalHouse &&*/ (pObject->getItemID() != Unit_Sandworm) && (pObject->isAGroundUnit() || pObject->isInfantry())) {
-                            pObject->handleDamage( lroundf((pObject->getHealth()*.95)), NULL, pLocalHouse);
+                            pObject->handleDamage( lroundf((pObject->getHealth()*.95)), NONE, pLocalHouse);
                         }
                     }
                     for(iter = affectedAirUnits.begin(); iter != affectedAirUnits.end() ;++iter) {
 					   ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
 					   if (pObject->getOwner() != pLocalHouse) {
-						   pObject->handleDamage( lroundf((pObject->getHealth()*.95)), NULL, pObject->getOwner());
+						   pObject->handleDamage( lroundf((pObject->getHealth()*.95)), NONE, pObject->getOwner());
 					   }
                     }
 
@@ -2600,7 +2691,7 @@ void Game::handleChatInput(SDL_KeyboardEvent& keyboardEvent) {
             	 std::list<Uint32>::const_iterator iter;
             	 for(iter = selectedList.begin(); iter != selectedList.end() ;++iter) {
             		 ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
-            		 pObject->handleDamage( lroundf((pObject->getHealth()*.95)), NULL, pObject->getOwner());
+            		 pObject->handleDamage( lroundf((pObject->getHealth()*.95)), NONE, pObject->getOwner());
             	 }
             } else if((bCheatsEnabled == true) && (typingChatMessage.compare("/win")  == 0 )) {
 
@@ -2628,13 +2719,13 @@ void Game::handleChatInput(SDL_KeyboardEvent& keyboardEvent) {
                 for(iter = affectedGroundAndUndergroundUnits.begin(); iter != affectedGroundAndUndergroundUnits.end() ;++iter) {
                     ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
                     if (pObject->getOwner() != pLocalHouse && (pObject->getItemID() != Unit_Sandworm)) {
-                        pObject->handleDamage( pObject->getHealth()*2, NULL, pLocalHouse);
+                        pObject->handleDamage( pObject->getHealth()*2, NONE, pLocalHouse);
                     }
                 }
                 for(iter = affectedAirUnits.begin(); iter != affectedAirUnits.end() ;++iter) {
 				   ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
 				   if (pObject->getOwner() != pLocalHouse) {
-					   pObject->handleDamage( pObject->getHealth()*2, NULL, pLocalHouse);
+					   pObject->handleDamage( pObject->getHealth()*2, NONE, pLocalHouse);
 				   }
                 }
 
@@ -2644,7 +2735,7 @@ void Game::handleChatInput(SDL_KeyboardEvent& keyboardEvent) {
             	 std::list<Uint32>::const_iterator iter;
             	 for(iter = selectedList.begin(); iter != selectedList.end() ;++iter) {
             		 ObjectBase* pObject = currentGame->getObjectManager().getObject(*iter);
-            		 pObject->handleDamage( lroundf((pObject->getHealth()*1.2)), NULL, pObject->getOwner());
+            		 pObject->handleDamage( lroundf((pObject->getHealth()*1.2)), NONE, pObject->getOwner());
             	 }
 
             } else if((bCheatsEnabled == true) && (typingChatMessage.compare("/spice")  == 0 )) {
@@ -2789,7 +2880,7 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
         } break;
 
         case SDLK_a: {
-            //set object to attack
+            //set object to attack or set builder to automate
             if(currentCursorMode != CursorMode_Attack) {
                 std::list<Uint32>::iterator iter;
                 for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
@@ -2800,12 +2891,17 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
 
                         currentCursorMode = CursorMode_Attack;
                         break;
-                    } else if((tempObject->getItemID() == Structure_Palace)
+                    } else if(tempObject->isAStructure() && (tempObject->getOwner() == pLocalHouse) && tempObject->isRespondable()) {
+                    	if((tempObject->getItemID() == Structure_Palace)
                                 && ((tempObject->getOwner()->getHouseID() == HOUSE_HARKONNEN) || (tempObject->getOwner()->getHouseID() == HOUSE_SARDAUKAR))) {
-                        if(((Palace*) tempObject)->isSpecialWeaponReady()) {
-                            currentCursorMode = CursorMode_Attack;
-                            break;
-                        }
+							if(((Palace*) tempObject)->isSpecialWeaponReady()) {
+								currentCursorMode = CursorMode_Attack;
+								break;
+							}
+                    	} else if (tempObject->isABuilder()) {
+                    		((BuilderBase*)tempObject)->doAutomate();
+                    		break;
+                    	}
                     }
                 }
             }
@@ -2949,6 +3045,11 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
                             currentCursorMode = CursorMode_Normal;
                         } else if(pConstructionYard->isWaitingToPlace()) {
                             currentCursorMode = CursorMode_Placing;
+                        } else if (pConstructionYard->getCurrentProducedItem() == ItemID_Invalid) {
+                        	pConstructionYard->redoProduceItem();
+                        	currentCursorMode = CursorMode_Placing;
+                        } else if (pConstructionYard->getCurrentProducedItem() == pConstructionYard->getLastProducedItem()) {
+                          	currentCursorMode = CursorMode_Placing;
                         }
                     }
                 }
@@ -2973,11 +3074,14 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
 
         case SDLK_r: {
             std::list<Uint32>::iterator iter;
+           // int numRepairYard = pLocalHouse->getNumItems(Structure_RepairYard);
             for(iter = selectedList.begin(); iter != selectedList.end(); ++iter) {
                 ObjectBase *tempObject = objectManager.getObject(*iter);
                 if(tempObject->isAStructure()) {
                     ((StructureBase*)tempObject)->handleRepairClick();
                 } else if(tempObject->getItemID() == Unit_Harvester) {
+                	// XXX : TODO need to be able to chain return to refinery and then to repairyard
+                	//((Harvester*)tempObject)->handleRepairClick();
                     ((Harvester*)tempObject)->handleReturnClick();
                 } else if(tempObject->isAGroundUnit() && ! tempObject->isInfantry()) {
                 	((GroundUnit*)tempObject)->handleRepairClick();
@@ -3029,8 +3133,10 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
             // Prepare to Elect new (next) group member as Leader
             for( iter = selectedList.begin() ; iter != selectedList.end(); ++iter ) {
                 obj2 = objectManager.getObject(*iter);
+                // A leader must be a unit
 				// A leader cannot be a follower
-				if (((UnitBase*)obj2)->isFollowing()) continue;
+				if ( (obj2->isAUnit() && ( ((UnitBase*)obj2)->isFollowing() || ((UnitBase*)obj2)->isActive()) )
+						|| obj2->isAStructure()) continue;
 				if (obj2 == obj) continue;
 				// Ok switch can be done
 				setGroupLeader(obj2);
@@ -3074,12 +3180,12 @@ void Game::handleKeyInput(SDL_KeyboardEvent& keyboardEvent) {
             if(SDL_GetModState() & KMOD_ALT) {
                 SDL_WM_IconifyWindow();
             } else {
-            	if (drawFindTarget) {
-            		pInterface->getChatManager().addInfoMessage(_("Draw Find target disable !"));
-            		drawFindTarget = false;
+            	if (drawOverlay) {
+            		pInterface->getChatManager().addInfoMessage(_("Draw Tactical overlay disable !"));
+            		drawOverlay = false;
             	} else {
-            		pInterface->getChatManager().addInfoMessage(_("Draw Find target enable !"));
-            		drawFindTarget = true;
+            		pInterface->getChatManager().addInfoMessage(_("Draw Tactical overlay  enable !"));
+            		drawOverlay = true;
             	}
             }
         } break;
@@ -3108,6 +3214,12 @@ bool Game::handlePlacementClick(int xPos, int yPos) {
     if(selectedList.size() == 1) {
         pBuilder = dynamic_cast<BuilderBase*>(objectManager.getObject(*selectedList.begin()));
     }
+
+    if (!pBuilder->isWaitingToPlace()) {
+    	soundPlayer->playSound(InvalidAction);	//can't place noise
+    	return false;
+    }
+
 
     int placeItem = pBuilder->getCurrentProducedItem();
     Coord structuresize = getStructureSize(placeItem);

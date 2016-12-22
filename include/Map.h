@@ -22,6 +22,8 @@
 #include <misc/InputStream.h>
 #include <misc/OutputStream.h>
 
+#include <units/Harvester.h>
+
 class Map
 {
 public:
@@ -51,7 +53,7 @@ public:
         viewMap(playerTeam, Coord(x,y), maxViewRange);
     }
 
-	bool findSpice(Coord& destination, const Coord& origin) const;
+	bool findSpice(Coord& destination, const Coord& origin, Harvester* harvester = NULL, int radius = 20) const;
 	bool okayToPlaceStructure(int x, int y, int buildingSizeX, int buildingSizeY, bool tilesRequired, const House* pHouse, bool bIgnoreUnits = false) const;
 	bool isWithinBuildRange(int x, int y, const House* pHouse) const;
 	int getPosAngle(const Coord& source, const Coord& pos) const;

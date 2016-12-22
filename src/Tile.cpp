@@ -517,9 +517,7 @@ void Tile::drawLight(Uint32 color) {
 
 }
 
-
-
-void Tile::drawFindTarget(ObjectBase* obj, Uint32 color) {
+void Tile::drawOverlay(ObjectBase* obj, Uint32 color, Tile* tile) {
 
 	// XXX
 
@@ -528,10 +526,16 @@ void Tile::drawFindTarget(ObjectBase* obj, Uint32 color) {
 
 	int x,y;
 
-
-	x  = screenborder->world2screenX((obj->getLocation().x*TILESIZE));
-	y  = screenborder->world2screenY((obj->getLocation().y*TILESIZE));
-
+	if (obj != NULL) {
+		x  = screenborder->world2screenX((obj->getLocation().x*TILESIZE));
+		y  = screenborder->world2screenY((obj->getLocation().y*TILESIZE));
+	} else if (tile != NULL){
+		x  = screenborder->world2screenX(((tile->getLocation()).x*TILESIZE));
+		y  = screenborder->world2screenY(((tile->getLocation()).y*TILESIZE));
+	} else {
+		fprintf(stderr,"Tile::drawOverlay : no object or tile given !\n");
+		return;
+	}
 
 	int zoomedTileSize = world2zoomedWorld(TILESIZE);
 	//int fogTile = pTile->getFogTile(pLocalHouse->getHouseID());
@@ -564,31 +568,32 @@ void Tile::drawFindTarget(ObjectBase* obj, Uint32 color) {
 
 	int objcolor;
 
-	switch ((obj->getOwner())->getHouseID())
-	{
-		case HOUSE_HARKONNEN:
-			objcolor = COLOR_HARKONNEN;
-			break;
-		case HOUSE_ATREIDES:
-			objcolor = COLOR_ATREIDES;
-			break;
-		case HOUSE_ORDOS:
-			objcolor = COLOR_ORDOS;
-			break;
-		case HOUSE_FREMEN:
-			objcolor = COLOR_FREMEN;
-			break;
-		case HOUSE_SARDAUKAR:
-			objcolor = COLOR_SARDAUKAR;
-			break;
-		case HOUSE_MERCENARY:
-			objcolor = COLOR_MERCENARY;
-			break;
-		default:
-			objcolor = 12;
-			break;
+	if (obj != NULL) {
+		switch ((obj->getOwner())->getHouseID())
+		{
+			case HOUSE_HARKONNEN:
+				objcolor = COLOR_HARKONNEN;
+				break;
+			case HOUSE_ATREIDES:
+				objcolor = COLOR_ATREIDES;
+				break;
+			case HOUSE_ORDOS:
+				objcolor = COLOR_ORDOS;
+				break;
+			case HOUSE_FREMEN:
+				objcolor = COLOR_FREMEN;
+				break;
+			case HOUSE_SARDAUKAR:
+				objcolor = COLOR_SARDAUKAR;
+				break;
+			case HOUSE_MERCENARY:
+				objcolor = COLOR_MERCENARY;
+				break;
+			default:
+				objcolor = 12;
+				break;
+		}
 	}
-
 
 	color = COLOR_LIGHTRED;
 	SDL_Surface** hiddenSurf = pGFXManager->getObjPic(ObjPic_Terrain_Hidden);
@@ -735,7 +740,7 @@ void Tile::blitSelectionRects(int xPos, int yPos) {
 
 
     // draw infantry selection rectangles
-    if(hasInfantry() && !isFogged(pLocalHouse->getHouseID())) {
+    if(hasInfantry()) {
 		std::list<Uint32>::const_iterator iter;
 		for(iter = assignedInfantryList.begin(); iter != assignedInfantryList.end() ;++iter) {
 			InfantryBase* current = dynamic_cast<InfantryBase*>(currentGame->getObjectManager().getObject(*iter));
@@ -744,7 +749,8 @@ void Tile::blitSelectionRects(int xPos, int yPos) {
 				continue;
 			}
 
-            if(current->isVisible(pLocalHouse->getTeam()) && (location == current->getLocation())) {
+            if(current->isVisible(pLocalHouse->getTeam()) && (location == current->getLocation())
+            		&& ( !isFogged(pLocalHouse->getHouseID()) || current->getOwner() == pLocalHouse ) ) {
                 if(current->isSelected()) {
                     current->drawSelectionBox();
                 }
@@ -757,7 +763,7 @@ void Tile::blitSelectionRects(int xPos, int yPos) {
 	}
 
     // draw non infantry ground object selection rectangles
-	if(hasANonInfantryGroundObject() && !isFogged(pLocalHouse->getHouseID())) {
+	if(hasANonInfantryGroundObject()) {
 	    std::list<Uint32>::const_iterator iter;
 		for(iter = assignedNonInfantryGroundObjectList.begin(); iter != assignedNonInfantryGroundObjectList.end() ;++iter) {
             ObjectBase* current = currentGame->getObjectManager().getObject(*iter);
@@ -766,7 +772,8 @@ void Tile::blitSelectionRects(int xPos, int yPos) {
 				continue;
 			}
 
-            if(current->isVisible(pLocalHouse->getTeam()) && (location == current->getLocation())) {
+            if(current->isVisible(pLocalHouse->getTeam()) && (location == current->getLocation())
+            		&& ( !isFogged(pLocalHouse->getHouseID()) || current->getOwner() == pLocalHouse ) ) {
                 if(current->isSelected()) {
                     current->drawSelectionBox();
                 }
@@ -789,7 +796,7 @@ void Tile::blitSelectionRects(int xPos, int yPos) {
 	}
 
     // draw air unit selection rectangles
-	if(hasAnAirUnit() && !isFogged(pLocalHouse->getHouseID())) {
+	if(hasAnAirUnit()) {
 		std::list<Uint32>::const_iterator iter;
 		for(iter = assignedAirUnitList.begin(); iter != assignedAirUnitList.end() ;++iter) {
 			AirUnit* airUnit = dynamic_cast<AirUnit*>(currentGame->getObjectManager().getObject(*iter));
@@ -798,7 +805,8 @@ void Tile::blitSelectionRects(int xPos, int yPos) {
 				continue;
 			}
 
-            if(airUnit->isVisible(pLocalHouse->getTeam()) && (location == airUnit->getLocation())) {
+            if(airUnit->isVisible(pLocalHouse->getTeam()) && (location == airUnit->getLocation())
+            		&& ( !isFogged(pLocalHouse->getHouseID()) || airUnit->getOwner() == pLocalHouse )) {
                 if(airUnit->isSelected()) {
                     airUnit->drawSelectionBox();
                 }
@@ -897,6 +905,7 @@ void Tile::selectAllPlayersUnitsOfType(int houseID, ObjectBase* lastSinglySelect
 		if (((*lastCheckedObject)->getOwner()->getHouseID() == houseID)
 			&& !(*lastCheckedObject)->isSelected()
 			&& ((*lastCheckedObject)->getItemID() == itemid)
+			&& ((*lastCheckedObject)->isRespondable())
 			&& ( unit->isSalving() == sunit->isSalving() ) ) {
 
 			if (groupLeader == NULL && !unit->isFollowing()) {
@@ -1062,12 +1071,37 @@ int Tile::getInfantryTeam() {
 	return team;
 }
 
+int Tile::getExtractionSpeed () {
 
-float Tile::harvestSpice() {
+	float speed 	= hasSpice() ? getSpiceExtractionSpeed(false,true): 0;
+	float ref_speed = hasSpice() ? getSpiceExtractionSpeed(true,true): 1;
+	return (int)((speed/ref_speed)*100);
+}
+
+float Tile::getSpiceExtractionSpeed(bool nobonus, bool deepharvest) {
+	float extractionspeed = deepharvest ? HARVESTSPEED : HARVESTALONGSPEED ;
+	// XXX : Should be made a tech-option
+	if (true && !nobonus) {
+		if (spice >= RANDOMTHICKSPICEMIN && spice <= RANDOMTHICKSPICEMAX) {
+			// thick spice [148-296] : high density
+			extractionspeed *= 0.500f + (spice/((RANDOMTHICKSPICEMAX)/2));
+		} else if (spice >= RANDOMSPICEMIN  && spice < RANDOMTHICKSPICEMIN) {
+			// regular spice [74-148] : normal density
+			extractionspeed *= 0.250f + (spice/((RANDOMTHICKSPICEMAX)/2));
+		} else if (spice > 0.0f  && spice < RANDOMSPICEMIN) {
+			// lower density [ 0.1 - 74] : lower density
+			extractionspeed *= 0.125f + (spice/(RANDOMTHICKSPICEMAX/2));
+		}
+	}
+
+	return (extractionspeed < 0.01f ? 0.01f : extractionspeed);
+}
+
+float Tile::harvestSpice(float extractionspeed) {
 	float oldSpice = spice;
 
-	if((spice - HARVESTSPEED) >= 0.0f) {
-		spice -= HARVESTSPEED;
+	if((spice - extractionspeed) >= 0.0f) {
+		spice -= extractionspeed;
 	} else {
 		spice = 0.0f;
 	}
@@ -1109,6 +1143,13 @@ ObjectBase* Tile::getGroundObject() {
 		return NULL;
 }
 
+bool Tile::isInfantryPacked() {
+	if (hasInfantry()) {
+		return assignedInfantryList.size() >= 5 ? true : false;
+	}
+	else return false;
+}
+
 InfantryBase* Tile::getInfantry() {
 	return dynamic_cast<InfantryBase*>(currentGame->getObjectManager().getObject(assignedInfantryList.front()));
 }
@@ -1120,20 +1161,6 @@ ObjectBase* Tile::getNonInfantryGroundObject() {
 UnitBase* Tile::getUndergroundUnit() {
 	return dynamic_cast<UnitBase*>(currentGame->getObjectManager().getObject(assignedUndergroundUnitList.front()));
 }
-
-
-/*ObjectBase* Tile::getInfantry(int i)
-{
-	int count;
-	InfantryBase* infantry;
-	assignedInfantry.reset();
-	while (assignedInfantry.currentNotNull())
-	{
-		((InfantryBase*)assignedInfantry.getCurrent())->squash();
-		assignedInfantry.nextLink();
-	}
-	return assignedInfantry.removeElement();
-}*/
 
 
 ObjectBase* Tile::getObject() {
@@ -1503,3 +1530,136 @@ int Tile::getFogTile(int houseID) const {
 
     return (up | (right << 1) | (down << 2) | (left << 3));
 }
+
+
+Coord Tile::getUnpreciseCenterPoint() const {
+
+	int sign = rand()%3;
+	int precision = 8; // [ 1 - TILESIZE ]
+	int offset = TILESIZE/precision; // the greater the less accurate
+	int r_mx = (currentGame->randomGen.rand()%offset)+1;
+	int r_my = (currentGame->randomGen.rand()%offset)+1;
+	int x,y,_x,_y;
+
+	_x  =  (currentGame->randomGen.rand()%(TILESIZE+1));
+	_y  =  (currentGame->randomGen.rand()%(TILESIZE+1));
+	r_mx > offset/2 ? _x /= ((offset+1)-r_mx) : _x *= (r_mx) ;
+	r_my > offset/2 ? _y /= ((offset+1)-r_my) : _y *= (r_my) ;
+
+	if (sign == 0) {
+		x = location.x*TILESIZE + _x;
+		y = location.y*TILESIZE + _y;
+	} else if (sign == 1) {
+		x = location.x*TILESIZE - _x;
+		y = location.y*TILESIZE + _y;
+	} else if (sign == 2) {
+		x = location.x*TILESIZE + _x;
+		y = location.y*TILESIZE - _y;
+	} else if (sign == 3) {
+		x = location.x*TILESIZE - _x;
+		y = location.y*TILESIZE - _y;
+	}
+	return Coord(x,y);
+}
+
+std::pair<std::vector<Coord>,int> Tile::getFreeTile() {
+    //determine which surrounding tiles are rock
+    bool up = (currentGameMap->tileExists(location.x,location.y-1) == true) || (currentGameMap->getTile(location.x, location.y-1)->hasAGroundObject() == false);
+    bool right = (currentGameMap->tileExists(location.x+1,location.y) == true) || (currentGameMap->getTile(location.x+1, location.y)->hasAGroundObject() == false);
+    bool down = (currentGameMap->tileExists(location.x,location.y+1) == true) || (currentGameMap->getTile(location.x, location.y+1)->hasAGroundObject() == false);
+    bool left = (currentGameMap->tileExists(location.x-1,location.y) == true) || (currentGameMap->getTile(location.x-1, location.y)->hasAGroundObject() == false);
+
+    bool cupleft = (currentGameMap->tileExists(location.x-1,location.y-1) == true) || (currentGameMap->getTile(location.x-1, location.y-1)->hasAGroundObject() == false);
+    bool cupright = (currentGameMap->tileExists(location.x+1,location.y-1) == true) || (currentGameMap->getTile(location.x+1, location.y-1)->hasAGroundObject() == false);
+    bool cdoleft = (currentGameMap->tileExists(location.x-1,location.y+1) == true) || (currentGameMap->getTile(location.x-1, location.y+1)->hasAGroundObject() == false);
+    bool cdoright = (currentGameMap->tileExists(location.x+1,location.y+1) == true) || (currentGameMap->getTile(location.x+1, location.y+1)->hasAGroundObject() == false);
+
+    int free = (up | (right << 1) | (down << 2) | (left << 3));
+
+
+
+    std::vector<Coord> v;
+
+    if (currentGameMap->getTile(location.x, location.y)->hasAGroundObject() == false) {
+   		  // this very tile itself is free
+		v.push_back(Coord(0,0));
+   	}
+	if((left == true) && (right == true) && (up == true) && (down == true)) {
+	  // free surroundings
+								   v.push_back(Coord(-1,0)) ;
+		v.push_back(Coord(-1,0)) ; 						    ; v.push_back(Coord(+1,0));
+								   v.push_back(Coord(-1,1)) ;
+	} else if((left == false) && (right == true) && (up == true) && (down == true)) {
+								 ; v.push_back(Coord(-1,0)) ;
+		 	 	 	 	 	 	 ; 						  	; v.push_back(Coord(+1,0));
+								 ; v.push_back(Coord(-1,1)) ;
+	} else if((left == true) && (right == false)&& (up == true) && (down == true)) {
+									v.push_back(Coord(-1,0)) ;
+		v.push_back(Coord(-1,0)) ;
+									v.push_back(Coord(-1,1)) ;
+	} else if((left == true) && (right == true) && (up == false) && (down == true)) {
+
+		v.push_back(Coord(-1,0)) ; 						 	; v.push_back(Coord(+1,0));
+		 	 	 	 	 	 	 	 v.push_back(Coord(-1,1)) ;
+	} else if((left == true) && (right == true) && (up == true) && (down == false)) {
+									v.push_back(Coord(-1,0)) ;
+		v.push_back(Coord(-1,0)) ; 						  	; v.push_back(Coord(+1,0));
+
+	} else if((left == false) && (right == true) && (up == false) && (down == true)) {
+
+															; v.push_back(Coord(+1,0));
+								; v.push_back(Coord(-1,1)) ;
+	} else if((left == true) && (right == false) && (up == true) && (down == false)) {
+		 	 	 	 	 	 	   v.push_back(Coord(-1,0)) ;
+		v.push_back(Coord(-1,0)) ;
+	} else if((left == true) && (right == false) && (up == false) && (down == true)) {
+
+		v.push_back(Coord(-1,0)) ;
+								; v.push_back(Coord(-1,1)) ;
+	} else if((left == false) && (right == true) && (up == true) && (down == false)) {
+									; v.push_back(Coord(-1,0))
+															; v.push_back(Coord(+1,0));
+
+	} else if((left == true) && (right == false) && (up == false) && (down == false)) {
+
+		v.push_back(Coord(-1,0)) ;
+
+	} else if((left == false) && (right == true) && (up == false) && (down == false)) {
+
+															; v.push_back(Coord(+1,0));
+
+	} else if((left == false) && (right == false) && (up == true) && (down == false)) {
+		 	 	 	 	 	 	 v.push_back(Coord(-1,0)) ;
+
+
+	} else if((left == false) && (right == false) && (up == false) && (down == true)) {
+
+
+								v.push_back(Coord(-1,1));
+	} else if((left == true) && (right == true) && (up == false) && (down == false)) {
+
+		v.push_back(Coord(-1,0)) ; 						    ; v.push_back(Coord(+1,0));
+
+	} else if((left == false) && (right == false) && (up == true) && (down == true)) {
+									v.push_back(Coord(-1,0)) ;
+
+									v.push_back(Coord(-1,1)) ;
+	} else if((left == false) && (right == false) && (up == false) && (down == false)) {
+
+	}
+
+
+	if (cupleft) v.push_back(Coord(-1,-1));
+	if (cupright) v.push_back(Coord(+1,-1));
+	if (cdoleft) v.push_back(Coord(-1,+1));
+	if (cdoright) v.push_back(Coord(+1,+1));
+
+
+	return std::make_pair(v, free);
+
+
+
+
+}
+
+

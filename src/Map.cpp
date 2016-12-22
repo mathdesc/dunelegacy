@@ -35,6 +35,7 @@
 #include <set>
 
 #include <AStarSearch.h>
+#include <misc/strictmath.h>
 
 Map::Map(int xSize, int ySize)
  : sizeX(xSize), sizeY(ySize), tiles(NULL), lastSinglySelectedObject(NULL) {
@@ -455,7 +456,7 @@ Coord Map::findDeploySpot(UnitBase* pUnit, const Coord origin, const Coord gathe
 			pathList = pathfinder.getFoundReacheablePath();
 
 
-			if(/*blockDistance(temp, gatherPoint) < closestDistance && */!pathList.empty()) {
+			if(!pathList.empty()) {
 				closestDistance = blockDistance(temp, gatherPoint);
 				closestPoint.x = ranX;
 				closestPoint.y = ranY;
@@ -625,7 +626,7 @@ void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, 
 
 	err_print("Map::selectObjects : [%d,%d]-[%d,%d] %d,%d \n",x1,y1,x2,y2,realX,realY);
 	//if selection rectangle is checking only one tile and has shift selected we want to add/ remove that unit from the selected group of units
-	if(!objectARGMode & KMOD_SHIFT) {
+	if((!objectARGMode) & KMOD_SHIFT) {
 		currentGame->unselectAll(currentGame->getSelectedList());
 		currentGame->getSelectedList().clear();
 		currentGame->getSelectedListCoord().clear();
@@ -682,8 +683,10 @@ void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, 
 				lastCheckedObject->setSelected(false);
 				currentGame->getSelectedList().remove(lastCheckedObject->getObjectID());
 
-				std::remove_if(currentGame->getSelectedListCoord().begin(), currentGame->getSelectedListCoord().end(), [=](std::pair<Uint32,Coord> & item) { return item.first == (lastCheckedObject)->getObjectID() ;} );
-				currentGame->getSelectedListCoord().pop_back();
+				std::list<std::pair<Uint32,Coord>>::iterator iter2 = std::remove_if(currentGame->getSelectedListCoord().begin(),
+						currentGame->getSelectedListCoord().end(), [=](std::pair<Uint32,Coord> & item) { return item.first == (lastCheckedObject)->getObjectID() ;} );
+				currentGame->getSelectedListCoord().erase(iter2,currentGame->getSelectedListCoord().end());
+				//currentGame->getSelectedListCoord().pop_back();
 
 				currentGame->selectionChanged();
 				// If the removed object was the leader, reset a new leader
@@ -730,7 +733,7 @@ void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, 
 
 		for(int i = std::min(x1, x2); i <= std::max(x1, x2); i++) {
             for(int j = std::min(y1, y2); j <= std::max(y1, y2); j++) {
-                if(tileExists(i,j) && getTile(i,j)->hasAnObject() && getTile(i,j)->isExplored(houseID) && !getTile(i,j)->isFogged(houseID)) {
+                if(tileExists(i,j) && getTile(i,j)->hasAnObject() && getTile(i,j)->isExplored(houseID) /*&& !getTile(i,j)->isFogged(houseID)*/) {
                     getTile(i,j)->selectAllPlayersUnits(houseID, &lastCheckedObject, &lastSelectedObject, currentGame->getGroupLeader());
                     lastSinglySelectedObject = lastCheckedObject;
                 }
@@ -766,8 +769,10 @@ void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, 
 						unit->setLeader(false);
 
 						iter = currentGame->getSelectedList().erase(iter);
-						std::remove_if(currentGame->getSelectedListCoord().begin(), currentGame->getSelectedListCoord().end(), [=](std::pair<Uint32,Coord> & item) { return item.first == (unit)->getObjectID() ;} );
-						currentGame->getSelectedListCoord().pop_back();
+						std::list<std::pair<Uint32,Coord>>::iterator iter2 = std::remove_if(currentGame->getSelectedListCoord().begin(),
+								currentGame->getSelectedListCoord().end(), [=](std::pair<Uint32,Coord> & item) { return item.first == (unit)->getObjectID() ;} );
+						currentGame->getSelectedListCoord().erase(iter2,currentGame->getSelectedListCoord().end());
+						//currentGame->getSelectedListCoord().pop_back();
 						//err_print("Tile::selectAllPlayersUnits removing %d -- Coord (%d,%d) \n", unit->getObjectID(),  ((unit)->getLocation() - ((currentGame->getGroupLeader()))->getLocation()).x, ((unit)->getLocation() - ((currentGame->getGroupLeader()))->getLocation()).y);
 
 						if  (currentGame->getSelectedList().size() > 1 ) {
@@ -882,44 +887,109 @@ void Map::selectObjects(int houseID, int x1, int y1, int x2, int y2, int realX, 
 
 }
 
-// TODO : get this algo smarter (not going where its crowed with enemy)
-bool Map::findSpice(Coord& destination, const Coord& origin) const {
-	bool found = false;
 
-	int	counter = 0;
-	int depth = 1;
 
-	do {
-        int ranX;
-        int ranY;
-		do {
-			ranX = currentGame->randomGen.rand(origin.x-depth, origin.x + depth);
-			ranY = currentGame->randomGen.rand(origin.y-depth, origin.y + depth);
-		} while(((ranX >= (origin.x+1 - depth)) && (ranX < (origin.x + depth))) && ((ranY >= (origin.y+1 - depth)) && (ranY < (origin.y + depth))));
 
-		if(tileExists(ranX,ranY) && !getTile(ranX,ranY)->hasAGroundObject() && getTile(ranX,ranY)->hasSpice()) {
-			found = true;
-			destination.x = ranX;
-			destination.y = ranY;
+bool Map::findSpice(Coord& destination, const Coord& origin, Harvester* harvester, int radius) const {
+	// TODO : get this algo smarter (not going where its crowed with enemy)
+	// XXX make used of unit param : it should check first in viewrange, second the all map (should be made a tech-option)
+	float shorter = std::numeric_limits<float>::infinity(), distance, _distance;
+	int denser = 0, ext_speed;
+	Coord shortest = Coord(0,0);
+	Coord densest = Coord(0,0);
+	Coord t;
+	Coord spiceCoord = Coord::Invalid();
+	int max_x=0 , max_y = 0;
+	int sample = 0;
+	int shortersample = 0;
+	int densersample = 0;
+
+	int max_radius = radius;
+
+	for (int a=9; a <= max_radius; a++) {
+     for(int i=8;i<a;i++) {
+		int r = currentGame->randomGen.rand( ((i-5) > i/2 ? i/2 : (i-5)) , (i/2 > (i-5) ? i/2 : (i-5)) );
+		float angle = 2.0f * strictmath::pi * currentGame->randomGen.randFloat();
+		t =  Coord( (int) (r*strictmath::sin(angle)), (int) (-r*strictmath::cos(angle)));
+		spiceCoord = Coord(origin + t);
+		if (abs(spiceCoord.x-origin.x) > max_x) max_x = abs(spiceCoord.x-origin.x);
+		if (abs(spiceCoord.y-origin.y) > max_y) max_y = abs(spiceCoord.y-origin.y);
+		distance = distanceFrom(spiceCoord,origin);
+		//dbg_print("Map::findSpice lookup r%d destination(%d,%d) distance:%f\n",r,spiceCoord.x,spiceCoord.y,distance);
+		UnitBase * blocker = NULL ;	// XXX maybe move the blocker after all
+		// XXX : should not be able to find spice in not yet explored area !
+		Tile * pTile;
+		if (harvester != NULL) {
+			pTile = currentGameMap->tileExists(spiceCoord) && currentGameMap->getTile(spiceCoord)->isExplored(harvester->getOwner()->getHouseID()) ? currentGameMap->getTile(spiceCoord) : NULL;
+		} else {
+			pTile = currentGameMap->tileExists(spiceCoord) ? currentGameMap->getTile(spiceCoord) : NULL;
 		}
 
-		counter++;
-		if(counter >= 100) {
-            //if hasn't found a spot on tempObject layer in 100 tries, goto next
-			counter = 0;
-			depth++;
+		if (pTile != NULL && pTile->hasAGroundObject()  && pTile->getGroundObject()->isAUnit()) {
+			blocker = (UnitBase*)(pTile->getGroundObject());
 		}
 
-		if(depth > std::max(sizeX, sizeY)) {
-			return false;	//there is possibly no spice left anywhere on map
+		if(pTile != NULL && pTile->hasSpice() && (!pTile->hasAGroundObject() || (blocker != NULL && blocker->isMoving())) ) {
+			sample++;
+			ext_speed = pTile != NULL ? pTile->getExtractionSpeed() : 0;
+			int spice = pTile->hasSpice() ? pTile->getSpiceRemaining(): 0;
+			if (distance < shorter) {
+				shorter = distance;
+				shortest = t; shortersample++;
+				dbg_print("Map::findSpice NbSamples(%d) lookup r%d shorter-destination(%d,%d) distance:%f spice:%d(@ %d)\n",harvester != NULL ? harvester->getProspectionSamplesNumber() : -1,r, Coord(origin+shortest).x,Coord(origin+shortest).y,distance,spice,ext_speed);
+				if (harvester != NULL) {
+					//harvester->addProspectionSample((origin+t),ext_speed);
+					harvester->addProspectionSample(spiceCoord,ext_speed);
+				}
+			}
+			if (ext_speed > denser) {
+				denser = ext_speed;
+				_distance = distance;
+				densest = t; densersample++;
+				dbg_print("Map::findSpice NbSamples(%d) lookup r%d denser-destination(%d,%d) distance:%f spice:%d(@ %d)\n",harvester != NULL ? harvester->getProspectionSamplesNumber() : -1,r, Coord(origin+densest).x,Coord(origin+densest).y,distance,spice,ext_speed);
+				if (harvester != NULL) {
+					//harvester->addProspectionSample((origin+t), ext_speed);
+					harvester->addProspectionSample(spiceCoord,ext_speed);
+				}
+			}
 		}
-	} while (!found);
-
-	if((depth > 1) && (getTile(origin)->hasSpice())) {
-		destination = origin;
+	 }
 	}
 
-	return true;
+     Coord _shortest = origin+shortest;
+     Tile * pTile_shortest = currentGameMap->getTile(_shortest);
+     float speed_shortest 	= pTile_shortest->hasSpice() ? pTile_shortest->getSpiceExtractionSpeed(): 0;
+     float ref_speed_shortest = pTile_shortest->hasSpice() ? pTile_shortest->getSpiceExtractionSpeed(true): 1;
+     int ext_speed_shortest = (int)((speed_shortest/ref_speed_shortest)*100);
+
+     Coord _densest =  origin+densest;
+     Tile * pTile_densest = currentGameMap->getTile(_densest);
+     float speed_densest 	= pTile_densest->hasSpice() ? pTile_densest->getSpiceExtractionSpeed(): 0;
+     float ref_speed_densest = pTile_densest->hasSpice() ? pTile_densest->getSpiceExtractionSpeed(true): 1;
+     int ext_speed_densest = (int)((speed_densest/ref_speed_densest)*100);
+
+     if (harvester != NULL) {
+    	 if (harvester->getPreference() == DISTANCE) {
+    		 if (shortest != Coord(0,0)) {
+    			 destination = origin+shortest;
+    		 }
+    	 }
+    	 else if (harvester->getPreference() == DENSITY) {
+    		 if (densest != Coord(0,0)) {
+    			 destination = origin+densest;
+    		 } else destination = origin+shortest;
+    	 }
+
+     } else destination = origin+shortest;
+
+   /*  dbg_print("Map::findSpice origin(%d,%d) shortest-destination(%d,%d) distance:%f spiceleft:%f(@%d) [max_x:%d, max_y:%d shortersample/Total:%d/%d]\n",
+    		 origin.x,origin.y, _shortest.x,_shortest.y,shorter, pTile_shortest->getSpiceRemaining(),ext_speed_shortest ,max_x,max_y,shortersample,sample);
+     dbg_print("Map::findSpice origin(%d,%d) densest-destination(%d,%d) distance:%f spiceleft:%f(@%d) [max_x:%d, max_y:%d densersample/Total:%d/%d]\n",
+    		 origin.x,origin.y, _densest.x,_densest.y,_distance, pTile_densest->getSpiceRemaining(),ext_speed_densest ,max_x,max_y,densersample,sample);*/
+     return destination != origin ? true : false;
+
+
+
 }
 
 /**

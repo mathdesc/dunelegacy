@@ -78,16 +78,34 @@ int TankBase::getCurrentAttackAngle() const {
 	return drawnTurretAngle;
 }
 
+void TankBase::destroy() {
+
+    if(currentGameMap->tileExists(location) && isVisible() && isMoving() && !destroyed) {
+		setActive(false);
+		destroyed=true;
+		destroyedCountdown = 350+rand()%550;
+		// use target timer to store the start count (no use now)
+		findTargetTimer = destroyedCountdown;
+		setRespondable(false);
+		removeFromSelectionLists();
+    } else {
+    	UnitBase::destroy();
+    }
+}
+
+
 void TankBase::navigate() {
 	if(moving && !justStoppedMoving) {
 	    if(location == destination) {
             targetAngle = INVALID;
 	    } else {
             // change the turret angle so it faces the direction we are moving in
-	    	if (!bFollow)
+	    	if (!bFollow) {
 	    		targetAngle = lround(8.0f/256.0f*destinationAngle(location, destination))%8;
-	    	else if (!target && oldTarget &&  oldTarget.getObjPointer() != NULL)
-	    		targetAngle =  lround(8.0f/256.0f*destinationAngle(location, oldTarget.getObjPointer()->getClosestPoint(location)))%8;
+	    	}
+	    	else if (!target && fellow &&  fellow.getObjPointer() != NULL) {
+	    		targetAngle =  lround(8.0f/256.0f*destinationAngle(location, fellow.getObjPointer()->getClosestPoint(location)))%8;
+	    	}
 	    }
 	}
 	TrackedUnit::navigate();
@@ -142,7 +160,7 @@ void TankBase::engageTarget() {
 
     if(target && (targetDistance <= getWeaponRange()) && !targetFriendly) {
         // we already have a (non-friendly) target in weapon range
-        // => we need no close temporary target
+        // => we need no close temporary target anymore
         closeTarget.pointTo(NONE);
         return;
     }
@@ -171,15 +189,16 @@ void TankBase::engageTarget() {
         }
     } else if (isFollowing() ) {
 
-    	drawnTurretAngle =  lround(8.0f/256.0f*destinationAngle(location, oldTarget.getObjPointer()->getClosestPoint(location)))%8;
+    	drawnTurretAngle =  lround(8.0f/256.0f*destinationAngle(location, fellow.getObjPointer()->getClosestPoint(location)))%8;
     }
 }
 
 void TankBase::targeting() {
     if(findTargetTimer == 0) {
-        if(attackMode != STOP && !closeTarget && (!moving && !justStoppedMoving || bFollow)) {
-            // find a temporary target
-            closeTarget = findTarget();
+        if(attackMode != STOP && !closeTarget && ((!moving && !justStoppedMoving) || bFollow)) {
+        	const ObjectBase * tmp = getNearerTarget(getWeaponRange(),false);
+            // we already have our target or our old target in range or find another temp target
+            closeTarget = tmp != NULL ? tmp :  findTarget();
         }
     }
 

@@ -39,13 +39,15 @@
 #include <structures/Refinery.h>
 #include <structures/RepairYard.h>
 #include <units/Harvester.h>
-
+#include <Explosion.h>
 #include <misc/strictmath.h>
 
 #include <units/TankBase.h>
 
+#define FIREDELAY 15
 #define SMOKEDELAY 30
 #define UNITIDLETIMER (GAMESPEED_DEFAULT *  315)  // about every 5s
+#define UNITHEALTIMER (GAMESPEED_DEFAULT *  175)  // about every 3s
 
 UnitBase::UnitBase(House* newOwner) : ObjectBase(newOwner) {
 
@@ -72,6 +74,7 @@ UnitBase::UnitBase(House* newOwner) : ObjectBase(newOwner) {
     bumpyOffsetY = 0.0f;
 
     targetDistance = 0.0f;
+    oldtargetDistance = 0.0f;
 	targetAngle = INVALID;
 
 	noCloserPointCount = 0;
@@ -82,7 +85,7 @@ UnitBase::UnitBase(House* newOwner) : ObjectBase(newOwner) {
 
 	findTargetTimer = 0;
     primaryWeaponTimer = 0;
-    salveWeapon = 0;
+
 	secondaryWeaponTimer = INVALID;
 	for (int i=0; i < salveWeapon  && salveWeapon < MAX_SALVE; i++) {
 		salveWeaponTimer[i] =  (salveWeaponDelay*i)+1;
@@ -90,6 +93,7 @@ UnitBase::UnitBase(House* newOwner) : ObjectBase(newOwner) {
 	salveWeaponDelaybase = BASE_SALVO_TIMER;
 	salveWeaponDelay = salveWeaponDelaybase;
 	deviationTimer = INVALID;
+	idle = true;
 }
 
 UnitBase::UnitBase(InputStream& stream) : ObjectBase(stream) {
@@ -135,6 +139,7 @@ UnitBase::UnitBase(InputStream& stream) : ObjectBase(stream) {
 	salveWeaponDelaybase = stream.readSint32();
 	salveWeaponDelay = stream.readSint32();
 	deviationTimer = stream.readSint32();
+	idle = true;
 }
 
 void UnitBase::init() {
@@ -143,9 +148,12 @@ void UnitBase::init() {
 	canCaptureStuff = false;
 	tracked = false;
 	turreted = false;
+	destroyed = false;
 	numWeapons = 0;
 
 	drawnFrame = 0;
+	oldTargetTimer = 0;
+	salveWeapon = 0;
 
 	unitList.push_back(this);
 }
@@ -207,12 +215,32 @@ void UnitBase::attack() {
 		Coord targetCenterPoint;
 		Coord centerPoint = getCenterPoint();
 		bool bAirBullet;
+		bool isFogged, isExplored;
+		int precision = 0;
 
 		if(target.getObjPointer() != NULL) {
-			targetCenterPoint = target.getObjPointer()->getClosestCenterPoint(location);
+			Tile *pTile = currentGameMap->getTile(target.getObjPointer()->getLocation());
+			isFogged 	= pTile->isFogged(owner->getHouseID());
+			isExplored	= pTile->isExplored(owner->getHouseID());
+			/// TODO : should be made a tech-option : precision firing in FOW
+			if (true && (isFogged || !isExplored ) ) {
+				targetCenterPoint = pTile->getUnpreciseCenterPoint();
+				precision = ceil(distanceFrom(targetCenterPoint,target.getObjPointer()->getClosestCenterPoint(location)));
+			}
+			else {
+				targetCenterPoint = target.getObjPointer()->getClosestCenterPoint(location);
+			}
 			bAirBullet = target.getObjPointer()->isAFlyingUnit();
 		} else {
-			targetCenterPoint = currentGameMap->getTile(attackPos)->getCenterPoint();
+			Tile *pTile =currentGameMap->getTile(attackPos) ;
+			isFogged 	= pTile->isFogged(owner->getHouseID());
+			isExplored	= pTile->isExplored(owner->getHouseID());
+			if (true && (isFogged || !isExplored )) {
+				targetCenterPoint = pTile->getUnpreciseCenterPoint();
+				precision = ceil(distanceFrom(targetCenterPoint,currentGameMap->getTile(attackPos)->getCenterPoint()));
+			} else {
+				targetCenterPoint = currentGameMap->getTile(attackPos)->getCenterPoint();
+			}
 			bAirBullet = false;
 		}
 
@@ -235,10 +263,13 @@ void UnitBase::attack() {
 		bool orni_primary =  (!( getItemID() == Unit_Ornithopter && target && target.getObjPointer() != NULL && target.getObjPointer()->isInfantry()));
 		bool primary_weapon_enable = orni_primary;
 		if(primaryWeaponTimer == 0 && primary_weapon_enable) {
-			bulletList.push_back( new Bullet( objectID, &centerPoint, &targetCenterPoint, currentBulletType, currentWeaponDamage, bAirBullet) );
+			// Reveal position to target if firing from an unexplored tile
+			if (target && getTarget() != NULL && !(currentGameMap->getTile(location)->isExplored(getTarget()->getOwner()->getHouseID())) ) {
+				currentGameMap->viewMap(getTarget()->getOwner()->getTeam(), location, 2);
+			}
+			bulletList.push_back( new Bullet( objectID, &centerPoint, &targetCenterPoint, currentBulletType, currentWeaponDamage, bAirBullet, precision) );
 			playAttackSound();
 			primaryWeaponTimer = getWeaponReloadTime();
-
 			secondaryWeaponTimer = 15;
 
 			if(attackPos && getItemID() != Unit_SonicTank && currentGameMap->getTile(attackPos)->isSpiceBloom()) {
@@ -251,9 +282,11 @@ void UnitBase::attack() {
 			if(deviationTimer > 0) {
 				deviationTimer = std::max(0,deviationTimer - MILLI2CYCLES(10*1000));
 			}
+			idle = false;
 		} else if (!primary_weapon_enable && secondaryWeaponTimer <= -1 ) {
 			// Reload secondary if primary not potent and second has fired
 			secondaryWeaponTimer = 15;
+			idle = false;
 		}
 
 		if((numWeapons == 2) && (secondaryWeaponTimer == 0) && (isBadlyDamaged() == false)) {
@@ -261,13 +294,17 @@ void UnitBase::attack() {
 				// Orni have a second weapon for infantry
 				if (target && target.getObjPointer() != NULL && target.getObjPointer()->isInfantry() ) {
 					currentBulletType = Bullet_ShellSmall;
-					currentWeaponDamage *= .75;
+					currentWeaponDamage *= .65;
 				} else {
 					return;
 				}
 			}
+			// Reveal position to target if firing from an unexplored tile
+			if (target && getTarget() != NULL && !(currentGameMap->getTile(location)->isExplored(getTarget()->getOwner()->getHouseID())) ) {
+				currentGameMap->viewMap(getTarget()->getOwner()->getTeam(), location, 2);
+			}
 
-			bulletList.push_back( new Bullet( objectID, &centerPoint, &targetCenterPoint, currentBulletType, currentWeaponDamage, bAirBullet) );
+			bulletList.push_back( new Bullet( objectID, &centerPoint, &targetCenterPoint, currentBulletType, currentWeaponDamage, bAirBullet, precision) );
 			playAttackSound();
 			secondaryWeaponTimer = -1;
 
@@ -281,6 +318,7 @@ void UnitBase::attack() {
 			if(deviationTimer > 0) {
 				deviationTimer = std::max(0,deviationTimer - MILLI2CYCLES(10*1000));
 			}
+			idle = false;
 		}
 
 
@@ -305,39 +343,89 @@ void UnitBase::salveAttack(Coord Pos, Coord Target) {
 	for (int i=0; i < salveWeapon  && salveWeapon < MAX_SALVE; i++) {
 		if((salveWeaponTimer[i] <= 0) && (isBadlyDamaged() == false) && salveWeaponDelay <= 0) {
 			Coord centerPoint = getCenterPoint();
-			Coord targetCenterPoint;
+			Coord targetCenterPoint, _targetCenterPoint;
 			bool bAirBullet;
+			bool isFogged, isExplored;
 			int currentBulletType = bulletType;
 			Sint32 currentWeaponDamage = currentGame->objectData.data[itemID][originalHouseID].weapondamage / salveWeapon;
+			int precision = 0;
 
+			// Just to update targetDistance
 			if (target && target.getObjPointer() != NULL) {
-				targetCenterPoint = target.getObjPointer()->getClosestCenterPoint(location);
+				Tile *pTile = currentGameMap->getTile(target.getObjPointer()->getLocation());
+				isFogged = currentGameMap->getTile(target.getObjPointer()->getLocation())->isFogged(owner->getHouseID());
+				isExplored = currentGameMap->getTile(target.getObjPointer()->getLocation())->isExplored(owner->getHouseID());
+
+				/// TODO : should be made a tech-option : precision firing in FOW
+				if (true && (isFogged || !isExplored ) ) {
+					targetCenterPoint = pTile->getUnpreciseCenterPoint();
+				}
+				else {
+					targetCenterPoint = target.getObjPointer()->getClosestCenterPoint(location);
+				}
 				targetDistance = blockDistance(location, targetCenterPoint);
 				dbg_relax_print("UnitBase::salveAttack targetdistance %lf weaponreach %d\n",targetDistance,getWeaponRange() );
 			}
 
 
 			if (currentGameMap->tileExists(Pos)){
-				targetCenterPoint = currentGameMap->getTile(Pos)->getCenterPoint();
+				Tile *pTile =currentGameMap->getTile(Pos) ;
+				isFogged = currentGameMap->getTile(Pos)->isFogged(owner->getHouseID());
+				isExplored = currentGameMap->getTile(Pos)->isExplored(owner->getHouseID());
+				/// TODO : should be made a tech-option : precision firing in FOW
+				if (true &&  (isFogged || !isExplored )) {
+					targetCenterPoint = pTile->getUnpreciseCenterPoint();
+					precision = ceil(distanceFrom(targetCenterPoint,currentGameMap->getTile(Pos)->getCenterPoint()));
+				}
+				else {
+					targetCenterPoint = currentGameMap->getTile(Pos)->getCenterPoint();
+				}
 				bAirBullet = false;
 			} else if(currentGameMap->tileExists(Target)) {
-				targetCenterPoint = currentGameMap->getTile(Target)->getCenterPoint();
+				Tile *pTile = currentGameMap->getTile(Target);
+				isFogged = currentGameMap->getTile(Target)->isFogged(owner->getHouseID());
+				isExplored = currentGameMap->getTile(Target)->isExplored(owner->getHouseID());
+				/// TODO : should be made a tech-option : precision firing in FOW
+				if (true &&  (isFogged || !isExplored )) {
+					targetCenterPoint = pTile->getUnpreciseCenterPoint();
+					precision = ceil(distanceFrom(targetCenterPoint,currentGameMap->getTile(Target)->getCenterPoint()));
+				}
+				else {
+					targetCenterPoint = currentGameMap->getTile(Target)->getCenterPoint();
+				}
 				bAirBullet = false;
 			} else if (target && target.getObjPointer() != NULL) {
-				targetCenterPoint = target.getObjPointer()->getClosestCenterPoint(location);
+				Tile *pTile = currentGameMap->getTile(target.getObjPointer()->getLocation());
+				isFogged = currentGameMap->getTile(target.getObjPointer()->getLocation())->isFogged(owner->getHouseID());
+				isExplored = currentGameMap->getTile(target.getObjPointer()->getLocation())->isExplored(owner->getHouseID());
+				/// TODO : should be made a tech-option : precision firing in FOW
+				if (true &&  (isFogged || !isExplored )) {
+					targetCenterPoint = pTile->getUnpreciseCenterPoint();
+					precision = ceil(distanceFrom(targetCenterPoint,target.getObjPointer()->getClosestCenterPoint(location)));
+				}
+				else {
+					targetCenterPoint = target.getObjPointer()->getClosestCenterPoint(location);
+				}
 				bAirBullet = target.getObjPointer()->isAFlyingUnit();
 			} else {
 				dbg_print("UnitBase::salveAttack cannot be done !\n");
 				return;
 			}
+				// Reveal position to target if firing from an unexplored tile
+				if (target && getTarget() != NULL && !(currentGameMap->getTile(location)->isExplored(getTarget()->getOwner()->getHouseID())) ) {
+					currentGameMap->viewMap(getTarget()->getOwner()->getTeam(), location, 2);
+				}
 
 
 
-				bulletList.push_back( new Bullet( objectID, &centerPoint, &targetCenterPoint, currentBulletType, currentWeaponDamage, bAirBullet) );
+
+				// TILESIZE/2 + (distance/TILESIZE) + precisionOffset;
+				bulletList.push_back( new Bullet( objectID, &centerPoint, &targetCenterPoint, currentBulletType, currentWeaponDamage, bAirBullet, precision) );
 				playAttackSound();
 				salveWeaponDelay = BASE_SALVO_TIMER;
 				salveWeaponTimer[i] = getWeaponReloadTime()+ salveWeaponDelay*i+salveWeaponDelay;
 				primaryWeaponTimer = getWeaponReloadTime();
+				idle = false;
 
 		}
 	}
@@ -380,12 +468,28 @@ void UnitBase::deploy(const Coord& newLocation, bool sound) {
 
 		if (guardPoint.isInvalid())
 			guardPoint = location;
-		setDestination(guardPoint);
+		if (getDestination().isInvalid())
+			setDestination(guardPoint);
+		// XXX Reset unit assignment after being picked up (See UnitBase::setPickedUp)
+		// XXX reset forced status when deployed (?)
+		//      wip aka Harvester being picked up and deploy forced stops when the very few spice left on spot finishes
+		setForced(false);
+
+
+		if (target && getTarget() != NULL)
+			/// XXX Also check if active
+			//setOldTarget(getTarget());
+			swapOldNewTarget();
+		if ((fellow && getFellow() != NULL && getFellow() != this) /*&& getOldFellow() == NULL*/) {
+			//setOldFellow(getFellow());
+			swapOldNewFellow();
+		}
+
+		//setFellow(NULL);
 		pickedUp = false;
 		setRespondable(true);
 		setActive(true);
 		setVisible(VIS_ALL, true);
-		setFellow(NULL);
 
 		if(sound) {
 			Voice_enum voice = NUM_VOICE;
@@ -395,7 +499,7 @@ void UnitBase::deploy(const Coord& newLocation, bool sound) {
 			} else if (isInfantry()) {
 				voice = UnitDeployed;
 			} else if (isAUnit() && itemID != Unit_Harvester) {
-				voice = VehiculeDeployed;
+				voice = VehicleDeployed;
 			} else if (isAUnit() && itemID == Unit_Harvester) {
 				voice = HarvesterDeployed;
 			}
@@ -405,6 +509,12 @@ void UnitBase::deploy(const Coord& newLocation, bool sound) {
 				soundPlayer->playVoiceAt(voice,getOwner()->getHouseID(),location);
 			}
 		}
+
+
+
+		err_print("UnitBase::deploy Unit %s (%d) f:%d of:%d \n",getItemNameByID(itemID).c_str(),this->getObjectID(),
+							this->getFellow() !=NULL ? this->getFellow()->getObjectID() : -1,
+							this->getOldFellow() != NULL ? this->getOldFellow()->getObjectID() : -1);
 	}
 
 }
@@ -414,6 +524,8 @@ void UnitBase::destroy() {
 
 	setFellow(NULL);
 	setTarget(NULL);
+	setOldFellow(NULL);
+	setOldTarget(NULL);
 	currentGameMap->removeObjectFromMap(getObjectID());	//no map point will reference now
 	currentGame->getObjectManager().removeObject(objectID);
 
@@ -449,6 +561,8 @@ void UnitBase::deviate(House* newOwner) {
         removeFromSelectionLists();
         setTarget(NULL);
         setFellow(NULL);
+        setOldTarget(NULL);
+        setOldFellow(NULL);
         setGuardPoint(location);
         setDestination(location);
         clearPath();
@@ -456,6 +570,7 @@ void UnitBase::deviate(House* newOwner) {
         owner = newOwner;
         graphic = pGFXManager->getObjPic(graphicID,getOwner()->getHouseID());
         deviationTimer = DEVIATIONTIME;
+        idle = true;
     } else if (wasDeviated()) {
     	deviationTimer = DEVIATIONTIME;
     }
@@ -559,18 +674,18 @@ bool UnitBase::checkSalveRealoaded(bool stillSalvingWhenReloaded) {
 
 
 void UnitBase::engageFollow(ObjectBase* pTarget) {
-	ObjectBase* old = (getFellow());
-	Coord oldLoc = old != NULL ?  old->getLocation() : Coord::Invalid();
+	ObjectBase* fel = (getFellow());
+	Coord felLoc = fel != NULL ?  fel->getLocation() : Coord::Invalid();
 	Coord targetLocation = pTarget != NULL ? pTarget->getClosestPoint(location) : Coord::Invalid();
 	targetDistance = blockDistance(location, targetLocation);
 
-	if(old != NULL) {
-		if (old->isAUnit() && ((UnitBase*)old)->isSalving()) {
+	if(fel != NULL) {
+		if (fel->isAUnit() && ((UnitBase*)fel)->isSalving()) {
 					salving=true;
 		} else {
 					salving=false;
 		}
-		if (destination != oldLoc) {
+		if (destination != felLoc) {
 			// the location of the friend unit has moved
 			// => recalculate path
 			clearPath();
@@ -578,22 +693,21 @@ void UnitBase::engageFollow(ObjectBase* pTarget) {
 		// The friend followed unit changed its target : follow firing orders
 		// but only if our current target is out of range and followed unit is already far ahead
 		// or even rather if the followed unit is itself forced.
-		if (old->getTarget() != NULL && old->getTarget() != pTarget &&
-				(targetDistance > getWeaponRange() && ( !isInFollowingRange() || (old->isAUnit() && ((UnitBase*)old)->wasForced()) ) )
+		if (fel->getTarget() != NULL && fel->getTarget() != pTarget &&
+				(targetDistance > getWeaponRange() && ( !isInFollowingRange() || (fel->isAUnit() && ((UnitBase*)fel)->wasForced()) ) )
 			)   {
 
 
-			setTarget(old->getTarget());
+			setTarget(fel->getTarget());
 		}
 
 	}
 	//if (salving) salving=false;
-	dbg_relax_print("UnitBase::follow  %d target x=%d y=%d oldtarget  x=%d y=%d \n", objectID, targetLocation.x,targetLocation.y,oldLoc.x,oldLoc.y);
+	dbg_relax_print("UnitBase::follow  %d target x=%d y=%d fellow  x=%d y=%d \n", objectID, targetLocation.x,targetLocation.y,felLoc.x,felLoc.y);
 	//setDestination(oldLoc);
 
 
 }
-
 
 void UnitBase::engageTarget() {
 
@@ -604,32 +718,50 @@ void UnitBase::engageTarget() {
     		releaseTarget();
     		attackPos.invalidate();
     	} else {
-    	     setDestination(location);
+    	     guardPoint.isValid() ? setDestination(guardPoint) :  setDestination(location);
     		 findTargetTimer = 0;
     		 setForced(false);
     		 setTarget(NULL);
     	}
 
-        return;
+    	swapOldNewTarget();
+        if (!target || getTarget() == NULL) {
+        	findTargetTimer = 0;
+        	clearPath();
+        	return;
+        }
     }
 
-    if(target && (target.getObjPointer()->isActive() == false)) {
+    if(target && (target.getObjPointer()->isActive() == false) ) {
         // the target changed its state to inactive
         releaseTarget();
         attackPos.invalidate();
-        return;
+    	swapOldNewTarget();
+        if (!target || getTarget() == NULL) {
+        	clearPath();
+        	return;
+        }
     }
 
     if(target && !targetFriendly && !canAttack(target.getObjPointer())) {
         // the (non-friendly) target cannot be attacked anymore
         releaseTarget();
-        return;
+        attackPos.invalidate();
+    	swapOldNewTarget();
+		if (!target || getTarget() == NULL) {
+			clearPath();
+			return;
+		}
     }
 
     if(target && !targetFriendly && (!forced && !bFollow) && !isInAttackRange(target.getObjPointer())) {
         // the (non-friendly) target left the attack mode range (and we were not forced to attack it nor we are following)
         releaseTarget();
-        return;
+        swapOldNewTarget();
+		if (!target || getTarget() == NULL) {
+			clearPath();
+			return;
+		}
     }
 
 
@@ -641,41 +773,53 @@ void UnitBase::engageTarget() {
 
     if(target) {
         // we have a target unit or structure
+        Coord targetLocation = (target && getTarget() !=NULL) ? getTarget()->getClosestPoint(location) : Coord().Invalid();
+        targetLocation.isValid() ?  			targetDistance = blockDistance(location, targetLocation) :
+        										targetDistance = std::numeric_limits<float>::infinity();
+        if(destination != targetLocation ) {
+			// the location of the target has moved or we changed target
+			// => recalculate path
+       		clearPath();
+       	}
 
     	if (target.getObjPointer()->getItemID() == Unit_Carryall &&  ((Carryall*)target.getObjPointer())->isIdle() && !((Carryall*)target.getObjPointer())->hasCargo()  ) {
     		// we don't want to pursuit idle flyaround carryall
-    		 releaseTarget();
-    		 return;
+    		 setTarget(NULL);
+    		 swapOldNewTarget();
+    		 clearPath();
+    		 findTargetTimer = 0;
+    		 if (!target || getTarget() == NULL) {
+				return;
+			 }
     	}
 
-
-        Coord targetLocation = target.getObjPointer()->getClosestPoint(location);
-        targetDistance = blockDistance(location, targetLocation);
 
         if(bFollow) {
             // we are following someone : we need to choose between following target or the friend unit
         	// if the friend unit is attacking a target & is in danger = move to his destination , attack his target
-        	engageFollow(target.getObjPointer());
+        	engageFollow(getTarget());
 
-        	if (target) {
-        		targetLocation = target.getObjPointer()->getClosestPoint(location);
-        		targetDistance = blockDistance(location, targetLocation);
-        	}
+            Coord targetLocation = (target && getTarget() !=NULL) ? getTarget()->getClosestPoint(location) : Coord().Invalid();
+            targetLocation.isValid() ?  			targetDistance = blockDistance(location, targetLocation) :
+            										targetDistance = std::numeric_limits<float>::infinity();
 
         	if (!target || targetDistance > getWeaponRange() || target.getObjPointer()->getObjectID() == objectID) {
         		// friend unit has just disengage, do same (also disengage if he engage this)
         		// if no current target or got out of range
         		findTargetTimer = 0;
-        		if (!target ||  target.getObjPointer()->getObjectID() == objectID)
-        			return;
+        		if (!target ||  getTarget() == NULL || getTarget()->getObjectID()  == objectID) {
+        			swapOldNewTarget();
+        			if (!target || getTarget() == NULL || getTarget()->getObjectID() == objectID ) return;
+        		}
         		//err_print("UnitBase::engageTarget just disengage %d\n ",target && target.getObjPointer() ? target.getObjPointer()->getObjectID() : -1);
 
         	}
-        } else if(destination != targetLocation) {
-			// the location of the target has moved
-			// => recalculate path
-			clearPath();
-		}
+        }
+
+
+        targetLocation = (target && target.getObjPointer() !=NULL) ? target.getObjPointer()->getClosestPoint(location) : Coord().Invalid();
+        targetLocation != INVALID_POS ?  		targetDistance = blockDistance(location, targetLocation) :
+        										targetDistance = std::numeric_limits<float>::infinity();
 
         Sint8 newTargetAngle = lround(8.0f/256.0f*destinationAngle(location, targetLocation));
         if(newTargetAngle == 8) {
@@ -694,7 +838,7 @@ void UnitBase::engageTarget() {
         			}
         			else
         				setDestination(oldLoc);
-					dbg_relax_print("UnitBase::engageTarget %d notinrange target x=%d y=%d oldtarget  x=%d y=%d\n ", objectID, targetLocation.x,targetLocation.y,oldLoc.x,oldLoc.y);
+					dbg_relax_print("UnitBase::engageTarget %d notinrange target x=%d y=%d fellow  x=%d y=%d\n ", objectID, targetLocation.x,targetLocation.y,oldLoc.x,oldLoc.y);
         		}
         	}
         	else {
@@ -708,12 +852,17 @@ void UnitBase::engageTarget() {
 
         if (isFollowing() && !isInFollowingRange() && target && target.getObjPointer()->isActive()) {
         	// Follow the leader in any case when out of the following range
+        	// we may try to store this target because actually we are in attackrange
+        	if (!oldtarget && getOldTarget() == NULL ) {
+        		  swapOldNewTarget();
+        	}
         	releaseTarget();
 			return;
         }
 
         if(targetFriendly && (!forced && !bFollow)) {
             // the target is friendly and we only attack these if were forced to do so or not in following mode (firing orders)
+        	swapOldNewTarget();
             return;
         }
 
@@ -726,7 +875,8 @@ void UnitBase::engageTarget() {
         	if (salving) salving=false;
             setDestination(targetLocation);
             targetAngle = INVALID;
-        } else if((isTracked() && target.getObjPointer()->isInfantry() && currentGameMap->tileExists(targetLocation) && !currentGameMap->getTile(targetLocation)->isMountain()) &&
+        } else if((isTracked() && target.getObjPointer() != NULL && target.getObjPointer()->isInfantry() && currentGameMap->tileExists(targetLocation) && !currentGameMap->getTile(targetLocation)->isMountain()) &&
+        		target.getObjPointer()->getOwner()->getTeam() != pLocalHouse->getTeam() &&
 					(forced ||
 							(target.getUnitPointer() != NULL && target.getUnitPointer()->getTarget() == this &&
 							(targetDistance <= target.getUnitPointer()->getWeaponRange() ))
@@ -736,8 +886,7 @@ void UnitBase::engageTarget() {
         	if (salving) salving=false;
         	err_print("UnitBase::engageTarget will squash 'EM %d !\n",target.getUnitPointer()->getObjectID());
             setDestination(targetLocation);
-            //targetAngle = INVALID;
-        } else if (target.getObjPointer()->getItemID() == Unit_Carryall &&
+        } else if (target.getObjPointer() != NULL && target.getObjPointer()->getItemID() == Unit_Carryall &&
         			(	( ((Carryall*)target.getObjPointer())->hasCargo()  &&
         						( ((Carryall*)target.getObjPointer())->hasAFellow() && (!(((Carryall*)target.getObjPointer())->getFellow())->isAStructure()) )
         				) ||
@@ -751,8 +900,10 @@ void UnitBase::engageTarget() {
         	//  - when not having a cargo but intent to pickup one (a unit)
         	return;
         } else {
-            // we decide to fire on the target thus we can stop moving
-            setDestination(location);
+            // we decide to fire on the target thus we can stop moving but if we are turreted then
+        	// let's come closest while moving & firing
+			if ((!isTurreted() || (!forced && isTurreted()) ))
+        		setDestination(location);
             if (checkSalveRealoaded(salving)) {
             	targetAngle = newTargetAngle;
             	//dbg_relax_print("UnitBase::engageTarget get new angle (salving %s)\n",salving ? "yes" :"no");
@@ -763,6 +914,10 @@ void UnitBase::engageTarget() {
         if (salving && (getCurrentAttackAngle() == newTargetAngle)) {
         		dbg_print("UnitBase::engageTarget setting salveattack on TARGET x=%d y=%d\n ",attackPos.x,attackPos.y);
                	salveAttack(attackPos,targetLocation);
+               	if (!target && target.getObjPointer() == NULL) {
+               		if (currentGameMap->getTile(attackPos) != NULL )
+               			setTarget(currentGameMap->getTile(attackPos)->getGroundObject());
+               	}
                	return;
         }
         if (salving && getCurrentAttackAngle() != newTargetAngle) {
@@ -772,9 +927,91 @@ void UnitBase::engageTarget() {
         if(!salving && getCurrentAttackAngle() == newTargetAngle) {
         	//dbg_relax_print("UnitBase::engageTarget nosalving attack x=%d y=%d!\n",targetLocation.x,targetLocation.y);
             attack();
+
         }
 
     } /* if target */
+    else if (oldtarget) {
+
+
+         Coord targetLocation = (oldtarget && getOldTarget() !=NULL) ? getOldTarget()->getClosestPoint(location) : Coord().Invalid();
+         targetLocation.isValid() ?  			oldtargetDistance = blockDistance(location, targetLocation) :
+         										oldtargetDistance = std::numeric_limits<float>::infinity();
+
+         Sint8 newTargetAngle = lround(8.0f/256.0f*destinationAngle(location, targetLocation));
+         if(newTargetAngle == 8) {
+				newTargetAngle = 0;
+         }
+
+         if(oldtargetDistance <= getWeaponRange() && getOldTarget() != NULL) {
+        	 if (isFollowing() && !isInFollowingRange() && oldtarget &&  getOldTarget()->isActive()) {
+				// Follow the leader in any case when out of the following range
+				return;
+			 }
+
+        	 if (!goingToRepairYard && attackMode != CAPTURE) {
+        		 if((isTracked() && getOldTarget()->isInfantry() && currentGameMap->tileExists(targetLocation) && !currentGameMap->getTile(targetLocation)->isMountain()) &&
+        				 getOldTarget()->getOwner()->getTeam() != pLocalHouse->getTeam() &&
+        		 					(forced ||
+        		 							( getOldTarget() != NULL && getOldTarget()->getTarget() == this &&
+        		 							(oldtargetDistance <= getOldTarget()->getWeaponRange() ))
+        		 					) && getItemID() != Unit_SonicTank
+        		 				  ) {
+					 // we squash the infantry unit because we are forced to or we can (anytime for harvester or) because it is in weaponrange
+					if (salving) salving=false;
+					err_print("UnitBase::engageTarget will squash 'EM %d !\n",oldtarget.getUnitPointer()->getObjectID());
+					setDestination(targetLocation);
+        		 }
+				else if (getOldTarget()->getItemID() == Unit_Carryall &&
+					(	( ((Carryall*)getOldTarget())->hasCargo()  &&
+								( ((Carryall*)getOldTarget())->hasAFellow() && (!(((Carryall*)getOldTarget())->getFellow())->isAStructure()) )
+						) ||
+						( (!((Carryall*)getOldTarget())->hasCargo()) &&
+								(  ((Carryall*)getOldTarget())->hasAFellow() &&  (((Carryall*)getOldTarget())->getFellow())->isAUnit() )
+						)
+					)
+				  ) {
+					// we don't want to try to attack a fast unit like carryall except  :
+					//	- when having a cargo that is not intended by a structure (ie. Repairyard,Refinery)
+					//  - when not having a cargo but intent to pickup one (a unit)
+					return;
+				} else {
+		            // we decide to fire on the target thus we can stop moving but if we are turreted then
+		        	// let's come closest while moving & firing
+					if ((!isTurreted() || (!forced && isTurreted() )))
+						setDestination(location);
+					if (checkSalveRealoaded(salving)) {
+						targetAngle = newTargetAngle;
+						//dbg_relax_print("UnitBase::engageTarget get new angle (salving %s)\n",salving ? "yes" :"no");
+					}
+
+
+				}
+				attackPos = targetLocation; // Saving attackPos when target become unreachable
+
+				if (salving && (getCurrentAttackAngle() == newTargetAngle)) {
+					dbg_print("UnitBase::engageTarget setting salveattack on TARGET x=%d y=%d\n ",attackPos.x,attackPos.y);
+						salveAttack(attackPos,targetLocation);
+						if (!oldtarget && oldtarget.getObjPointer() == NULL) {
+							if (currentGameMap->getTile(attackPos) != NULL )
+								setOldTarget(currentGameMap->getTile(attackPos)->getGroundObject());
+						}
+						return;
+				}
+				if (salving && getCurrentAttackAngle() != newTargetAngle) {
+					// can't attack
+						return;
+				}
+				if(!salving && getCurrentAttackAngle() == newTargetAngle) {
+					//dbg_relax_print("UnitBase::engageTarget nosalving attack x=%d y=%d!\n",targetLocation.x,targetLocation.y);
+		        	// Warning !!  no swaping in attack() or its callee allowed !
+					swapOldNewTarget();
+					attack();
+					swapOldNewTarget();
+				}
+        	 }
+         } /* targetDistance <= getWeaponRange() */
+    } /* if oldtarget */
     else if(attackPos.isValid()) {
         // we attack a position
 
@@ -788,7 +1025,8 @@ void UnitBase::engageTarget() {
 
     	        if(targetDistance <= getWeaponRange()) {
     	            // we are in weapon range thus we can stop moving
-    	            setDestination(location);
+    	        	if ((!isTurreted() || (!forced && isTurreted() )))
+    	        		setDestination(location);
     	            targetAngle = newTargetAngle;
 
     	            if(getCurrentAttackAngle() == newTargetAngle ) {
@@ -806,7 +1044,7 @@ void UnitBase::engageTarget() {
 
 void UnitBase::move() {
 
-	if(!moving && !justStoppedMoving && itemID != Unit_Sandworm) {
+	if(!moving && !justStoppedMoving &&  itemID != Unit_Carryall && (itemID != Unit_Sandworm || owner->getHouseID() == HOUSE_FREMEN )) {
 		currentGameMap->viewMap(owner->getTeam(), location, getViewRange() );
 	}
 
@@ -826,6 +1064,11 @@ void UnitBase::move() {
 			maxyspeed /= 2;
 		}
 
+
+		if (destroyed) {
+			maxxspeed += ((1/findTargetTimer)/(destroyedCountdown+1));
+			maxyspeed += ((1/findTargetTimer)/(destroyedCountdown+1));
+		}
 
 		realX += maxxspeed;
 		realY += maxyspeed;
@@ -883,10 +1126,11 @@ void UnitBase::move() {
 		}
 
 		bumpyMovementOnRock(fromDistanceX, fromDistanceY, toDistanceX, toDistanceY);
-
+		idle = false;
 	} else {
 		justStoppedMoving = false;
 	}
+
 
 	checkPos();
 }
@@ -946,10 +1190,11 @@ void UnitBase::party() {
 
 					 if(!SearchPathWithAStar() && (++noCloserPointCount >= 3) && (location != oldLocation)) {
 							// Destination here is the friend unit position
-							if (pathList.empty() && !target) {
+							if (pathList.empty() && !target && canAttackStuff) {
 								 if(((currentGame->getGameCycleCount() + getObjectID()*1337) % MILLI2CYCLES(UNITIDLETIMER/2)) == 0) {
 									 idleAction();
 								 }
+								 idle = true;
 							}
 							forced = false;
 
@@ -990,7 +1235,7 @@ void UnitBase::party() {
 void UnitBase::navigate() {
 
 	if (bFollow) {
-		if (oldTarget  && getFellow() != NULL &&  getFellow()->isActive()) {
+		if (fellow  && getFellow() != NULL &&  getFellow()->isActive()) {
 			if (getFellow()->isAUnit() && ((UnitBase*)getFellow())->wasDeviated() && (getItemID()!= Unit_Carryall && getFellow()->getItemID() != Unit_Harvester)) {
 				// Do not party with deviated unit except to steal credits from a deviate harvester
 				return;
@@ -999,9 +1244,12 @@ void UnitBase::navigate() {
 			return;
 		} else {
 			// Follow friend unit has been destroyed or gone inactive
-			if (!oldTarget || getFellow() == NULL) {
+			if (!fellow || getFellow() == NULL) {
 				setFellow(NULL);
 				setDestination(guardPoint);
+				if (oldfellow && getFellow() != NULL) {
+					swapOldNewFellow();
+				}
 			}
 		}
 	}
@@ -1019,17 +1267,105 @@ void UnitBase::navigate() {
                             && (location != oldLocation))
                         {	//try searching for a path a number of times then give up
                         	// after requesting for air lift if possible
-                        	ObjectBase* blockingObj = currentGameMap->getTile(destination.x,destination.y)->getGroundObject();
-                        	if (isAGroundUnit() && !((GroundUnit*)this)->isAwaitingPickup() && (blockingObj == NULL || getTarget() == blockingObj) ) {
-                        		if (!((GroundUnit*)this)->requestCarryall()) {
-                        			setDestination(location);	//can't get any closer, give up
-									forced = false;
+                        	ObjectBase* blockingObj = currentGameMap->tileExists(destination.x,destination.y) ?
+                        			currentGameMap->getTile(destination.x,destination.y)->getGroundObject() :  NULL ;
+                        	if (blockingObj == this) blockingObj=NULL ;
+
+                        	bool base_cond = (isAGroundUnit() && !((GroundUnit*)this)->isAwaitingPickup() && isActive());
+                        	bool friend_block_dest = (blockingObj == NULL || ((blockingObj->getOwner() == owner) || blockingObj->getOwner()->getTeam() == pLocalHouse->getTeam() ));
+                        	bool enemy_blocker =  blockingObj != NULL && (blockingObj->isAStructure() || blockingObj->isAUnit()) && (blockingObj->getOwner() != owner)
+                        							&& blockingObj->getOwner()->getTeam() != pLocalHouse->getTeam() && (!target || blockingObj != target.getObjPointer()) ;
+                        	bool blocker_in_transit = blockingObj != NULL && blockingObj->isAUnit() && ((UnitBase*)blockingObj)->isMoving()
+                        			&& blockingObj->getDestination() != blockingObj->getLocation();
+
+                        	Carryall * carrier;
+                        	if (base_cond) {
+                        		if (blocker_in_transit)
+                        			return;
+                        		if (friend_block_dest) {
+									// we cannot advance anymore and we have (no unit,) our unit  at destination (not)blocking location
+
+									if (blockingObj == NULL) {
+										// destination is free, get a carryall to go there
+										if (blockDistance(location, destination) < 5.0f || !((GroundUnit*)this)->requestCarryall()) {
+											setDestination(location);	//can't get any closer, give up
+											/// XXX
+											setGuardPoint(location);
+											forced = false;
+										} else {
+											carrier = (Carryall*)(((GroundUnit*)this)->getCarrier());
+											setFellow(carrier);
+											carrier->setDeployPos((destination));
+											carrier->setFallbackPos(destination+Coord(rand()%2,rand()%2));
+										}
+									} else {
+											// we have an idle object blocker own by us that camp the destination
+											if (forced) {
+												setDestination(location);	//can't get any closer, give up
+												/// XXX
+												setGuardPoint(location);
+												forced = false;
+											} else {
+
+												Coord dp = currentGameMap->findDeploySpot(this, destination, destination, Coord(1,1));
+												if (blockDistance(location, destination) < 5.0f || !((GroundUnit*)this)->requestCarryall()) {
+													setDestination(dp);
+													forced = true;
+												} else {
+													carrier = (Carryall*)(((GroundUnit*)this)->getCarrier());
+													setFellow(carrier);
+													//carrier->giveDeliveryOrders(this, dp, dp, currentGameMap->findDeploySpot(this, location, destination));
+
+													carrier->setDeployPos((dp));
+													carrier->setFallbackPos(destination+Coord(rand()%2,rand()%2));
+													setDestination(dp);
+													forced = true;
+												}
+											}
+
+									}
+                        		} else if (enemy_blocker) {
+                        			// we cannot advance anymore and we have enemy unit or structure at destination blocking location that is not our target
+									if (forced) {
+										setDestination(location);	//can't get any closer, give up
+										/// XXX
+										setGuardPoint(location);
+										if (!oldtarget || getOldTarget() == NULL || !getOldTarget()->isActive())
+											setOldTarget(blockingObj);
+										forced = false;
+									} else {
+										Coord dp = currentGameMap->findDeploySpot(this, destination, destination, Coord(1,1));
+										if (blockDistance(location, destination) < 5.0f || !((GroundUnit*)this)->requestCarryall()) {
+											setDestination(dp);
+											forced = true;
+										} else {
+											carrier = (Carryall*)(((GroundUnit*)this)->getCarrier());
+											setFellow(carrier);
+											carrier->setDeployPos((dp));
+											carrier->setFallbackPos(destination+Coord(rand()%2,rand()%2));
+											setDestination(dp);
+											forced = true;
+										}
+									}
                         		} else {
-                        			setFellow(((GroundUnit*)this)->getCarrier());
-                        			((Carryall*)((GroundUnit*)this)->getCarrier())->setDeployPos(getClosestCenterPoint(destination));
+                        			// Fallback : blocker surely be our target
+                        			if (!target || getTarget() == NULL) {
+                        					swapOldNewTarget();
+                        					setTarget(blockingObj);
+                        			}
+                        			if (!oldtarget || getOldTarget() == NULL || !getOldTarget()->isActive()) {
+                        					setOldTarget(blockingObj);
+                        			}
+									setDestination(location);	//can't get any closer, give up
+									/// XXX
+									setGuardPoint(location);
+									forced = false;
                         		}
-                        	} else if (!isAGroundUnit() || (blockingObj != NULL  && blockingObj != this && getTarget() != blockingObj)  ) {
+                        	} else if (!isAGroundUnit() || destroyed ) {
+                        		// we are not a ground unit or we are destroyed rolling free wheels
                             	setDestination(location);	//can't get any closer, give up
+                            	/// XXX
+                            	setGuardPoint(location);
                             	forced = false;
                         	}
 
@@ -1064,10 +1400,19 @@ void UnitBase::navigate() {
                         }
                     }
                 }
-            } else if(!target) {
+            } else if(!target && canAttackStuff) {
                 if(((currentGame->getGameCycleCount() + getObjectID()*1337) % MILLI2CYCLES(UNITIDLETIMER)) == 0) {
                     idleAction();
+
+                	if (location != guardPoint && (attackMode == GUARD ||  attackMode == AREAGUARD)){
+                		// if on guard duty then go to guardPoint before idling
+                		idle = false;
+                		doMove2Pos(guardPoint,true);
+                		return;
+                	}
                 }
+                idle = true;
+
             }
         }
     }
@@ -1086,6 +1431,8 @@ void UnitBase::idleAction() {
 			}
 		}
 	}
+
+	idle = true;
 }
 
 void UnitBase::handleFormationActionClick(int xPos, int yPos) {
@@ -1228,7 +1575,7 @@ void UnitBase::doMove2Object(const ObjectBase* pFellowObject, const ObjectBase* 
 	}
 
 	setDestination(pFellowObject->getLocation());
-	err_print("ID:%d FellowID:%d TargetID:%d\n", objectID, pFellowObject !=NULL ? pFellowObject->getObjectID() : 0,pTargetObject != NULL ? pTargetObject->getObjectID() : 0);
+	err_print("UnitBase::doMove2Object ID:%d FellowID:%d TargetID:%d\n", objectID, pFellowObject !=NULL ? pFellowObject->getObjectID() : 0,pTargetObject != NULL ? pTargetObject->getObjectID() : 0);
 	setFellow(pFellowObject);
 	if (pFellowObject->getAttackMode() == CAPTURE) {
 		doSetAttackMode(CAPTURE);
@@ -1305,7 +1652,7 @@ void UnitBase::doAttackPos(int xPos, int yPos, bool bForced) {
 }
 
 void UnitBase::doAttackObject(const ObjectBase* pTargetObject, bool bForced) {
-	if(pTargetObject == NULL || pTargetObject->getObjectID() == getObjectID() || (!canAttack() && (getItemID() != Unit_Harvester ))) {
+	if(pTargetObject == NULL || pTargetObject->getObjectID() == getObjectID() || !canAttack()) {
 		return;
 	}
 
@@ -1313,8 +1660,10 @@ void UnitBase::doAttackObject(const ObjectBase* pTargetObject, bool bForced) {
         doSetAttackMode(GUARD);
 	}
 
-	setDestination(INVALID_POS,INVALID_POS);
+    // XXX
+	//setDestination(INVALID_POS,INVALID_POS);
 
+	swapOldNewTarget();
 	setTarget(pTargetObject);
 
 	setForced(bForced);
@@ -1362,16 +1711,20 @@ void UnitBase::doSetAttackMode(ATTACKMODE newAttackMode) {
 	    }
 	    if (attackMode == STOP) {
 	    	setFellow(NULL);
+	    	setOldFellow(NULL);
 	    	salving = false;
 	    }
 	}
 }
 
 void UnitBase::doCancel() {
-
+	clearPath();
+	findTargetTimer = 0;
+	oldTargetTimer = 0;
 	if (isFollowing()) {
 		doMove2Pos(guardPoint, false);
 		setFellow(NULL);
+		setOldFellow(NULL);
 	} else {
 	    if(moving && !justStoppedMoving) {
             doMove2Pos(nextSpot, false);
@@ -1380,6 +1733,7 @@ void UnitBase::doCancel() {
 	    }
 	}
 	salving = false;
+	idle=true;
 }
 
 void UnitBase::handleDamage(int damage, Uint32 damagerID, House* damagerOwner) {
@@ -1388,18 +1742,74 @@ void UnitBase::handleDamage(int damage, Uint32 damagerID, House* damagerOwner) {
         deviationTimer = std::max(0,deviationTimer - MILLI2CYCLES(damage*10*1000));
     }
 
-    ObjectBase::handleDamage(damage, damagerID, damagerOwner);
+    ObjectBase* pDamager = currentGame->getObjectManager().getObject(damagerID);
 
+    bool wasforced = forced;
+
+
+    if (attackMode == STOP) {
+		 // wake up you, darn it !
+		 damage += ((currentGame->randomGen.rand(10,15)*damage)/100);
+		 doSetAttackMode(GUARD);
+	 }
+	 else if (forced && attackMode != AMBUSH) {
+		 // were forced...
+		 if ((!target || getTarget() != pDamager ) ) {
+			 // ...and unaware/or forced moved while this enemy targeting and hitting us : Taken by surprise ( 5%, 15% more damage )
+			 int base = attackMode == STOP ? currentGame->randomGen.rand(10,20) : currentGame->randomGen.rand(5,15) ;
+			 damage += ((base*damage)/100);
+		 } else {
+			 // ...to attack this damager actually, we anticipate this aggression and covered up
+			 damage -= ((currentGame->randomGen.rand(5,15)*damage)/100);
+		 }
+	} else if (attackMode == AMBUSH) {
+			//  we hoped this aggression and covered up as much as we could
+			damage -= ((currentGame->randomGen.rand(25,50)*damage)/100);
+	}
+
+    // TODO : make this a tech-option
+	if(true  && pDamager != NULL && canAttack(pDamager)) {
+		if( (!forced && ( (!target || getTarget() == NULL || !isInWeaponRange(getTarget())) &&
+			  (!oldtarget || getOldTarget() == NULL || !isInWeaponRange(getOldTarget()))
+			))
+			||
+			( !forced && ( (!target || getTarget() == NULL || !isInWeaponRange(getTarget())) &&
+					  damage >= getMaxHealth()*0.20)
+			 )
+
+		  ) {
+			// in any case : no target on weapon range and damager hurt 1/5 of my health
+			// => could switch target to this damager, current will be stored for later
+				if (pDamager !=this) {
+					swapOldNewTarget();
+					setTarget(pDamager);
+					clearPath();
+					// force it
+					wasforced = true;
+				}
+
+			}
+	}
     if ((attackMode == HUNT && !forced) || isFollowing() ) {
-        ObjectBase* pDamager = currentGame->getObjectManager().getObject(damagerID);
         if(pDamager != NULL && canAttack(pDamager)) {
             if(!target || target.getObjPointer() == NULL || !isInWeaponRange(target.getObjPointer())) {
-                // no target or target not on weapon range => switch target
-                doAttackObject(pDamager, false);
+                // hunting but no target or target not on weapon range => damage the damager
+            	if (pDamager !=this) {
+					swapOldNewTarget();
+					setTarget(pDamager);
+					clearPath();
+				}
             }
         }
     }
+	if (damage >= getMaxHealth()*0.45 ) {
+				// we are pinned down by this attack !
+				setDestination(location);
+	}
 
+	forced = wasforced;
+
+	 ObjectBase::handleDamage(damage, damagerID, damagerOwner);
 
     //TODO : Followers might be of some help ?
 }
@@ -1430,7 +1840,7 @@ bool UnitBase::isInGuardRange(const ObjectBase* pObject) const	{
     }
 
     if(getItemID() == Unit_Sandworm) {
-        checkRange = getViewRange();
+        checkRange = getViewRange() +10 ;
     }
 
     return (blockDistance(guardPoint*TILESIZE + Coord(TILESIZE/2, TILESIZE/2), pObject->getCenterPoint()) <= checkRange*TILESIZE);
@@ -1479,11 +1889,11 @@ bool UnitBase::isInAttackRange(const ObjectBase* pObject) const {
 
 
 bool UnitBase::isInFollowingRange() const {
-    if(!oldTarget) {
+    if(!fellow) {
         return true;
     }
 
-    Coord LeaderLocation = oldTarget.getObjPointer() != NULL ? oldTarget.getObjPointer()->getCenterPoint() : location;
+    Coord LeaderLocation = fellow.getObjPointer() != NULL ? fellow.getObjPointer()->getCenterPoint() : this->getCenterPoint();
 	float range = 2*getViewRange();
 
 		switch(attackMode) {
@@ -1516,10 +1926,13 @@ bool UnitBase::isInWeaponRange(const ObjectBase* object) const {
         return false;
     }
 
-    Coord targetLocation = target.getObjPointer()->getClosestPoint(location);
+    Coord targetLocation = object->getCenterPoint();
 
-    return (blockDistance(location, targetLocation) <= getWeaponRange());
+
+    return (blockDistance(location*TILESIZE + Coord(TILESIZE/2, TILESIZE/2), targetLocation) <= getWeaponRange()*TILESIZE);
 }
+
+
 
 bool UnitBase::isNearer(const ObjectBase* object) const {
     if(object == NULL) {
@@ -1530,10 +1943,10 @@ bool UnitBase::isNearer(const ObjectBase* object) const {
     	return true;
     }
 
-    Coord targetLocation = target.getObjPointer()->getClosestPoint(location);
-    Coord objectLocation = object->getClosestPoint(location);
+    Coord targetLocation = target.getObjPointer()->getCenterPoint();
+    Coord objectLocation = object->getCenterPoint();
 
-    return blockDistance(location, targetLocation) > blockDistance(location, objectLocation);
+    return blockDistance(location*TILESIZE + Coord(TILESIZE/2, TILESIZE/2), targetLocation) > blockDistance(location*TILESIZE + Coord(TILESIZE/2, TILESIZE/2), objectLocation);
 }
 
 
@@ -1546,7 +1959,7 @@ void UnitBase::setAngle(int newAngle) {
 }
 
 void UnitBase::setGettingRepaired() {
-	if(oldTarget  && getFellow() != NULL && (getFellow()->getItemID() == Structure_RepairYard)) {
+	if(fellow  && getFellow() != NULL && (getFellow()->getItemID() == Structure_RepairYard)) {
 		if(selected) {
 			removeFromSelectionLists();
         }
@@ -1571,18 +1984,6 @@ void UnitBase::setGuardPoint(int newX, int newY) {
 	if(currentGameMap->tileExists(newX, newY) || ((newX == INVALID_POS) && (newY == INVALID_POS))) {
 		guardPoint.x = newX;
 		guardPoint.y = newY;
-
-		if((getItemID() == Unit_Harvester) && guardPoint.isValid()) {
-            if(currentGameMap->getTile(newX, newY)->hasSpice()) {
-                if(attackMode == STOP) {
-                    attackMode = GUARD;
-                }
-            } else {
-                if(attackMode != STOP) {
-                    attackMode = STOP;
-                }
-            }
-		}
 	}
 }
 
@@ -1600,7 +2001,8 @@ void UnitBase::setLocation(int xPos, int yPos) {
 
 	moving = false;
 	pickedUp = false;
-	setTarget(NULL);
+	setTarget(NULL);	//XXX swapping
+	setFellow(NULL);	//XXX swapping
 
 	clearPath();
 }
@@ -1619,14 +2021,38 @@ void UnitBase::setPickedUp(UnitBase* newCarrier) {
 
 	if(getItemID() == Unit_Harvester) {
 		Harvester* harvester = (Harvester*) this;
-		if(harvester->isReturning() && oldTarget && (getFellow()!= NULL) && (getFellow()->getItemID() == Structure_Refinery)) {
+		if(harvester->isReturning() && fellow && (getFellow()!= NULL) && (getFellow()->getItemID() == Structure_Refinery)) {
 			((Refinery*)getFellow())->unBook();
 		}
 	}
+	// When pickedUp, unload ammunition : reset weapons timers
+	if(numWeapons) {
+		primaryWeaponTimer = getWeaponReloadTime();
+		secondaryWeaponTimer = 15;
+		if (salveWeapon) {
+			salveWeaponDelay = BASE_SALVO_TIMER;
+			for (int i=0; i <  MAX_SALVE; i++) {
+				salveWeaponTimer[i] = getWeaponReloadTime()+ salveWeaponDelay*i+salveWeaponDelay;
+			}
+		}
+	}
 
-	oldTarget.pointTo(newCarrier);
 	goingToRepairYard = false;
-	forced = false;
+	// XXX (see Unit::Deploy) Store current assignments
+	if (oldtarget && getOldTarget() != NULL)
+		/// XXX Also check if active
+		//setTarget(getOldTarget());
+		swapOldNewTarget();
+	if (oldfellow && getOldFellow() != NULL) {
+		//setFellow(getOldFellow());
+		swapOldNewFellow();
+	}
+
+	err_print("UnitBase::setPickedUp Unit %s (%d) f:%d of:%d \n",getItemNameByID(itemID).c_str(),this->getObjectID(),
+								this->getFellow() !=NULL ? this->getFellow()->getObjectID() : -1,
+								this->getOldFellow() != NULL ? this->getOldFellow()->getObjectID() : -1);
+
+	//forced = false;
 	moving = false;
 	pickedUp = true;
 	respondable = false;
@@ -1709,19 +2135,36 @@ void UnitBase::setTarget(const ObjectBase* newTarget) {
 	//FIXME perf : set target is running permanently, why ?
 	targetAngle = INVALID;
 
-
 	//err_print("UnitBase::setTarget 1 %d FellowID:%d TargetID:%d\n", objectID, getFellow() != NULL ? getFellow()->getObjectID() : 0, this->getTarget() != NULL ? this->getTarget()->getObjectID() : 0 );
 	ObjectBase::setTarget(newTarget);
 	//err_print("UnitBase::setTarget 2 %d FellowID:%d TargetID:%d\n", objectID,getFellow() != NULL ? getFellow()->getObjectID() : 0, this->getTarget() != NULL ? this->getTarget()->getObjectID() : 0 );
 
 }
 
+void UnitBase::setOldTarget(const ObjectBase* oldTarget) {
+	//err_print("UnitBase::setTarget 1 %d FellowID:%d TargetID:%d\n", objectID, getFellow() != NULL ? getFellow()->getObjectID() : 0, this->getTarget() != NULL ? this->getTarget()->getObjectID() : 0 );
+	ObjectBase::setOldTarget(oldTarget);
+	//err_print("UnitBase::setTarget 2 %d FellowID:%d TargetID:%d\n", objectID,getFellow() != NULL ? getFellow()->getObjectID() : 0, this->getTarget() != NULL ? this->getTarget()->getObjectID() : 0 );
 
-inline ObjectBase* UnitBase::getFellow() {
-
-	return oldTarget.getObjPointer() ;
 }
 
+void UnitBase::swapOldNewTarget() {
+	const ObjectBase *tmp_target = target.getObjPointer();
+	const ObjectBase *tmp_oldtarget = oldtarget.getObjPointer();
+	targetAngle = INVALID;
+	ObjectBase::setTarget(tmp_oldtarget);
+	ObjectBase::setOldTarget(tmp_target);
+}
+
+
+inline ObjectBase* UnitBase::getFellow() {
+	return ObjectBase::getFellow();
+}
+
+inline ObjectBase* UnitBase::getOldFellow() {
+
+	return ObjectBase::getOldFellow();
+}
 
 void UnitBase::setFellow(const ObjectBase* newFellow) {
 
@@ -1731,37 +2174,78 @@ void UnitBase::setFellow(const ObjectBase* newFellow) {
 	else
 		bFollow = false;
 
-	if(goingToRepairYard && oldTarget && (oldTarget.getObjPointer() !=NULL && oldTarget.getObjPointer()->getItemID() == Structure_RepairYard)) {
-		((RepairYard*)oldTarget.getObjPointer())->unBook();
+	if(goingToRepairYard && fellow && (fellow.getObjPointer() !=NULL && fellow.getObjPointer()->getItemID() == Structure_RepairYard)) {
+		((RepairYard*)fellow.getObjPointer())->unBook();
 		goingToRepairYard = false;
 	}
 
 	ObjectBase::setFellow(newFellow);
 
-	if(oldTarget.getObjPointer()  != NULL
-			&& (oldTarget.getObjPointer()->getOwner() == getOwner())
-			&& (oldTarget.getObjPointer() ->getItemID() == Structure_RepairYard)
+	if(fellow.getObjPointer()  != NULL
+			&& (fellow.getObjPointer()->getOwner() == getOwner())
+			&& (fellow.getObjPointer() ->getItemID() == Structure_RepairYard)
 			&& (itemID != Unit_Carryall) && (itemID != Unit_Frigate)
 			&& (itemID != Unit_Ornithopter)) {
-			((RepairYard*)oldTarget.getObjPointer())->book();
+			((RepairYard*)fellow.getObjPointer())->book();
 			goingToRepairYard = true;
 		}
 }
+
+void UnitBase::setOldFellow(const ObjectBase* newFellow) {
+
+	if (newFellow != NULL ) {
+		bFollow = true;
+	}
+	else
+		bFollow = false;
+
+	/*if(goingToRepairYard && fellow && (fellow.getObjPointer() !=NULL && fellow.getObjPointer()->getItemID() == Structure_RepairYard)) {
+		((RepairYard*)fellow.getObjPointer())->unBook();
+		goingToRepairYard = false;
+	}*/
+
+	ObjectBase::setOldFellow(newFellow);
+
+	/*if(fellow.getObjPointer()  != NULL
+			&& (fellow.getObjPointer()->getOwner() == getOwner())
+			&& (fellow.getObjPointer() ->getItemID() == Structure_RepairYard)
+			&& (itemID != Unit_Carryall) && (itemID != Unit_Frigate)
+			&& (itemID != Unit_Ornithopter)) {
+			((RepairYard*)fellow.getObjPointer())->book();
+			goingToRepairYard = true;
+		}*/
+}
+
+
+void UnitBase::swapOldNewFellow() {
+	const ObjectBase *tmp_fellow = fellow.getObjPointer();
+	const ObjectBase *tmp_oldfellow = oldfellow.getObjPointer();
+	ObjectBase::setFellow(tmp_oldfellow);
+	ObjectBase::setOldFellow(tmp_fellow);
+}
+
+
 
 
 void UnitBase::targeting() {
 
 
-	if (this->isSelected()) err_relax_print("UnitBase::targeting ID:%d Destination:[%d,%d] AreaGuardRange:%d salv:%s nofollow:%s(%d) notarget:%s(%d) noattackpos:%s notmoving:%s notjuststopped:%s notforced:%s guardpoint:[%d,%d] isidle:%s attackmode=%s timer=%d\n",
-			objectID, destination.x, destination.y, getAreaGuardRange(), salving ? "yes" : "no", isFollowing() ? "y" : "n", oldTarget.getObjectID(),!target ? "y" : "n", target.getObjectID(),
-			!attackPos ? "y" : "n", !moving ? "y" : "n", !justStoppedMoving ? "y" : "n", !forced ? "y" : "n", guardPoint.x ,guardPoint.y, ((Harvester*)this)->isIdle() ? "y" : "n", getAttackModeNameByMode(attackMode).c_str(), findTargetTimer);
+	if (this->isSelected()) err_relax_print("UnitBase::targeting ID:%s(%d) Destination:[%d,%d] -%s- AreaGuardRange:%d salv:%s nofollow:%s(%d) notarget:%s(%d)  nooldtarget:%s(%d) nooldfollow:%s(%d) noattackpos:%s notmoving:%s notjuststopped:%s notforced:%s guardpoint:[%d,%d] isidle:%s attackmode=%s timer=%d\n",
+			getItemNameByID(itemID).c_str(),objectID, destination.x, destination.y, this->getItemID() == Unit_Harvester && ((Harvester*)this)->isHarvesting() ? "Harvesting" : "" ,getAreaGuardRange(), salving ? "yes" : "no", !isFollowing() ? "y" : "n", fellow.getObjectID(),!target ? "y" : "n", target.getObjectID(),!oldtarget ? "y" : "n", oldtarget.getObjectID(), !oldfellow ? "y" : "n", oldfellow.getObjectID(),
+			!attackPos ? "y" : "n", !moving ? "y" : "n", !justStoppedMoving ? "y" : "n", !forced ? "y" : "n", guardPoint.x ,guardPoint.y, isIdle() ? "y" : "n", getAttackModeNameByMode(attackMode).c_str(), findTargetTimer);
 
+	if(oldTargetTimer == 0) {
+		// forgot about our previous target
+		oldtarget.pointTo(NONE);
+		// reset target timer
+		oldTargetTimer = FIND_OLDTARGET_TIMER_RESET;
+	}
 
     if(findTargetTimer == 0) {
 
 
         if(attackMode != STOP) {
-            if(!target && ( (!attackPos || attackPos.isInvalid() || !isSalving()) ) && ((!moving && !justStoppedMoving && !forced) || bFollow)) {
+            if(!target && ( (!attackPos || attackPos.isInvalid() || !isSalving()) ) && ((!moving && !justStoppedMoving /*&& !forced*/) || bFollow)) {
                 // we have no target, we have stopped moving and we weren't forced to do anything else or following
             	attackPos.invalidate();
 
@@ -1772,7 +2256,15 @@ void UnitBase::targeting() {
                 	setTarget(pNewTarget);
                 	if (this->isSelected()) err_relax_print("UnitBase::targeting-- ID:%d follower is given the target %d\n", objectID, pNewTarget != NULL ? pNewTarget->getObjectID() : 0);
                 } else {
-                	pNewTarget = findTarget();
+                	// XXX : We may have an old target that is ready to attack us
+                	const ObjectBase * tmp = getNearerTarget(getWeaponRange());
+                	float closeTargetDistance = tmp != NULL ?  blockDistance(location, tmp->getLocation()) :  std::numeric_limits<float>::infinity();
+                    if( tmp != NULL && tmp->getTarget() == this && tmp->targetInWeaponRange()) {
+                    	pNewTarget = tmp;
+                    }
+                    else {
+                    	pNewTarget = findTarget();
+                    }
                 	if (this->isSelected()) err_relax_print("UnitBase::targeting-- ID:%d choose NEW target %d\n", objectID,pNewTarget != NULL ? pNewTarget->getObjectID() : 0);
 
                 }
@@ -1780,7 +2272,12 @@ void UnitBase::targeting() {
                 if (getItemID() == Unit_Sandworm) {
 
                 	if(pNewTarget != NULL && isInAttackRange(pNewTarget)) {
-                		doAttackObject(pNewTarget, false);
+                		if (canAttack(pNewTarget) && pNewTarget !=this) {
+							swapOldNewTarget();
+							setTarget(pNewTarget);
+							clearPath();
+                		}
+                		//doAttackObject(pNewTarget, false);
                 		if(attackMode == AMBUSH) {
                 		   doSetAttackMode(HUNT);
                 		}
@@ -1792,16 +2289,16 @@ void UnitBase::targeting() {
 						if(attackMode == AMBUSH) {
 							doSetAttackMode(HUNT);
 						}
-						doAttackObject(pNewTarget, false);
-
-					} else if(attackMode == HUNT) {
-						setGuardPoint(location);
-						doSetAttackMode(GUARD);
+                		if (canAttack(pNewTarget) && pNewTarget !=this) {
+							swapOldNewTarget();
+							setTarget(pNewTarget);
+							clearPath();
+                		}
 					}
                 }
 
                 // reset target timer
-                findTargetTimer = 100;
+                findTargetTimer = FIND_TARGET_TIMER_RESET;
             }
         }
 
@@ -1836,7 +2333,6 @@ void UnitBase::turn() {
                 angleRight = strictmath::abs(8.0f-wantedAngle) + angle;
                 angleLeft = wantedAngle - angle;
             }
-
             if(angleLeft <= angleRight) {
                 turnLeft();
             } else {
@@ -1885,7 +2381,10 @@ void UnitBase::quitDeviation() {
 
 bool UnitBase::update() {
     if(active) {
-        targeting();
+    	// targeting is only performed every 10th frame
+    	if (((currentGame->getGameCycleCount() + getObjectID()*1337) % 5) == 0) {
+    		targeting();
+    	}
         if(active && (isTracked() && isTurreted())) {
           	((TankBase*)this)->turnTurret();
       	}
@@ -1902,9 +2401,19 @@ bool UnitBase::update() {
     }
 
 
-    if(getHealth() <= 0.0f) {
+    if(getHealth() <= 0.0f && (!destroyed || destroyedCountdown <=0 )) {
         destroy();
         return false;
+    } else if (destroyed) {
+    	// destroyed units are walking dead
+    	if (destroyedCountdown > 0) {
+    		destroyedCountdown > findTargetTimer ?  findTargetTimer=destroyedCountdown : destroyedCountdown--;
+    	}
+    	if (isTracked() && isTurreted())
+    		((TankBase*)this)->turnTurret();
+    	navigate();
+    	move();
+    	return false;
     }
 
     if(active && (getHealthColor() != COLOR_LIGHTGREEN) && !goingToRepairYard && owner->hasRepairYard() && (owner->isAI() || owner->hasCarryalls())
@@ -1912,17 +2421,38 @@ bool UnitBase::update() {
         doRepair();
     }
 
+    // TODO : make infantry medkit/stillsuit an tech-option
+    if (active && isInfantry() && (((currentGame->getGameCycleCount() + getObjectID()*1337) % MILLI2CYCLES(UNITHEALTIMER)) == 0) &&
+    		getHealth() < getMaxHealth() && isIdle() && true) {
+    	float care = 0.001f;
+		if ((getHealthColor() == COLOR_RED) ) {
+			care += (getMaxHealth()*0.0180);
+		}
+    	else if ((getHealthColor() == COLOR_YELLOW) ) {
+    		care += (getMaxHealth()*0.0115);
+    	}
+    	else if (getHealth() < getMaxHealth()) {
+    		care += (getMaxHealth()*0.0085);
+    	}
+    	dbg_relax_print("UnitBase::update Infantry healing %f + %f\n",getHealth(),care);
+    	getHealth() + care > getMaxHealth() ? setHealth(getMaxHealth()) : setHealth(getHealth() + care);
+    }
 
-    if(recalculatePathTimer > 0) recalculatePathTimer--;
-    if(findTargetTimer > 0) findTargetTimer--;
-    if(primaryWeaponTimer > 0) primaryWeaponTimer--;
-    if(secondaryWeaponTimer > 0) secondaryWeaponTimer--;
+    if (!pickedUp) {
+		if(recalculatePathTimer > 0) 	recalculatePathTimer--;
+		if(findTargetTimer > 0) 		findTargetTimer--;
+		if(primaryWeaponTimer > 0) 		primaryWeaponTimer--;
+		if(secondaryWeaponTimer > 0) 	secondaryWeaponTimer--;
 
 
-	for (int i=0; i < salveWeapon  && salveWeapon < MAX_SALVE; i++) {
-		if (salveWeaponTimer[i] > 0) salveWeaponTimer[i]--;
-	}
-	if (salveWeaponDelay > 0 ) salveWeaponDelay--;
+		for (int i=0; i < salveWeapon  && salveWeapon < MAX_SALVE; i++) {
+			if (salveWeaponTimer[i] > 0)
+										salveWeaponTimer[i]--;
+		}
+		if (salveWeaponDelay > 0 ) 		salveWeaponDelay--;
+
+		if(oldTargetTimer > 0) 			oldTargetTimer--;
+    }
 
     if(deviationTimer != INVALID) {
         if(--deviationTimer <= 0) {
@@ -1954,9 +2484,9 @@ bool UnitBase::SearchPathWithAStar() {
 		} else if (getFellow() !=NULL && getFellow()->isAUnit()) {
 			if (forced) {
 				// We're forced to move to a destination in the first place
-				// at arrival, we'll status and move on further oldTarget location
+				// at arrival, we'll status and move on further fellow location
 				destinationCoord = destination;
-			} else if (/*!((UnitBase*)getFellow())->pickedUp &&*/ getFellow()->isActive()) {
+			} else if (getFellow()->isActive()) {
 				if (isSelected()) {
 					std::list<Uint32>::iterator iter;
 					std::list<std::pair<Uint32,Coord>>::iterator iter2;
@@ -2000,6 +2530,27 @@ bool UnitBase::SearchPathWithAStar() {
 	}
 }
 
+
+void UnitBase::drawFire(int x,int y) {
+	int frame = ((currentGame->getGameCycleCount() + (getObjectID() * 10)) / FIREDELAY) % 5;
+
+
+		SDL_Surface** flames = pGFXManager->getObjPic(ObjPic_SmallFire,getOwner()->getHouseID());
+
+		int imageW = flames[currentZoomlevel]->w/4;
+
+	    SDL_Rect dest = {   x - imageW/2,
+	                        y - flames[currentZoomlevel]->h,
+	                        imageW,
+							flames[currentZoomlevel]->h };
+
+	    SDL_Rect source = { imageW * frame, 0,
+	                        imageW, flames[currentZoomlevel]->h };
+
+
+		SDL_BlitSurface(flames[currentZoomlevel], &source, screen, &dest);
+}
+
 void UnitBase::drawSmoke(int x, int y) {
 	int frame = ((currentGame->getGameCycleCount() + (getObjectID() * 10)) / SMOKEDELAY) % (2*2);
 	if(frame == 3) {
@@ -2022,4 +2573,72 @@ void UnitBase::drawSmoke(int x, int y) {
 }
 
 void UnitBase::playAttackSound() {
+}
+
+int UnitBase::getWeight() {
+		int weight = 0;
+
+		if (this == NULL) return weight;
+
+		UnitBase * pUnit = this;
+
+		if (pUnit->isTurreted()) {
+			if (pUnit->getItemID() == Unit_SiegeTank) {
+				weight = 22;
+			}
+			else if (pUnit->getItemID() == Unit_Tank) {
+				weight = 18;
+			} else weight = 18;
+		}
+		else if (pUnit->isTracked()) {
+			if (pUnit->getItemID() == Unit_Devastator ) {
+				weight = 40;
+			}
+			else if (pUnit->getItemID() == Unit_Harvester) {
+				weight = 30;
+			} else
+				weight = 15; // deviator & launcher
+		}
+		else if (pUnit->isAGroundUnit() && !pUnit->isInfantry()) {
+			if (pUnit->getItemID() == Unit_Quad ) {
+				weight = 10;
+			}
+			else if (pUnit->getItemID() == Unit_Trike) {
+				weight = 6;
+			}
+			else if (pUnit->getItemID() == Unit_RaiderTrike) {
+				weight = 4;
+			}
+			else if (pUnit->getItemID() == Unit_MCV) {
+				weight = 35;
+			}
+			else weight = 5;
+		}
+		else if (pUnit->isInfantry()) {
+			if (pUnit->getItemID() == Unit_Soldier ) {
+				weight = 1;
+			}
+			else if (pUnit->getItemID() == Unit_Trooper) {
+				weight = 2;
+			}
+			else if (pUnit->getItemID() == Unit_Infantry ) {
+				weight = 1*3;
+			}
+			else if (pUnit->getItemID() == Unit_Troopers) {
+				weight = 2*3;
+			} else weight = 1; // saboteur
+		}
+		else if (pUnit->isAFlyingUnit()) {
+			if (pUnit->getItemID() == Unit_Carryall ) {
+				weight = 30;
+			}
+			else if (pUnit->getItemID() == Unit_Frigate) {
+				weight = 150;
+			}
+			else if (pUnit->getItemID() == Unit_Ornithopter ) {
+				weight = 12;
+			}
+			else weight = 18;
+		}
+		return weight;
 }

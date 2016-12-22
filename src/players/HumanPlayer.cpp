@@ -100,7 +100,7 @@ void HumanPlayer::build() {
     for(iter = getStructureList().begin(); iter != getStructureList().end(); ++iter) {
         const StructureBase* pStructure = *iter;
 
-        ///TODO make this an option
+        ///TODO make this a tech-option
         if(pStructure->getOwner() == getHouse()) {
             if((pStructure->isRepairing() == false) && (pStructure->getHealth() < pStructure->getMaxHealth()) && (getHouse()->getCredits() > 500)) {
                 doRepair(pStructure);
@@ -110,112 +110,201 @@ void HumanPlayer::build() {
 
         Uint32 itemID = NONE;
         const BuilderBase* pBuilder = dynamic_cast<const BuilderBase*>(pStructure);
-		if(pBuilder != NULL && pBuilder->getOwner() == getHouse()) {
-			 if((pBuilder->getProductionQueueSize() < 1) && (pBuilder->getBuildListSize() > 0)) {
-				 switch (pStructure->getItemID()) {
-					 case Structure_ConstructionYard: {
-						 if(bConstructionYardChecked == false && !pBuilder->isUpgrading()) {
+        if (pBuilder != NULL && pBuilder->hasBuilderAI()) {
+
+			if(pBuilder->getOwner() == getHouse()) {
+
+				// AutoUpgrade
+				if((getHouse()->getCredits() > 2000) && (pBuilder->getHealth() >= pBuilder->getMaxHealth()) && (pBuilder->isUpgrading() == false) && (pBuilder->getCurrentUpgradeLevel() < pBuilder->getMaxUpgradeLevel())) {
+                    doUpgrade(pBuilder);
+                    continue;
+                }
+
+
+				 if((pBuilder->getProductionQueueSize() < 1) && (pBuilder->getBuildListSize() > 0)) {
+					 switch (pStructure->getItemID()) {
+						case Structure_ConstructionYard: {
+						 if(bConstructionYardChecked == false && !pBuilder->isUpgrading() && (pBuilder->getProductionQueueSize() < 1)) {
 							 if(getHouse()->getNumStructures() > 3 && ((getHouse()->getProducedPower() - getHouse()->getPowerRequirement())*100) / (getHouse()->getPowerRequirement() +1) < 10 && pBuilder->isAvailableToBuild(Structure_WindTrap) ) {
-							      itemID = Structure_WindTrap;
-							      err_print("build windtrap\n");
+								  itemID = Structure_WindTrap;
+								  err_print("build windtrap\n");
+								  bConstructionYardChecked = true;
 							 }
 							 else if(getHouse()->getCredits() > 2000 && ((getHouse()->getStoredCredits()+100 > getHouse()->getCapacity()) ) && pBuilder->isAvailableToBuild(Structure_Silo)) {
 								  itemID = Structure_Silo;
 								  err_print("build silo\n");
+								  bConstructionYardChecked = true;
 							 }
 						 }
 
-					 } break;
+						} break;
+
+						case Structure_HighTechFactory: {
+							if( (getHouse()->getCredits() > 800) && (pBuilder->getBuildListSize() > 0) && (pBuilder->getProductionQueueSize() < 1)) {
+
+								if(getHouse()->getNumItems(Unit_Carryall) < ((getHouse()->getNumItems(Unit_Harvester)+1)/2 + getHouse()->getNumItems(Structure_RepairYard))) {
+									doProduceItem(pBuilder, Unit_Carryall);
+								} else if(getHouse()->getCredits() > 2500 && ((getHouse()->getNumItems(Unit_Harvester)+1)/2 <= getHouse()->getNumItems(Unit_Ornithopter)) ) {
+									doProduceItem(pBuilder, Unit_Ornithopter);
+								}
+							}
+						} break;
+
+						case Structure_HeavyFactory: {
+						if( (pBuilder->getProductionQueueSize() < 1) && (pBuilder->getBuildListSize() > 0)  && (pBuilder->getProductionQueueSize() < 1)) {
+
+							if(getHouse()->getNumItems(Unit_Harvester) < getHouse()->getNumItems(Structure_Refinery)) {
+								doProduceItem(pBuilder, Unit_Harvester);
+							} else if(getHouse()->getCredits() > 1500) {
+								int numTanks = getHouse()->getNumItems(Unit_Devastator) + getHouse()->getNumItems(Unit_SiegeTank) + getHouse()->getNumItems(Unit_Tank);
+								int numLauncher = getHouse()->getNumItems(Unit_Launcher) + getHouse()->getNumItems(Unit_Deviator);
+								int numRanger = numLauncher + getHouse()->getNumItems(Unit_SonicTank);
+								int numLight = getHouse()->getNumItems(Unit_Quad) + getHouse()->getNumItems(Unit_Trike) + getHouse()->getNumItems(Unit_RaiderTrike);
+								int numInf = getHouse()->getNumItems(Unit_Infantry) + getHouse()->getNumItems(Unit_Troopers) + getHouse()->getNumItems(Unit_Trooper);
+
+
+								if(pBuilder->isAvailableToBuild(Unit_SonicTank) &&  5*numRanger <= numTanks) {
+									doProduceItem(pBuilder, Unit_SonicTank);
+								} else if(pBuilder->isAvailableToBuild(Unit_Devastator) && numTanks <= 5*numLauncher && getHouse()->getNumItems(Unit_Devastator) < getHouse()->getNumItems(Unit_SiegeTank)) {
+									doProduceItem(pBuilder, Unit_Devastator);
+								} else if(pBuilder->isAvailableToBuild(Unit_Deviator) && 5*getHouse()->getNumItems(Unit_Deviator) <= numTanks) {
+									doProduceItem(pBuilder, Unit_Deviator);
+								} else if(pBuilder->isAvailableToBuild(Unit_SiegeTank) && numTanks <= 5*numLauncher) {
+									doProduceItem(pBuilder, Unit_SiegeTank);
+								} else if(pBuilder->isAvailableToBuild(Unit_Launcher) && 5*numLauncher <= numTanks) {
+									doProduceItem(pBuilder, Unit_Launcher);
+								} else if ((pBuilder->isAvailableToBuild(Unit_Quad) || pBuilder->isAvailableToBuild(Unit_Trike) || pBuilder->isAvailableToBuild(Unit_RaiderTrike))
+										&& (numLight <= numLauncher + numTanks/5 )) {
+									if (pBuilder->isAvailableToBuild(Unit_Quad))
+										doProduceItem(pBuilder, Unit_Quad);
+									else if (pBuilder->isAvailableToBuild(Unit_Trike))
+										doProduceItem(pBuilder, Unit_Trike);
+									else if (pBuilder->isAvailableToBuild(Unit_RaiderTrike))
+										doProduceItem(pBuilder, Unit_RaiderTrike);
+								} else if(pBuilder->isAvailableToBuild(Unit_SiegeTank)) {
+									doProduceItem(pBuilder, Unit_SiegeTank);
+								} else if(pBuilder->isAvailableToBuild(Unit_Tank)) {
+									doProduceItem(pBuilder, Unit_Tank);
+								}
+							}
+						}
+						} break;
+
+
+						case Structure_LightFactory: {
+							if(getHouse()->hasHeavyFactory() == true) {
+								if((getHouse()->getCredits() > 1500) && (pBuilder->getProductionQueueSize() < 1) && (pBuilder->getBuildListSize() > 0)) {
+									int numTanks = getHouse()->getNumItems(Unit_Devastator) + getHouse()->getNumItems(Unit_SiegeTank) + getHouse()->getNumItems(Unit_Tank);
+									int numLauncher = getHouse()->getNumItems(Unit_Launcher) + getHouse()->getNumItems(Unit_Deviator);
+									//int numRanger = numLauncher + getHouse()->getNumItems(Unit_SonicTank);
+									int numLight = getHouse()->getNumItems(Unit_Quad) + getHouse()->getNumItems(Unit_Trike) + getHouse()->getNumItems(Unit_RaiderTrike);
+									//int numInf = getHouse()->getNumItems(Unit_Infantry) + getHouse()->getNumItems(Unit_Troopers) + getHouse()->getNumItems(Unit_Trooper);
+									if ((pBuilder->isAvailableToBuild(Unit_Quad) || pBuilder->isAvailableToBuild(Unit_Trike) || pBuilder->isAvailableToBuild(Unit_RaiderTrike))
+											&& (numLight <= numLauncher + numTanks/5 )) {
+										if (pBuilder->isAvailableToBuild(Unit_Quad))
+											doProduceItem(pBuilder, Unit_Quad);
+										else if (pBuilder->isAvailableToBuild(Unit_Trike))
+											doProduceItem(pBuilder, Unit_Trike);
+										else if (pBuilder->isAvailableToBuild(Unit_RaiderTrike))
+											doProduceItem(pBuilder, Unit_RaiderTrike);
+									}
+								}
+							} else {
+								if((getHouse()->getCredits() > 1500) && (pBuilder->getProductionQueueSize() < 1) && (pBuilder->getBuildListSize() > 0)) {
+									doBuildRandom(pBuilder);
+								}
+							}
+						} break;
+
+					 }
 				 }
-			 }
-			 if(pBuilder->isWaitingToPlaceAI()) {
-			 							//find total region of possible placement and place in random ok position
-			 							int itemID = pBuilder->getCurrentProducedItem();
-			 							Coord itemsize = getStructureSize(itemID);
+				 if(pBuilder->isWaitingToPlaceAI()) {
+					//find total region of possible placement and place in random ok position
+					int itemID = pBuilder->getCurrentProducedItem();
+					Coord itemsize = getStructureSize(itemID);
 
-			 							//see if there is already a spot to put it stored
-			 							if(!placeLocations.empty()) {
-			 								Coord location = placeLocations.front();
-			 								const ConstructionYard* pConstYard = dynamic_cast<const ConstructionYard*>(pBuilder);
-			 								if(getMap().okayToPlaceStructure(location.x, location.y, itemsize.x, itemsize.y, false, pConstYard->getOwner())) {
-			 									err_print("build - place structure\n");
-			 									doPlaceStructure(pConstYard, location.x, location.y);
-			 									placeLocations.pop_front();
-			 								} else if(itemID == Structure_Slab1) {
-			 									//forget about concrete
-			 									doCancelItem(pConstYard, Structure_Slab1);
-			 									placeLocations.pop_front();
-			 								} else if(itemID == Structure_Slab4) {
-			 									//forget about concrete
-			 									doCancelItem(pConstYard, Structure_Slab4);
-			 									placeLocations.pop_front();
-			 								} else {
-			 									//cancel item
-			 									doCancelItem(pConstYard, itemID);
-			 									placeLocations.pop_front();
-			 								}
-			 							} else err_print("no place locations ! \n");
-			 						}
-		}
-	   if(itemID != NONE) {
-		err_print("build - place location\n");
-		Coord location = findPlaceLocation(itemID);
+					//see if there is already a spot to put it stored
+					if(!placeLocations.empty()) {
+						Coord location = placeLocations.front();
+						const ConstructionYard* pConstYard = dynamic_cast<const ConstructionYard*>(pBuilder);
+						if(getMap().okayToPlaceStructure(location.x, location.y, itemsize.x, itemsize.y, false, pConstYard->getOwner())) {
+							err_print("build - place structure\n");
+							doPlaceStructure(pConstYard, location.x, location.y);
+							placeLocations.pop_front();
+						} else if(itemID == Structure_Slab1) {
+							//forget about concrete
+							doCancelItem(pConstYard, Structure_Slab1);
+							placeLocations.pop_front();
+						} else if(itemID == Structure_Slab4) {
+							//forget about concrete
+							doCancelItem(pConstYard, Structure_Slab4);
+							placeLocations.pop_front();
+						} else {
+							//cancel item
+							doCancelItem(pConstYard, itemID);
+							placeLocations.pop_front();
+						}
+					} else err_print("no place locations ! \n");
+				 }
+			}
 
-		if(location.isValid()) {
-			Coord placeLocation = location;
-			if(getGameInitSettings().getGameOptions().concreteRequired) {
-				int incI;
-				int incJ;
-				int startI;
-				int startJ;
+		   if(itemID != NONE) {
+			err_print("build - place location\n");
+			Coord location = findPlaceLocation(itemID);
 
-				if(getMap().isWithinBuildRange(location.x, location.y, getHouse())) {
-					startI = location.x, startJ = location.y, incI = 1, incJ = 1;
-				} else if(getMap().isWithinBuildRange(location.x + getStructureSize(itemID).x - 1, location.y, getHouse())) {
-					startI = location.x + getStructureSize(itemID).x - 1, startJ = location.y, incI = -1, incJ = 1;
-				} else if(getMap().isWithinBuildRange(location.x, location.y + getStructureSize(itemID).y - 1, getHouse())) {
-					startI = location.x, startJ = location.y + getStructureSize(itemID).y - 1, incI = 1, incJ = -1;
-				} else {
-					startI = location.x + getStructureSize(itemID).x - 1, startJ = location.y + getStructureSize(itemID).y - 1, incI = -1, incJ = -1;
-				}
+			if(location.isValid()) {
+				Coord placeLocation = location;
+				if(getGameInitSettings().getGameOptions().concreteRequired) {
+					int incI;
+					int incJ;
+					int startI;
+					int startJ;
 
-				for(int i = startI; abs(i - startI) < getStructureSize(itemID).x; i += incI) {
-					for(int j = startJ; abs(j - startJ) < getStructureSize(itemID).y; j += incJ) {
-						const Tile *pTile = getMap().getTile(i, j);
+					if(getMap().isWithinBuildRange(location.x, location.y, getHouse())) {
+						startI = location.x, startJ = location.y, incI = 1, incJ = 1;
+					} else if(getMap().isWithinBuildRange(location.x + getStructureSize(itemID).x - 1, location.y, getHouse())) {
+						startI = location.x + getStructureSize(itemID).x - 1, startJ = location.y, incI = -1, incJ = 1;
+					} else if(getMap().isWithinBuildRange(location.x, location.y + getStructureSize(itemID).y - 1, getHouse())) {
+						startI = location.x, startJ = location.y + getStructureSize(itemID).y - 1, incI = 1, incJ = -1;
+					} else {
+						startI = location.x + getStructureSize(itemID).x - 1, startJ = location.y + getStructureSize(itemID).y - 1, incI = -1, incJ = -1;
+					}
 
-						if((getStructureSize(itemID).x > 1) && (getStructureSize(itemID).y > 1)
-							&& pBuilder->isAvailableToBuild(Structure_Slab4)
-							&& (abs(i - location.x) < 2) && (abs(j - location.y) < 2)) {
-							if( (i == location.x) && (j == location.y) && pTile->getType() != Terrain_Slab) {
+					for(int i = startI; abs(i - startI) < getStructureSize(itemID).x; i += incI) {
+						for(int j = startJ; abs(j - startJ) < getStructureSize(itemID).y; j += incJ) {
+							const Tile *pTile = getMap().getTile(i, j);
+
+							if((getStructureSize(itemID).x > 1) && (getStructureSize(itemID).y > 1)
+								&& pBuilder->isAvailableToBuild(Structure_Slab4)
+								&& (abs(i - location.x) < 2) && (abs(j - location.y) < 2)) {
+								if( (i == location.x) && (j == location.y) && pTile->getType() != Terrain_Slab) {
+									placeLocations.push_back(Coord(i,j));
+									err_print("build - produce slab1 \n");
+									doProduceItemAI(pBuilder, Structure_Slab4);
+								}
+							} else if(pTile->getType() != Terrain_Slab) {
 								placeLocations.push_back(Coord(i,j));
 								err_print("build - produce slab1 \n");
-								doProduceItemAI(pBuilder, Structure_Slab4);
+								doProduceItemAI(pBuilder, Structure_Slab1);
 							}
-						} else if(pTile->getType() != Terrain_Slab) {
-							placeLocations.push_back(Coord(i,j));
-							err_print("build - produce slab1 \n");
-							doProduceItemAI(pBuilder, Structure_Slab1);
 						}
 					}
 				}
+				err_print("build - produce silo \n");
+				placeLocations.push_back(placeLocation);
+				doProduceItemAI(pBuilder, itemID);
+			} else {
+				err_print("build - can't find location  \n");
+				// we havn't found a placing location => build some random slabs
+				location = findPlaceLocation(Structure_Slab1);
+				if(location.isValid() && getMap().isWithinBuildRange(location.x, location.y, getHouse())) {
+					placeLocations.push_back(location);
+					doProduceItemAI(pBuilder, Structure_Slab1);
+				}
 			}
-			err_print("build - produce silo \n");
-			placeLocations.push_back(placeLocation);
-			doProduceItemAI(pBuilder, itemID);
-		} else {
-			err_print("build - can't find location  \n");
-			// we havn't found a placing location => build some random slabs
-			location = findPlaceLocation(Structure_Slab1);
-			if(location.isValid() && getMap().isWithinBuildRange(location.x, location.y, getHouse())) {
-				placeLocations.push_back(location);
-				doProduceItemAI(pBuilder, Structure_Slab1);
-			}
-		}
-	   }
+		   } /* itemID != NONE */
 
-
-
-
+      } /* pBuilder->hasBuilderAI() */
     }
 }
 

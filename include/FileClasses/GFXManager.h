@@ -105,6 +105,7 @@ typedef enum {
 	ObjPic_Terrain_Tracks,
 	ObjPic_Star,
 	ObjPic_ExplosionFire,
+	ObjPic_SmallFire,
 	NUM_OBJPICS
 } ObjPic_enum;
 
@@ -116,6 +117,7 @@ typedef enum {
 #define HARVESTERSAND_ROW(i) (i+6)|TILE_NORMAL,(i+3)|TILE_NORMAL,i|TILE_NORMAL,(i+3)|TILE_FLIPV,(i+6)|TILE_FLIPV,(i+9)|TILE_FLIPV,(i+12)|TILE_NORMAL,(i+9)|TILE_NORMAL
 #define ROCKET_ROW(i)	(i+4)|TILE_NORMAL,(i+3)|TILE_NORMAL,(i+2)|TILE_NORMAL,(i+1)|TILE_NORMAL,i|TILE_NORMAL,(i+1)|TILE_FLIPV,(i+2)|TILE_FLIPV,(i+3)|TILE_FLIPV, \
 						(i+4)|TILE_FLIPV,(i+3)|TILE_ROTATE,(i+2)|TILE_ROTATE, (i+1)|TILE_ROTATE,i|TILE_FLIPH,(i+1)|TILE_FLIPH,(i+2)|TILE_FLIPH,(i+3)|TILE_FLIPH
+
 
 
 // SmallDetailPics
@@ -462,6 +464,8 @@ public:
 	SDL_Surface*    getTransparent40Surface() { return pTransparent40Surface; };
 	SDL_Surface*    getTransparent150Surface() { return pTransparent150Surface; };
 	SDL_Surface*    getTransparentXSurface() { return pTransparentXSurface; };
+
+	void			exportPicture();
 
 	Animation*		getAnimation(unsigned int id);
 

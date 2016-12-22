@@ -49,6 +49,7 @@ public:
 	virtual void writeUint64(Uint64 x) = 0;
 	virtual void writeBool(bool x) = 0;
 	virtual void writeFloat(float x) = 0;
+	virtual void writeCoord(Coord c) = 0;
 
     /**
         Writes out a Sint8 value.
@@ -104,7 +105,7 @@ public:
 	}
 
 	/**
-		Writes out a complete list of Uint32
+		Writes out a complete list of paired Uint32 and Coord
 		\param	List	the list to write
 	*/
 	void writeUint32CoordPairList(const std::list<std::pair<Uint32,Coord>>& List) {
@@ -114,6 +115,38 @@ public:
 			writeSint32(iter->second.x);
 			writeSint32(iter->second.y);
 			writeUint32(iter->first);
+		}
+	}
+
+	/**
+		Writes out a complete vector of Coord and Uint32
+		\param	List	the list to write
+	*/
+	void writeUint32CoordPairVector(const std::vector<std::pair<Coord,Uint32>> & vector) {
+		writeUint32((Uint32) vector.size());
+		std::vector<std::pair<Coord,Uint32>>::const_iterator iter;
+		int i=0;
+		for(iter=vector.begin(); iter != vector.end(); ++iter) {
+			writeUint32(iter->second);
+			writeSint32(iter->first.y);
+			writeSint32(iter->first.x);
+			fprintf(stderr,"writeUint32CoordPairVector size:%d idx:%d  (%d-%d,%d) \n", vector.size(),i++,iter->first.x,iter->first.y,iter->second);
+		}
+	}
+
+
+	/**
+		Writes out a complete vector of Coord
+		\param	List	the list to write
+	*/
+	void writeUint32CoordVector(const std::vector<Coord> & vector) {
+		writeUint32((Uint32) vector.size());
+		std::vector<Coord>::const_iterator iter;
+		int i=0;
+		for(iter=vector.begin(); iter != vector.end(); ++iter) {
+			writeSint32(iter->y);
+			writeSint32(iter->x);
+			fprintf(stderr,"writeUint32CoordVector size:%d idx:%d  (%d-%d) \n", vector.size(),i++,iter->x,iter->y);
 		}
 	}
 

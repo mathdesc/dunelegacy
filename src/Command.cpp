@@ -288,9 +288,22 @@ void Command::executeCommand() const {
 			if(pStructure == NULL) {
                 return;
 			}
-			pStructure->doRepair();
+			if (pStructure->isRepairing())
+				pStructure->stopRepair();
+			else
+				pStructure->doRepair();
 		} break;
 
+		case CMD_BUILDER_AUTOMATE: {
+			if(parameter.size() != 1) {
+				throw std::invalid_argument("Command::executeCommand(): CMD_BUILDER_AUTOMATE needs 1 Parameter!");
+			}
+			BuilderBase* pBuilder = dynamic_cast<BuilderBase*>(currentGame->getObjectManager().getObject(parameter[0]));
+			if(pBuilder == NULL) {
+				return;
+			}
+			pBuilder->doAutomate();
+		} break;
 		case CMD_BUILDER_UPGRADE: {
 			if(parameter.size() != 1) {
 				throw std::invalid_argument("Command::executeCommand(): CMD_BUILDER_UPGRADE needs 1 Parameter!");

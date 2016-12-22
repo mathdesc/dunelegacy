@@ -37,15 +37,19 @@ void ObjectManager::load(InputStream& stream) {
     nextFreeObjectID = stream.readUint32();
 
     Uint32 numObjects = stream.readUint32();
+    fprintf(stderr,"ObjectManager::load(): %i objects to load \n",numObjects);
+
     for(Uint32 i=0;i<numObjects;i++) {
         Uint32 objectID = stream.readUint32();
 
         ObjectBase* pObject = currentGame->loadObject(stream,objectID);
-        if(objectID != pObject->getObjectID()) {
-			fprintf(stderr,"ObjectManager::load(): The loaded object has a different ID than expected (%d!=%d)!\n",objectID,pObject->getObjectID());
-		}
+        if (pObject !=NULL) {
+			if(objectID != pObject->getObjectID()) {
+				fprintf(stderr,"ObjectManager::load(): The loaded object has a different ID than expected (%d!=%d)!\n",objectID,pObject->getObjectID());
+			}
 
-        objectMap.insert( std::pair<Uint32,ObjectBase*>(objectID, pObject) );
+			objectMap.insert( std::pair<Uint32,ObjectBase*>(objectID, pObject) );
+        }
     }
 }
 

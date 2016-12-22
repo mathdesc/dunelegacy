@@ -90,6 +90,10 @@ void SiegeTank::blitToScreen() {
     if(isBadlyDamaged()) {
         drawSmoke(x1, y1);
     }
+
+    if(destroyed) {
+        drawFire(x1,y1+5);
+    }
 }
 
 void SiegeTank::destroy() {

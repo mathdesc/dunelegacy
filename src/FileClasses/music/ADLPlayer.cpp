@@ -203,7 +203,7 @@ void ADLPlayer::changeMusic(MUSICTYPE musicType)
 
             Mix_HookMusic(pSoundAdlibPC->callback, pSoundAdlibPC);
 
-            //printf("Now playing %s!\n",filename.c_str());
+            printf("Now playing %s!\n",filename.c_str());
 	    }
 	}
 }
@@ -243,5 +243,6 @@ void ADLPlayer::toggleSound()
 
 void ADLPlayer::setMusicVolume(int newVolume) {
     MusicPlayer::setMusicVolume(newVolume);
-    pSoundAdlibPC->setVolume(newVolume);
+    if (musicOn)
+    	pSoundAdlibPC->setVolume(newVolume);
 }

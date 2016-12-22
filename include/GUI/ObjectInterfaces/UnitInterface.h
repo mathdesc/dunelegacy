@@ -29,6 +29,7 @@
 #include <GUI/SymbolButton.h>
 #include <GUI/HBox.h>
 #include <GUI/VBox.h>
+#include <GUI/Label.h>
 
 #include <units/UnitBase.h>
 #include <units/MCV.h>
@@ -47,8 +48,44 @@ protected:
 	UnitInterface(int objectID) : DefaultObjectInterface(objectID) {
         int color = houseColor[pLocalHouse->getHouseID()];
         ObjectBase* pObject = currentGame->getObjectManager().getObject(objectID);
+        int cmp_button_size = ((int)ceil(settings.video.height/22));
+         if (((int)ceil(settings.video.height/22))%2 != 0) {
+        	 cmp_button_size = ((int)ceil(settings.video.height/22))+1;
+         }
+        int buttonVBoxsize = cmp_button_size;
 
 		mainHBox.addWidget(HSpacer::create(5));
+
+		harvesterExtractionLabel.setTextFont(FONT_STD10);
+		harvesterExtractionLabel.setTextColor(color+3);
+		textVBox.addWidget(&harvesterExtractionLabel, 0.99);
+		textVBox.addWidget(HSpacer::create(5), 0.99);
+		harvesterProspectionLabel.setTextFont(FONT_STD10);
+		harvesterProspectionLabel.setTextColor(color+3);
+		textVBox.addWidget(&harvesterProspectionLabel, 0.99);
+		textVBox.addWidget(HSpacer::create(5), 0.99);
+		harvesterProspectionShortestLabel.setTextFont(FONT_STD10);
+		harvesterProspectionShortestLabel.setTextColor(color+3);
+		harvesterProspectionShortestLabel.setTooltipText(_("Shortest sample location, extraction speed"));
+		harvesterProspectionShortestButton.setSymbol(pGFXManager->getUIGraphic(UI_CursorMove_Zoomlevel0), false);
+		harvesterProspectionShortestButton.setToggleButton(false);
+		harvesterProspectionShortestButton.setOnClick(std::bind(&UnitInterface::onPreference, this, DISTANCE));
+		harvesterProspectionShortestButton.setTooltipText(_("Prefer Shortest distance patch"));
+		textVBox.addWidget(&harvesterProspectionShortestLabel, 0.99);
+		textVBox.addWidget(&harvesterProspectionShortestButton, 0.99);
+		textVBox.addWidget(HSpacer::create(5), 0.99);
+		harvesterProspectionDensiestLabel.setTextFont(FONT_STD10);
+		harvesterProspectionDensiestLabel.setTextColor(color+3);
+		harvesterProspectionDensiestLabel.setTooltipText(_("Densiest sample location, extraction speed"));
+		harvesterProspectionDensiestButton.setSymbol(pGFXManager->getUIGraphic(UI_CursorMove_Zoomlevel0), false);
+		harvesterProspectionDensiestButton.setToggleButton(false);
+		harvesterProspectionDensiestButton.setOnClick(std::bind(&UnitInterface::onPreference, this, DENSITY));
+		harvesterProspectionDensiestButton.setTooltipText(_("Prefer Density patch"));
+		textVBox.addWidget(&harvesterProspectionDensiestLabel, 0.99);
+		textVBox.addWidget(&harvesterProspectionDensiestButton, 0.99);
+		textVBox.addWidget(HSpacer::create(5), 0.99);
+		buttonVBox.addWidget(&textVBox,0.99);
+
 
 		buttonVBox.addWidget(VSpacer::create(20));
 
@@ -84,7 +121,7 @@ protected:
 		SattackButton.setOnClick(std::bind(&UnitInterface::onSalveAttack, this));
 		actionHBox.addWidget(&SattackButton);
 
-		buttonVBox.addWidget(&actionHBox, 28);
+		buttonVBox.addWidget(&actionHBox, buttonVBoxsize);
 
 		buttonVBox.addWidget(VSpacer::create(3));
 
@@ -110,7 +147,7 @@ protected:
 		destructButton.setOnClick(std::bind(&UnitInterface::onDestruct, this));
 		commandHBox.addWidget(&destructButton);
 
-		buttonVBox.addWidget(&commandHBox, 28);
+		buttonVBox.addWidget(&commandHBox, buttonVBoxsize);
 
 		buttonVBox.addWidget(VSpacer::create(6));
 
@@ -119,7 +156,7 @@ protected:
 		guardButton.setTooltipText(_("Unit will not move from location"));
 		guardButton.setToggleButton(true);
 		guardButton.setOnClick(std::bind(&UnitInterface::onGuard, this));
-		buttonVBox.addWidget(&guardButton, 28);
+		buttonVBox.addWidget(&guardButton, buttonVBoxsize);
 
 		buttonVBox.addWidget(VSpacer::create(6));
 
@@ -128,7 +165,7 @@ protected:
 		areaGuardButton.setTooltipText(_("Unit will engage any unit within guard range"));
 		areaGuardButton.setToggleButton(true);
 		areaGuardButton.setOnClick(std::bind(&UnitInterface::onAreaGuard, this));
-		buttonVBox.addWidget(&areaGuardButton, 28);
+		buttonVBox.addWidget(&areaGuardButton, buttonVBoxsize);
 
 		buttonVBox.addWidget(VSpacer::create(6));
 
@@ -137,7 +174,7 @@ protected:
 		stopButton.setTooltipText(_("Unit will not move, nor attack"));
 		stopButton.setToggleButton(true);
 		stopButton.setOnClick(std::bind(&UnitInterface::onStop, this));
-		buttonVBox.addWidget(&stopButton, 28);
+		buttonVBox.addWidget(&stopButton, buttonVBoxsize);
 
 		buttonVBox.addWidget(VSpacer::create(6));
 
@@ -146,7 +183,7 @@ protected:
 		ambushButton.setTooltipText(_("Unit will not move until enemy unit spotted"));
 		ambushButton.setToggleButton(true);
 		ambushButton.setOnClick(std::bind(&UnitInterface::onAmbush, this));
-		buttonVBox.addWidget(&ambushButton, 28);
+		buttonVBox.addWidget(&ambushButton, buttonVBoxsize);
 
 		buttonVBox.addWidget(VSpacer::create(6));
 
@@ -155,7 +192,7 @@ protected:
 		huntButton.setTooltipText(_("Unit will immediately start to engage an enemy unit"));
 		huntButton.setToggleButton(true);
 		huntButton.setOnClick(std::bind(&UnitInterface::onHunt, this));
-		buttonVBox.addWidget(&huntButton, 28);
+		buttonVBox.addWidget(&huntButton, buttonVBoxsize);
 
 		buttonVBox.addWidget(VSpacer::create(6));
 		buttonVBox.addWidget(Spacer::create());
@@ -167,6 +204,14 @@ protected:
 		update();
 	}
 
+	void onPreference(HarvesterPreference pref) {
+		ObjectBase* pObject = currentGame->getObjectManager().getObject(objectID);
+		Harvester* pHarvester = dynamic_cast<Harvester*>(pObject);
+		if(pHarvester != NULL) {
+			fprintf(stderr,"UnitInterface::onPreference %d\n",pref);
+			pHarvester->setPreference(pref);
+		}
+	}
     void onMove() {
         currentGame->currentCursorMode = Game::CursorMode_Move;
 	}
@@ -251,6 +296,36 @@ protected:
 		}
 		UnitBase* pUnit = dynamic_cast<UnitBase*>(pObject);
 
+		if (pUnit->getItemID() == Unit_Harvester) {
+			Harvester* pHarv = (Harvester*)(pObject);
+			Tile * pTile = currentGameMap->getTile(pHarv->getLocation());
+			float speed 	= pTile->hasSpice() ? pTile->getSpiceExtractionSpeed(false,true): 0;
+			float ref_speed = pTile->hasSpice() ? pTile->getSpiceExtractionSpeed(true,true): 1;
+			harvesterExtractionLabel.setText( " " + _("Ext. Speed") + ": " + stringify((int)((speed/ref_speed)*100))+ "%" );
+			if (pHarv->getProspectionSamples().size() > 0 ) {
+				std::pair<Coord,int> shortest_site = pHarv->getProspectionSampleBestDistance();
+				std::pair<Coord,int> densest_site = pHarv->getProspectionSampleBestDensity();
+				harvesterProspectionLabel.setText( " " + _("Prospect.") + ": " + stringify( pHarv->getProspectionSamples().size() ) );
+				harvesterProspectionShortestLabel.setText( stringify( shortest_site.first.x) + "," + stringify(shortest_site.first.y) + " @ " +
+															stringify( shortest_site.second ) + "%");
+
+				harvesterProspectionDensiestLabel.setText( stringify( densest_site.first.x) + "," + stringify(densest_site.first.y) + " @ " +
+															stringify( densest_site.second ) + "%");
+				harvesterProspectionShortestLabel.setVisible(true);
+				harvesterProspectionDensiestLabel.setVisible(true);
+			} else {
+				harvesterProspectionLabel.setText( " " + _("Prospect.") + ": " +_("None") );
+				harvesterProspectionShortestLabel.setVisible(false);
+				harvesterProspectionDensiestLabel.setVisible(false);
+			}
+
+			harvesterExtractionLabel.setVisible(true);
+			harvesterProspectionLabel.setVisible(true);
+		} else {
+			harvesterExtractionLabel.setVisible(false);
+			harvesterProspectionLabel.setVisible(false);
+		}
+
         moveButton.setToggleState(currentGame->currentCursorMode == Game::CursorMode_Move);
 		attackButton.setToggleState(currentGame->currentCursorMode == Game::CursorMode_Attack);
 		if (pObject->canSalveAttack()) {
@@ -279,6 +354,16 @@ protected:
 	VBox		    buttonVBox;
 	HBox            actionHBox;
 	HBox            commandHBox;
+
+	VBox    		textVBox;
+	Label   		harvesterExtractionLabel;
+	VBox    		textProspectionVBox;
+	Label   		harvesterProspectionLabel;
+	Label   		harvesterProspectionDensiestLabel;
+	Label 			harvesterProspectionShortestLabel;
+	SymbolButton    harvesterProspectionDensiestButton;
+	SymbolButton    harvesterProspectionShortestButton;
+
 
 	SymbolButton    moveButton;
 	SymbolButton    attackButton;

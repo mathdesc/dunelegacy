@@ -653,6 +653,7 @@ void INIMapLoader::loadUnits()
                     logWarning(iter->getLineNumber(), "Invalid or occupied position for '" + UnitStr + "': '" + stringify(pos) + "'!");
                     continue;
                 } else {
+                	newUnit->setDestination(newUnit->getGuardPoint());
                     newUnit->setHealth(lround(newUnit->getMaxHealth() * percentHealth));
                     newUnit->doSetAttackMode(attackmode);
                     newUnit->setAngle(angle);

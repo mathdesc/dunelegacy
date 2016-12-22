@@ -264,6 +264,7 @@ public:
             bPause = true;
             palette.invertPalette();
             palette.applyToSurface(screen,SDL_PHYSPAL,1,palette.getSDLPalette()->ncolors-1);
+            //	XXX memcheck reports a source and destination overlap in memcpy
             SDL_SetGamma(1,1,1);
         }
 	}
@@ -473,7 +474,7 @@ public:
     bool onRadarClick(Coord worldPosition, bool bRightMouseButton, bool bDrag);
 
 
-
+    inline bool getDrawOverlay() {return drawOverlay;}
 
 	inline ObjectBase* getGroupLeader() { return groupLeader; }
 	inline void setGroupLeader(ObjectBase* lead) {  groupLeader = lead; }
@@ -675,7 +676,7 @@ public:
 
 private:
     bool        chatMode;           ///< chat mode on?
-    bool		drawFindTarget;		///< overlay drawning of FindTarget
+    bool		drawOverlay;		///< overlay drawning of FindTarget
     std::string typingChatMessage;  ///< currently typed chat message
 
 	bool        scrollDownMode;     ///< currently scrolling the map down?

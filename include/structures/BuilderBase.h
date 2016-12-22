@@ -137,17 +137,28 @@ public:
 	virtual bool update();
 
 	virtual void handleUpgradeClick();
+	virtual void handleAutomateClick();
 	virtual void handleProduceItemClick(Uint32 itemID, bool multipleMode = false);
 	virtual void handleCancelItemClick(Uint32 itemID, bool multipleMode = false);
 	virtual void handleSetOnHoldClick(bool OnHold);
 
-
+    /**
+        Start automating this builder if possible.
+        \return true if automation is enabled , false if not possible
+    */
+	virtual bool doAutomate();
 
     /**
         Start upgrading this builder if possible.
         \return true if upgrading was started, false if not possible or already upgrading
     */
 	virtual bool doUpgrade();
+
+	/**
+	        Start production of the lastProduced  item.
+	*/
+	virtual void redoProduceItem();
+
 
 	/**
         Start production of the specified item.
@@ -191,6 +202,8 @@ public:
 	inline float getUpgradeProgress() const { return upgradeProgress; };
 
 	inline Uint32 getCurrentProducedItem() const { return currentProducedItem; };
+	inline Uint32 getLastProducedItem() const { return lastProducedItem; };
+
 	inline bool isOnHold() const { return bCurrentItemOnHold; };
 	bool isWaitingToPlace() const;
 	bool isWaitingToPlaceAI() const;
@@ -200,6 +213,9 @@ public:
 	virtual inline bool isAvailableToBuild(Uint32 itemID) const {
 		return (getBuildItem(itemID) != NULL);
 	}
+
+	virtual inline bool hasBuilderAI()	const	 { return builderAI; }
+	virtual inline void setBuilderAI(bool p) { builderAI = p; }
 
 protected:
 	virtual void updateProductionProgress();
@@ -242,8 +258,11 @@ protected:
 
 	bool    bCurrentItemOnHold;      ///< Is the currently produced item on hold?
 	Uint32  currentProducedItem;    ///< The ItemID of the currently produced item
+	Uint32  lastProducedItem;		///< The ItemID of the lastly produced item
 	float   productionProgress;     ///< The current state of the production progress (measured in money spent)
 	Uint32  deployTimer;            ///< Timer for deploying a unit
+
+	bool builderAI;					///< This builder has a AI helper
 
 	std::list<ProductionQueueItem>  currentProductionQueue;     ///< This list is the production queue (It contains the item IDs of the units/structures to produce)
 	std::list<BuildItem>            buildList;                  ///< This list contains all the things that can be produced by this builder

@@ -65,6 +65,8 @@ public:
     }
 
     ~DedicatedBlendBlitter() {
+    	src = NULL;
+		dest = NULL;
     }
 
     Uint64 getNextValue() {

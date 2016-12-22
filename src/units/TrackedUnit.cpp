@@ -51,7 +51,7 @@ void TrackedUnit::checkPos()
 {
 	GroundUnit::checkPos();
 
-	if(active && justStoppedMoving)
+	if((active || destroyed) && justStoppedMoving)
 		currentGameMap->getTile(location.x, location.y)->squash();
 }
 

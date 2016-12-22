@@ -28,6 +28,13 @@ public:
 	bool canAttack(const ObjectBase* object) const ;
 	void init();
 	virtual ~GunTurret();
+
+protected:
+    /**
+        Used for updating things that are specific to that particular structure. Is called from
+        StructureBase::update() before the check if this structure is still alive.
+    */
+	virtual void updateStructureSpecificStuff();
 };
 
 #endif // GUNTURRET_H

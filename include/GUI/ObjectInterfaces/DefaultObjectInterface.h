@@ -68,6 +68,8 @@ protected:
 
 	virtual ~DefaultObjectInterface() { ; };
 
+	inline virtual SDL_Surface* getPicture() { return objPicture.getSurface();}
+
 	/**
 		This method updates the object interface.
 		If the object doesn't exists anymore then update returns false.

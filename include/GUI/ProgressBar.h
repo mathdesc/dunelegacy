@@ -38,6 +38,10 @@ public:
 		pBackground = NULL;
 		pForeground = NULL;
 		bFreeBackground = true;
+		tooltipText = "";
+		tooltipSurface = NULL;
+		tooltipLastMouseMotion = 0;
+		bHover = false;
 		enableResizing(true,true);
 	}
 
@@ -100,6 +104,31 @@ public:
 	}
 
 	/**
+		Sets a tooltip text. This text is shown when the mouse remains a short time over this button.
+		\param	text	The text for this tooltip
+	*/
+	inline void setTooltipText(std::string text) {
+		tooltipText = text;
+
+		if(tooltipSurface != NULL) {
+			SDL_FreeSurface(tooltipSurface);
+			tooltipSurface = NULL;
+		}
+
+		if(tooltipText != "") {
+			tooltipSurface = GUIStyle::getInstance().createToolTip(tooltipText);
+		}
+	}
+
+	/**
+		Returns the current tooltip text.
+		\return	the current tooltip text
+	*/
+	inline std::string getTooltipText() {
+		return tooltipText;
+	}
+
+	/**
 		This method resized the progress bar to width and height. This method should only
 		called if the new size is a valid size for this progress bar (See getMinumumSize).
 		\param	width	the new width of this progress bar
@@ -114,6 +143,16 @@ public:
         }
 
         pForeground = GUIStyle::getInstance().createProgressBarOverlay(getSize().x, getSize().y, percent, color);
+	}
+
+
+	void handleMouseMovement(Sint32 x, Sint32 y, bool insideOverlay) {
+		if((x < 0) || (x >= getSize().x) || (y < 0) || (y >= getSize().y)) {
+			bHover = false;
+		} else if(isEnabled() && !insideOverlay) {
+			bHover = true;
+			tooltipLastMouseMotion = SDL_GetTicks();
+		}
 	}
 
 	/**
@@ -142,6 +181,31 @@ public:
 		}
 	}
 
+	void drawOverlay(SDL_Surface* screen, Point Pos) {
+		if(isVisible() && isEnabled() && (bHover == true)) {
+			if(tooltipSurface != NULL) {
+				if((SDL_GetTicks() - tooltipLastMouseMotion) > 750) {
+					int x,y;
+					SDL_GetMouseState(&x,&y);
+					SDL_Rect dest = { x, y - tooltipSurface->h, tooltipSurface->w, tooltipSurface->h };
+					if(dest.x + dest.w >= screen->w) {
+					    // do not draw tooltip outside screen
+	                    dest.x = screen->w - dest.w;
+					}
+
+					if(dest.y < 0) {
+					    // do not draw tooltip outside screen
+	                    dest.y = 0;
+					} else if(dest.y + dest.h >= screen->h) {
+					    // do not draw tooltip outside screen
+	                    dest.y = screen->h - dest.h;
+					}
+
+					SDL_BlitSurface(tooltipSurface,NULL,screen,&dest);
+				}
+			}
+		}
+	}
 protected:
 	SDL_Surface*	pBackground;
 	bool			bFreeBackground;
@@ -150,6 +214,12 @@ protected:
 	double percent;				///< Percent from 0.0 to 100.0
 	int color;					///< The color of the progress overlay
 	bool bDrawShadow;           ///< Draw shadow under the foreground surface
+	bool bHover;				///< true = currently mouse hover, false = currently no mouse hover
+
+	std::string tooltipText;			///< the tooltip text
+	SDL_Surface* tooltipSurface;		///< the tooltip surface
+	Uint32 tooltipLastMouseMotion;		///< the last time the mouse was moved
+
 };
 
 class TextProgressBar : public ProgressBar {
@@ -283,6 +353,41 @@ public:
 			return Point(pBackground->w,pBackground->h);
 		}
 	}
+
+	/**
+		Sets the function that should be called when this progress bar is clicked on.
+		\param	pOnClick	A function to call when this map is clicked on
+	*/
+	inline void setOnClick(std::function<void (int, int)> pOnClick) {
+		this->pOnClick = pOnClick;
+	}
+
+	/**
+		Handles a right mouse click.
+		\param	x x-coordinate (relative to the left top corner of the widget)
+		\param	y y-coordinate (relative to the left top corner of the widget)
+		\param	pressed	true = mouse button pressed, false = mouse button released
+		\return	true = click was processed by the widget, false = click was not processed by the widget
+	*/
+	virtual bool handleMouseRight(Sint32 x, Sint32 y, bool pressed) {
+		/*if((x < 0) || (x >= getSize().x) || (y < 0) || (y >= getSize().y)) {
+			return false;
+		}
+
+		if((isEnabled() == false) || (isVisible() == false)) {
+			return true;
+		}*/
+
+		if(pressed == true && pOnClick) {
+			pOnClick(x,y);
+		}
+
+		return true;
+	}
+
+private :
+std::function<void (int, int)> pOnClick;	///< function that is called when this widget is clicked
+
 };
 
 #endif // PROGRESSBAR_H

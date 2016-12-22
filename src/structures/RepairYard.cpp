@@ -102,9 +102,8 @@ bool RepairYard::deployRepairUnit(Carryall* pCarryall) {
 		if(pCarryall != NULL) {
 			pCarryall->giveCargo(pRepairUnit);
 			pCarryall->setFellow(NULL);
-			pCarryall->setDestination(pRepairUnit->getGuardPoint());
-			pCarryall->setDeployPos(pRepairUnit->getGuardPoint());
-			pCarryall->setFallbackPos(currentGameMap->findDeploySpot(pRepairUnit, location, pRepairUnit->getGuardPoint(), structureSize));
+			pCarryall->giveDeliveryOrders(pRepairUnit, pRepairUnit->getGuardPoint(), pRepairUnit->getGuardPoint(),
+											currentGameMap->findDeploySpot(pRepairUnit, location, pRepairUnit->getGuardPoint(), structureSize));
 			  dbg_print("RepairYard::deployRepairUnit dest:%d,%d \n", pCarryall->getDestination().x,pCarryall->getDestination().y);
 		} else {
 			Coord deployPos = currentGameMap->findDeploySpot(pRepairUnit, location, pRepairUnit->getGuardPoint(), structureSize);
@@ -117,8 +116,12 @@ bool RepairYard::deployRepairUnit(Carryall* pCarryall) {
 		repairUnit.pointTo(NONE);
 		deployed = true;
 
-		if(getOwner() == pLocalHouse) {
-			soundPlayer->playVoice(VehicleRepaired,getOwner()->getHouseID());
+		if(getOwner() == pLocalHouse ) {
+			if ( pRepairUnit->getHealth() == pRepairUnit->getMaxHealth()) {
+				soundPlayer->playVoice(VehicleRepaired,getOwner()->getHouseID());
+			} else {
+				soundPlayer->playVoice(VehicleDeployed,getOwner()->getHouseID());
+			}
 		}
     }
 
@@ -159,8 +162,7 @@ void RepairYard::updateStructureSpecificStuff() {
 				}
 			}
 		} else if(((GroundUnit*)pRepairUnit)->isAwaitingPickup() == false) {
-
-		    // find nearest carryall
+		    // find nearest carryall TODO groundunit->requestCarryall instead
 		    Carryall* pCarryall = NULL;
 		    float distance = std::numeric_limits<float>::infinity();
             if((pRepairUnit->getGuardPoint().isValid()) && getOwner()->hasCarryalls())	{
@@ -169,7 +171,7 @@ void RepairYard::updateStructureSpecificStuff() {
                     UnitBase* unit = *iter;
                     if ((unit->getOwner() == owner) && (unit->getItemID() == Unit_Carryall)) {
 
-                        if ( !((Carryall*)unit)->isBooked()) {
+					if ( !((Carryall*)unit)->isBooked() && ((Carryall*)unit)->getAttackMode() != STOP) {
                         	if (distance >  std::min(distance,blockDistance(this->location, unit->getLocation())) ) {
                         		distance = std::min(distance,blockDistance(this->location, unit->getLocation()));
                         		pCarryall = (Carryall*)unit;
