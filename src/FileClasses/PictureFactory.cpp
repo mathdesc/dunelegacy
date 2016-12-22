@@ -526,14 +526,14 @@ SDL_Surface* PictureFactory::createMainBackground() {
 	SDL_Rect dest3 = {11,Pic->h - 11 - ordosLogo.get()->h,ordosLogo->w,ordosLogo.get()->h};
 	SDL_BlitSurface(ordosLogo.get(),NULL,Pic,&dest3);
 
-	SDL_Surface* Version = getSubPicture(background.get(),0,0,75,32);
+	SDL_Surface* Version = getSubPicture(background.get(),0,0,95,32);
 
 	char versionString[100];
 	sprintf(versionString, "%s", VERSION);
 
 	SDL_Surface *VersionText = pFontManager->createSurfaceWithText(versionString, COLOR_BLACK, FONT_STD12);
 
-	SDL_Rect dest4 = {	(Version->w - VersionText->w)/2, (Version->h - VersionText->h)/2 + 2,
+	SDL_Rect dest4 = {	(Version->w - (VersionText->w))/2, (Version->h - VersionText->h)/2 + 2,
 						VersionText->w,VersionText->h};
 	SDL_BlitSurface(VersionText,NULL,Version,&dest4);
 

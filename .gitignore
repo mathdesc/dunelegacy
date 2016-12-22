@@ -11,8 +11,12 @@ doc/
 Makefile
 config.log
 config.status
+config.guess
+config.sub
+depcomp
 Makefile.in
 aclocal.m4
 configure
 debug
 build
+install-sh
